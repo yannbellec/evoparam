@@ -45,12 +45,11 @@ It also removes the trap where a **sharp evoked N1** leaks broadband power into 
 gamma: the fitted N1 is subtracted first, so a high-gamma zone is a real oscillation,
 not the edge of a spike.
 
-.. GENERATED FROM PYTHON SOURCE LINES 31-39
+.. GENERATED FROM PYTHON SOURCE LINES 31-38
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     from evoparam import plots
@@ -64,7 +63,7 @@ not the edge of a spike.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 40-47
+.. GENERATED FROM PYTHON SOURCE LINES 39-46
 
 The data
 ~~~~~~~~
@@ -74,7 +73,7 @@ cosine under a smooth envelope, at a given frequency, centre time and duration, 
 **random phase per trial** (so it is invisible in the average). We put two bursts on one
 channel: a beta burst (20 Hz) early, and a high-gamma burst (120 Hz) later.
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-59
+.. GENERATED FROM PYTHON SOURCE LINES 48-58
 
 .. code-block:: Python
 
@@ -96,12 +95,12 @@ channel: a beta burst (20 Hz) early, and a high-gamma burst (120 Hz) later.
 
  .. code-block:: none
 
-    <TrialSet | 40 trials × 1 channels × 1400 times, -0.600 – 0.799 s, 1000 Hz, uV, human, erp>
+    <TrialSet | 40 trials × 1 channels × 1400 times, -0.600 - 0.799 s, 1000 Hz, uV, human, erp>
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 60-67
+.. GENERATED FROM PYTHON SOURCE LINES 59-66
 
 Data-driven zones
 -----------------
@@ -111,7 +110,7 @@ against the baseline in decibels, and keeps only the pixels that beat a permutat
 With ``zones="auto"`` it then factorises the significant map into a few zones. ``freqs``
 is ``(low, high, n)``: here 4 to 250 Hz in 32 steps.
 
-.. GENERATED FROM PYTHON SOURCE LINES 69-79
+.. GENERATED FROM PYTHON SOURCE LINES 68-84
 
 .. code-block:: Python
 
@@ -121,8 +120,14 @@ is ``(low, high, n)``: here 4 to 250 Hz in 32 steps.
         tf = tf_fit(trials, freqs=(4, 250, 32), zones="auto", max_zones=4,
                     n_permutations=500, random_state=0)  # fmt: skip
 
-    columns = ["zone_id", "freq_centroid", "freq_extent", "time_centroid", "p_value",
-               "energy_fraction"]
+    columns = [
+        "zone_id",
+        "freq_centroid",
+        "freq_extent",
+        "time_centroid",
+        "p_value",
+        "energy_fraction",
+    ]
     print(tf.zones[columns].round(3).to_string(index=False))
 
 
@@ -141,7 +146,7 @@ is ``(low, high, n)``: here 4 to 250 Hz in 32 steps.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-85
+.. GENERATED FROM PYTHON SOURCE LINES 85-90
 
 The two bursts come back as two zones: one near 20 Hz around 150 ms, one in high gamma
 around 250 ms. ``freq_centroid`` and ``time_centroid`` are where each zone sits,
@@ -149,7 +154,7 @@ around 250 ms. ``freq_centroid`` and ``time_centroid`` are where each zone sits,
 significance under the permutation null. The figure shows the total map, the
 N1-corrected footprint and the residual.
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-91
+.. GENERATED FROM PYTHON SOURCE LINES 93-96
 
 .. code-block:: Python
 
@@ -168,7 +173,7 @@ N1-corrected footprint and the residual.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 92-99
+.. GENERATED FROM PYTHON SOURCE LINES 97-104
 
 Published zones
 ---------------
@@ -178,7 +183,7 @@ When a paper defines fixed zones, score those exact boxes instead of finding you
 theta, alpha, beta, low gamma and high gamma, each in an early (N1) and a late (N2)
 window.
 
-.. GENERATED FROM PYTHON SOURCE LINES 101-106
+.. GENERATED FROM PYTHON SOURCE LINES 106-111
 
 .. code-block:: Python
 
@@ -206,7 +211,7 @@ window.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 107-112
+.. GENERATED FROM PYTHON SOURCE LINES 112-117
 
 Pass ``zones="published:<name>"`` to score one. Our 120 Hz burst at 250 ms sits in the
 **delayed high-gamma** zone (``brinyark2026_GhN2``: 50 to 250 Hz, 50 to 500 ms). The
@@ -214,7 +219,7 @@ Pass ``zones="published:<name>"`` to score one. Our 120 Hz burst at 250 ms sits 
 the power ``value`` (dB), a t-statistic, a ``p_value`` and the fraction of the box that
 is significant.
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-127
+.. GENERATED FROM PYTHON SOURCE LINES 120-132
 
 .. code-block:: Python
 
@@ -247,7 +252,7 @@ is significant.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 128-135
+.. GENERATED FROM PYTHON SOURCE LINES 133-140
 
 .. note::
 
@@ -257,7 +262,7 @@ is significant.
     conditions with a cluster test, and ``tf_fit(..., by_trial=True)`` gives the zone
     power per trial, to correlate with dose, distance or behaviour as in tutorial 09.
 
-.. GENERATED FROM PYTHON SOURCE LINES 138-146
+.. GENERATED FROM PYTHON SOURCE LINES 143-151
 
 Conclusion
 ----------
@@ -271,7 +276,7 @@ peak.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.293 seconds)
+   **Total running time of the script:** (0 minutes 4.084 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_16_time_frequency.py:

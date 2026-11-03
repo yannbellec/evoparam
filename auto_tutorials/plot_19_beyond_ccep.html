@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>19: Beyond CCEP: one tool, many modalities &#8212; evoparam</title>
+<title>19: Beyond CCEP: one tool, many modalities | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,8 +17,8 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="22: Shapes and maps across space" href="plot_22_spatial.html" />
-    <link rel="prev" title="13: Loading your own data" href="plot_13_your_own_data.html" />
+    <link rel="next" title="05: Background fitting" href="plot_05_background_fitting.html" />
+    <link rel="prev" title="18: Across subjects" href="plot_18_across_subjects.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -99,8 +98,7 @@ potentials. What changes between them is the <strong>preset</strong>: the time w
 names, the background shape and the artifact method. There are eleven.</p>
 <p>This tutorial fits two very different modalities with the same two lines each, then lists
 what the presets differ on.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">plots</span><span class="p">,</span> <span class="n">presets</span><span class="p">,</span> <span class="n">reports</span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_erp</span><span class="p">,</span> <span class="n">simulate_tep</span><span class="w">
@@ -121,7 +119,7 @@ P3, N400, MMN, N2pc, LRP, ERN).</p>
 </span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_fit</span><span class="p">(</span><span class="n">erp_fit</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Cz</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<img src="../_images/sphx_glr_plot_19_beyond_ccep_001.png" srcset="../_images/sphx_glr_plot_19_beyond_ccep_001.png" alt="ok: 3 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 60 trials × 1 channels × 500 times, -0.200 – 0.798 s, 500 Hz, uV, human, erp&gt;
+<img src="../_images/sphx_glr_plot_19_beyond_ccep_001.png" srcset="../_images/sphx_glr_plot_19_beyond_ccep_001.png" alt="ok: 3 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 60 trials × 1 channels × 500 times, -0.200 - 0.798 s, 500 Hz, uV, human, erp&gt;
 label  latency  amplitude  fwhm
    P1    0.095     39.841 0.042
    N1    0.161    -42.389 0.056
@@ -149,7 +147,7 @@ a subspace projection across channels) before fitting. We run the whole chain wi
 </span><span class="n">tep_columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">tep_table</span><span class="p">[</span><span class="n">tep_columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 40 trials × 4 channels × 3000 times, -0.200 – 0.400 s, 5000 Hz, uV, human, tep&gt;
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 40 trials × 4 channels × 3000 times, -0.200 - 0.400 s, 5000 Hz, uV, human, tep&gt;
 channel label  latency  amplitude
      Cz  P180    0.208      1.083
      Pz            NaN        NaN
@@ -197,7 +195,7 @@ presets tutorial shows.</p>
 artifact method; everything you learned on CCEP, loading data, cleaning, existence,
 trials, time-frequency, statistics and hierarchical models, works the same on every
 other modality. When none fits, <code class="docutils literal notranslate"><span class="pre">derive</span></code> builds a custom preset from the nearest one.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 2.470 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.842 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-19-beyond-ccep-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/9e8b5f984a4045fe88a259585734b5dc/plot_19_beyond_ccep.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_19_beyond_ccep.ipynb</span></code></a></p>
@@ -220,14 +218,8 @@ other modality. When none fits, <code class="docutils literal notranslate"><span
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

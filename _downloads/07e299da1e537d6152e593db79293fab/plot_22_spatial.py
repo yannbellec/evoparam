@@ -4,7 +4,7 @@
 ================================
 
 Share shapes across channels, map a parameter on the electrodes, and screen volume conduction.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -28,7 +28,6 @@ Share shapes across channels, map a parameter on the electrodes, and screen volu
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 import numpy as np
@@ -56,9 +55,11 @@ with warnings.catch_warnings():
 ###################################################################################################
 
 basis = spatial.shared_shapes(trials, by="channel", max_shapes=3, random_state=0)
-print(f"{basis.n_shapes} shared shapes explain the {trials.n_channels} channels "
-      f"(median channel r2 = {np.nanmedian(basis.r2):.2f}, "
-      f"shape stability = {np.mean(basis.stability):.2f})")
+print(
+    f"{basis.n_shapes} shared shapes explain the {trials.n_channels} channels "
+    f"(median channel r2 = {np.nanmedian(basis.r2):.2f}, "
+    f"shape stability = {np.mean(basis.stability):.2f})"
+)
 
 ###################################################################################################
 # A parameter map

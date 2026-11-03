@@ -45,12 +45,11 @@ Here we:
 3. look at the N2, which is much harder to follow trial by trial;
 4. go back to the real recording of tutorial 08.
 
-.. GENERATED FROM PYTHON SOURCE LINES 31-40
+.. GENERATED FROM PYTHON SOURCE LINES 31-39
 
 .. code-block:: Python
 
 
-    # Import what we need
     import numpy as np
 
     from evoparam import plots, reports
@@ -65,11 +64,11 @@ Here we:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 41-42
+.. GENERATED FROM PYTHON SOURCE LINES 40-41
 
 A small helper prints, for one bump, the jitter numbers that matter, in ms.
 
-.. GENERATED FROM PYTHON SOURCE LINES 45-57
+.. GENERATED FROM PYTHON SOURCE LINES 44-56
 
 .. code-block:: Python
 
@@ -92,7 +91,7 @@ A small helper prints, for one bump, the jitter numbers that matter, in ms.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 58-65
+.. GENERATED FROM PYTHON SOURCE LINES 57-64
 
 Trials with no jitter
 ---------------------
@@ -102,12 +101,11 @@ plus noise that looks like brain activity. Here: 30 trials, one stimulated pair 
 and one electrode that responds (G03). The response is exactly the same in every trial:
 the true jitter is 0.
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-75
+.. GENERATED FROM PYTHON SOURCE LINES 66-73
 
 .. code-block:: Python
 
 
-    # 30 trials; the response does not move (jitter_sd=0)
     trials_still, truth_still = simulate_ccep(
         30, n_channels=3, p_response=1.0, p_n2=1.0, jitter_sd=0.0, artifact=False,
         layout="grid", sfreq=1024.0, seed=1,
@@ -122,12 +120,12 @@ the true jitter is 0.
 
  .. code-block:: none
 
-    <TrialSet | 30 trials × 3 channels × 1536 times, -0.500 – 0.999 s, 1024 Hz, uV, human, spes>
+    <TrialSet | 30 trials × 3 channels × 1536 times, -0.500 - 0.999 s, 1024 Hz, uV, human, spes>
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 76-84
+.. GENERATED FROM PYTHON SOURCE LINES 74-82
 
 ``fit_trials`` first fits the average (as in the earlier tutorials), which gives the
 bumps. Then it fits each trial with the same bumps, letting each one **move** a little
@@ -138,14 +136,13 @@ per trial.
 bump's width, which is small for a narrow N1 (about 1.5 ms here). We allow 10 ms, to be
 sure that a real jitter is not cut. (More on this below.)
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-94
+.. GENERATED FROM PYTHON SOURCE LINES 85-91
 
 .. code-block:: Python
 
 
     fits_still = fit_trials(trials_still, preset="ccep", max_shift=0.01, random_state=0)
 
-    # One row per trial and per bump
     table = fits_still.to_dataframe()
     print(table[table["label"] == "N1"][["trial", "latency", "amplitude", "r2"]].head().round(4))
 
@@ -167,7 +164,7 @@ sure that a real jitter is not cut. (More on this below.)
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-109
+.. GENERATED FROM PYTHON SOURCE LINES 92-106
 
 The latency still changes a little from trial to trial, although the truth does not:
 that is the noise.
@@ -184,7 +181,7 @@ that is the noise.
   is ``"not measurable (< x ms)"``, where x is the **smallest real jitter** that could
   be seen with these trials and this noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 112-115
+.. GENERATED FROM PYTHON SOURCE LINES 109-112
 
 .. code-block:: Python
 
@@ -204,13 +201,13 @@ that is the noise.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-119
+.. GENERATED FROM PYTHON SOURCE LINES 113-116
 
 The measured jitter of the N1 is no larger than what noise gives, so evoparam does not
 claim a jitter. And it says how small a jitter it could have seen: about 0.1 ms. This N1
-is large (−456 µV) and narrow, so its timing is very precise in every trial.
+is large (-456 µV) and narrow, so its timing is very precise in every trial.
 
-.. GENERATED FROM PYTHON SOURCE LINES 122-127
+.. GENERATED FROM PYTHON SOURCE LINES 119-124
 
 Trials with a known jitter
 --------------------------
@@ -218,7 +215,7 @@ Trials with a known jitter
 Now the same electrode, but each trial is moved in time by a random amount: a true
 jitter of about 2 ms (``jitter_sd=0.002``, in seconds).
 
-.. GENERATED FROM PYTHON SOURCE LINES 129-140
+.. GENERATED FROM PYTHON SOURCE LINES 126-137
 
 .. code-block:: Python
 
@@ -247,7 +244,7 @@ jitter of about 2 ms (``jitter_sd=0.002``, in seconds).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 141-148
+.. GENERATED FROM PYTHON SOURCE LINES 138-145
 
 This time the jitter is ``"measured"``: 2.1 ms, the true value, far above the 0.2 ms of
 noise alone.
@@ -257,7 +254,7 @@ per trial, colour = voltage, blue = negative; the dark line marks the N1 of each
 and how the latencies spread (right). We draw only 0 to 100 ms
 (``select(tmin=..., tmax=...)``), so that the N1 is easy to see.
 
-.. GENERATED FROM PYTHON SOURCE LINES 151-154
+.. GENERATED FROM PYTHON SOURCE LINES 148-151
 
 .. code-block:: Python
 
@@ -276,7 +273,7 @@ and how the latencies spread (right). We draw only 0 to 100 ms
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 155-162
+.. GENERATED FROM PYTHON SOURCE LINES 152-159
 
 .. note::
 
@@ -286,7 +283,7 @@ and how the latencies spread (right). We draw only 0 to 100 ms
     When you expect the latency to move more than a quarter of the width of the bump,
     give ``max_shift`` yourself, and write it in the methods.
 
-.. GENERATED FROM PYTHON SOURCE LINES 165-170
+.. GENERATED FROM PYTHON SOURCE LINES 162-167
 
 The N2
 ------
@@ -294,7 +291,7 @@ The N2
 The made-up N2 moves with the N1: same 2 ms jitter. But look at what evoparam can say
 about it.
 
-.. GENERATED FROM PYTHON SOURCE LINES 172-175
+.. GENERATED FROM PYTHON SOURCE LINES 169-172
 
 .. code-block:: Python
 
@@ -314,21 +311,21 @@ about it.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 176-187
+.. GENERATED FROM PYTHON SOURCE LINES 173-184
 
 For the N2, noise alone already gives about 5 ms of jitter, more than the true 2 ms.
 So the verdict is ``"not measurable (< 5 ms)"``: a real jitter of the N2 smaller than
 about 5 ms can not be seen with these 30 trials.
 
 This is not a fault of the N2 fit. The N2 is **broad** (about 80 ms wide here, against
-6 ms for the N1) and **smaller** (−72 µV against −456 µV). The top of a broad, low bump
+6 ms for the N1) and **smaller** (-72 µV against -456 µV). The top of a broad, low bump
 is flat, so a little noise is enough to move it. The same is true of any method: the
 latency of a broad bump in a single trial is never precise.
 
 For the N2, the amplitude of each trial is often more useful than its latency; the
 average of the trials is still the place to measure its latency.
 
-.. GENERATED FROM PYTHON SOURCE LINES 190-196
+.. GENERATED FROM PYTHON SOURCE LINES 187-193
 
 Back to the real recording
 --------------------------
@@ -337,7 +334,7 @@ We read again the 10 pulses of tutorial 08 (patient UMCU01, pair PT13-PT14) and 
 preset's chain with ``reports.run_pipeline``. Then we fit the trials of two electrodes
 that respond: PT07 and PT21. ``select(picks=...)`` keeps only them, which is faster.
 
-.. GENERATED FROM PYTHON SOURCE LINES 198-224
+.. GENERATED FROM PYTHON SOURCE LINES 195-219
 
 .. code-block:: Python
 
@@ -357,14 +354,12 @@ that respond: PT07 and PT21. ``select(picks=...)`` keeps only them, which is fas
     )
     result = reports.run_pipeline(trials, "ccep", random_state=0, trial_fits=False)
 
-    # The cleaned trials of two electrodes, fitted one by one
     two = result.trials.select(picks=["PT07", "PT21"])
     real_fits = fit_trials(two, preset="ccep", random_state=0)
 
     show_jitter(real_fits, "N1")
     show_jitter(real_fits, "N2")
 
-    # The 10 trials of PT21, sorted by the latency of their N1
     fig = plots.plot_trials(real_fits, two.select(tmin=0.0, tmax=0.3), channel="PT21")
 
 
@@ -388,7 +383,7 @@ that respond: PT07 and PT21. ``select(picks=...)`` keeps only them, which is fas
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 225-247
+.. GENERATED FROM PYTHON SOURCE LINES 220-242
 
 On PT21, most trials are marked **not trusted** (orange). A trial is trusted when its fit
 follows it well (r² of 0.2 or more) and its bump did not stop at the limit of
@@ -413,7 +408,7 @@ down roughly with the square root of the number of trials.
     ``"ccep"`` preset asks for it): the result is then in ``result.trial_fits``, for
     all the electrodes, and takes about a minute here.
 
-.. GENERATED FROM PYTHON SOURCE LINES 250-259
+.. GENERATED FROM PYTHON SOURCE LINES 245-254
 
 Conclusion
 ----------
@@ -428,7 +423,7 @@ N2 much less.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 12.655 seconds)
+   **Total running time of the script:** (0 minutes 42.089 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_09_trial_by_trial.py:

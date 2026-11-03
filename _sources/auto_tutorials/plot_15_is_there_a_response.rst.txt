@@ -38,12 +38,11 @@ evoparam ships a registry of **published rules** (van Blooijs, Hays, Keller,
 Silverstein, F-TRACT) so you can run exactly the rule a paper used, next to evoparam's
 own permutation test, and see where they agree.
 
-.. GENERATED FROM PYTHON SOURCE LINES 24-34
+.. GENERATED FROM PYTHON SOURCE LINES 24-33
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     import numpy as np
@@ -59,7 +58,7 @@ own permutation test, and see where they agree.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 35-40
+.. GENERATED FROM PYTHON SOURCE LINES 34-39
 
 The data
 ~~~~~~~~
@@ -67,7 +66,7 @@ The data
 20 CCEP trials on 6 electrodes. About 60 % of the electrodes answer (``p_response=0.6``);
 the rest see only noise. We know which is which, which lets us read the test honestly.
 
-.. GENERATED FROM PYTHON SOURCE LINES 42-48
+.. GENERATED FROM PYTHON SOURCE LINES 41-47
 
 .. code-block:: Python
 
@@ -85,12 +84,12 @@ the rest see only noise. We know which is which, which lets us read the test hon
 
  .. code-block:: none
 
-    <TrialSet | 20 trials × 6 channels × 768 times, -0.500 – 0.998 s, 512 Hz, uV, human, spes>
+    <TrialSet | 20 trials × 6 channels × 768 times, -0.500 - 0.998 s, 512 Hz, uV, human, spes>
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-62
+.. GENERATED FROM PYTHON SOURCE LINES 48-61
 
 The test
 --------
@@ -106,7 +105,7 @@ baseline with a permutation test. For each channel it returns:
 The correction (``fdr_bh`` by default) controls the share of false positives across the
 channels, so testing 4 channels or 400 does not flood you with chance hits.
 
-.. GENERATED FROM PYTHON SOURCE LINES 64-78
+.. GENERATED FROM PYTHON SOURCE LINES 63-77
 
 .. code-block:: Python
 
@@ -142,14 +141,14 @@ channels, so testing 4 channels or 400 does not flood you with chance hits.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 79-83
+.. GENERATED FROM PYTHON SOURCE LINES 78-82
 
 The channels the simulator made responsive come back significant, with an onset near the
 N1 and a positive SNR; the noise channels get a high p-value and no onset. The figure
 shows, per channel, the response curve against the band the baseline alone would fill;
 the response leaves that band exactly where the test marks it significant.
 
-.. GENERATED FROM PYTHON SOURCE LINES 86-89
+.. GENERATED FROM PYTHON SOURCE LINES 85-88
 
 .. code-block:: Python
 
@@ -168,7 +167,7 @@ the response leaves that band exactly where the test marks it significant.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 90-97
+.. GENERATED FROM PYTHON SOURCE LINES 89-96
 
 How long does the response last?
 --------------------------------
@@ -178,7 +177,7 @@ signal stays out of the baseline band. It separates a short early N1 from a resp
 that runs on into the N2 and beyond. ``response_duration`` is the same measurement when
 you only want the timing.
 
-.. GENERATED FROM PYTHON SOURCE LINES 99-106
+.. GENERATED FROM PYTHON SOURCE LINES 98-107
 
 .. code-block:: Python
 
@@ -186,8 +185,10 @@ you only want the timing.
     for channel in range(trials.n_channels):
         if test.significant[channel]:
             name = trials.ch_info["name"][channel]
-            print(f"  {name}: {1000 * test.duration[channel]:.0f} ms "
-                  f"({1000 * test.onset[channel]:.0f} to {1000 * test.offset[channel]:.0f} ms)")
+            print(
+                f"  {name}: {1000 * test.duration[channel]:.0f} ms "
+                f"({1000 * test.onset[channel]:.0f} to {1000 * test.offset[channel]:.0f} ms)"
+            )
 
 
 
@@ -204,7 +205,7 @@ you only want the timing.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 107-113
+.. GENERATED FROM PYTHON SOURCE LINES 108-114
 
 Published rules, side by side
 -----------------------------
@@ -213,7 +214,7 @@ Reviewers often ask for the rule a specific paper used. ``list_rules`` is the re
 each row is one published definition of "a response is present", with its statistic, its
 window and the paper it comes from.
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-119
+.. GENERATED FROM PYTHON SOURCE LINES 116-120
 
 .. code-block:: Python
 
@@ -241,14 +242,14 @@ window and the paper it comes from.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 120-124
+.. GENERATED FROM PYTHON SOURCE LINES 121-125
 
 ``compare_detectors`` runs several rules on the same data and lines up their verdicts,
 channel by channel. Here we put evoparam's permutation test next to the van Blooijs 2023
 rule as its published code reads it. Agreement across rules is a strong sign; a channel
 where they disagree is one to look at by eye.
 
-.. GENERATED FROM PYTHON SOURCE LINES 127-140
+.. GENERATED FROM PYTHON SOURCE LINES 128-141
 
 .. code-block:: Python
 
@@ -284,7 +285,7 @@ where they disagree is one to look at by eye.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 141-150
+.. GENERATED FROM PYTHON SOURCE LINES 142-151
 
 Conclusion
 ----------

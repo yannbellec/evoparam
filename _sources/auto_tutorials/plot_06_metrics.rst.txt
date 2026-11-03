@@ -37,12 +37,11 @@ A fit always gives numbers. Before using them, three questions:
 evoparam answers each one: ``fit.gof`` (goodness of fit), the uncertainty of each bump
 (``ci``), and ``fit.status`` with ``fit.warnings``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 23-27
+.. GENERATED FROM PYTHON SOURCE LINES 23-26
 
 .. code-block:: Python
 
 
-    # Import what we need
     from evoparam import fit_response, gen_response
 
 
@@ -52,7 +51,7 @@ evoparam answers each one: ``fit.gof`` (goodness of fit), the uncertainty of eac
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 28-43
+.. GENERATED FROM PYTHON SOURCE LINES 27-42
 
 The scores of the fit
 ---------------------
@@ -70,12 +69,11 @@ The scores of the fit
   of the brain is slow, so it is never 0; a value close to 1 means a slow wave is left
   that the model missed.
 
-.. GENERATED FROM PYTHON SOURCE LINES 45-54
+.. GENERATED FROM PYTHON SOURCE LINES 44-52
 
 .. code-block:: Python
 
 
-    # The curve of tutorial 01, and its fit
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
     fit = fit_response(times, signal, preset="ccep", random_state=0)
 
@@ -97,7 +95,7 @@ The scores of the fit
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 55-60
+.. GENERATED FROM PYTHON SOURCE LINES 53-58
 
 The most useful check is to compare ``rmse`` with ``baseline_sd``. Here the leftover is
 7.1 µV and the noise 7.4 µV: the model left only noise. If the leftover were much larger
@@ -105,7 +103,7 @@ than the noise, something in the curve would not be explained.
 
 Here is the same curve, fitted with one bump at most.
 
-.. GENERATED FROM PYTHON SOURCE LINES 63-71
+.. GENERATED FROM PYTHON SOURCE LINES 61-69
 
 .. code-block:: Python
 
@@ -131,12 +129,12 @@ Here is the same curve, fitted with one bump at most.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 72-74
+.. GENERATED FROM PYTHON SOURCE LINES 70-72
 
 The leftover (24 µV) is three times the noise, and it is a slow wave (lag-1 of 0.98):
 the N2 is missing.
 
-.. GENERATED FROM PYTHON SOURCE LINES 77-85
+.. GENERATED FROM PYTHON SOURCE LINES 75-83
 
 R² can mislead
 --------------
@@ -147,7 +145,7 @@ slow background, R² is high even without any bump.
 
 The same two bumps with more noise (30 µV instead of 8):
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-95
+.. GENERATED FROM PYTHON SOURCE LINES 85-93
 
 .. code-block:: Python
 
@@ -174,14 +172,14 @@ The same two bumps with more noise (30 µV instead of 8):
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-100
+.. GENERATED FROM PYTHON SOURCE LINES 94-98
 
 R² is only 0.48, but both bumps are found, and the leftover is the size of the noise:
 the fit is as good as the data allow.
 
 And a curve with **no bump at all**, only the background and noise:
 
-.. GENERATED FROM PYTHON SOURCE LINES 103-108
+.. GENERATED FROM PYTHON SOURCE LINES 101-106
 
 .. code-block:: Python
 
@@ -203,13 +201,13 @@ And a curve with **no bump at all**, only the background and noise:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 109-112
+.. GENERATED FROM PYTHON SOURCE LINES 107-110
 
 No bump is found (right), but R² is 0.67: the fading background alone explains much
 of the curve. A high R² does not say that the bumps are real; a low one does not say
 that they are false. Compare the leftover with the noise, and look at the figure.
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-122
+.. GENERATED FROM PYTHON SOURCE LINES 113-120
 
 How sure is each number
 -----------------------
@@ -219,7 +217,7 @@ noise of this recording leaves possible. A wider range means a less sure number.
 **standard error** (``bump.se``) is the same idea as one number, roughly a quarter of
 the range.
 
-.. GENERATED FROM PYTHON SOURCE LINES 124-143
+.. GENERATED FROM PYTHON SOURCE LINES 122-141
 
 .. code-block:: Python
 
@@ -260,7 +258,7 @@ the range.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-150
+.. GENERATED FROM PYTHON SOURCE LINES 142-148
 
 With more noise, every range widens: the N1 latency range goes from 0.5 ms to about
 2 ms, the N2 latency range from 7 ms to about 29 ms. The narrow, large N1 always stays
@@ -269,7 +267,7 @@ better known than the broad, small N2.
 Report the range with the number: "N1 at 24.9 ms (24.0 to 25.7)" says much more than
 "N1 at 24.9 ms".
 
-.. GENERATED FROM PYTHON SOURCE LINES 153-170
+.. GENERATED FROM PYTHON SOURCE LINES 151-168
 
 Status and warnings
 -------------------
@@ -289,7 +287,7 @@ Status and warnings
 - ``"latency_outside_window:<bump>"``: a bump peaks outside the fit window, so its
   latency is not measured on the data.
 
-.. GENERATED FROM PYTHON SOURCE LINES 172-175
+.. GENERATED FROM PYTHON SOURCE LINES 170-173
 
 .. code-block:: Python
 
@@ -309,12 +307,12 @@ Status and warnings
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 176-178
+.. GENERATED FROM PYTHON SOURCE LINES 174-176
 
 No warning here. A fit with a warning is not wrong, but it deserves a look at the
 figure (``plot_fit``) before its numbers are used.
 
-.. GENERATED FROM PYTHON SOURCE LINES 181-188
+.. GENERATED FROM PYTHON SOURCE LINES 179-186
 
 Conclusion
 ----------
@@ -327,7 +325,7 @@ BIC compares models of the same curve; it is what evoparam uses to choose the bu
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.086 seconds)
+   **Total running time of the script:** (0 minutes 0.525 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_06_metrics.py:

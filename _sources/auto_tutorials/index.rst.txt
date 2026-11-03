@@ -21,23 +21,6 @@ model does on one example curve.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Write what was done, share the results, and cite the tools.">
-
-.. only:: html
-
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_12_reporting_thumb.png
-    :alt:
-
-  :doc:`/auto_tutorials/plot_12_reporting`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">12: Reporting and referencing</div>
-    </div>
-
-
-.. raw:: html
-
     <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, shown on one example curve.">
 
 .. only:: html
@@ -55,18 +38,18 @@ model does on one example curve.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Combine trials, channels and subjects in one model, with partial pooling and uncertainty.">
+    <div class="sphx-glr-thumbcontainer" tooltip="Write what was done, share the results, and cite the tools.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_18_across_subjects_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_12_reporting_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_18_across_subjects`
+  :doc:`/auto_tutorials/plot_12_reporting`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">18: Across subjects</div>
+      <div class="sphx-glr-thumbnail-title">12: Reporting and referencing</div>
     </div>
 
 
@@ -89,6 +72,40 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Get the numbers out of a fit, one by one or all in a table.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_02_reading_results_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_02_reading_results`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">02: Reading the results</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Combine trials, channels and subjects in one model, with partial pooling and uncertainty.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_18_across_subjects_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_18_across_subjects`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">18: Across subjects</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="Fit scalp ERP and TMS-EEG with the same calls; only the preset changes.">
 
 .. only:: html
@@ -101,23 +118,6 @@ model does on one example curve.
 .. raw:: html
 
       <div class="sphx-glr-thumbnail-title">19: Beyond CCEP: one tool, many modalities</div>
-    </div>
-
-
-.. raw:: html
-
-    <div class="sphx-glr-thumbcontainer" tooltip="Share shapes across channels, map a parameter on the electrodes, and screen volume conduction.">
-
-.. only:: html
-
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_22_spatial_thumb.png
-    :alt:
-
-  :doc:`/auto_tutorials/plot_22_spatial`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">22: Shapes and maps across space</div>
     </div>
 
 
@@ -140,18 +140,18 @@ model does on one example curve.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, step by step, to turn a curve into a background and a few bumps.">
+    <div class="sphx-glr-thumbcontainer" tooltip="Share shapes across channels, map a parameter on the electrodes, and screen volume conduction.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_03_fitting_algorithm_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_22_spatial_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_03_fitting_algorithm`
+  :doc:`/auto_tutorials/plot_22_spatial`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">03: Fitting algorithm</div>
+      <div class="sphx-glr-thumbnail-title">22: Shapes and maps across space</div>
     </div>
 
 
@@ -174,18 +174,18 @@ model does on one example curve.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Run the whole pipeline from a shell, with no Python, and read the JSON summary it prints.">
+    <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, step by step, to turn a curve into a background and a few bumps.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_20_command_line_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_03_fitting_algorithm_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_20_command_line`
+  :doc:`/auto_tutorials/plot_03_fitting_algorithm`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">20: The command line</div>
+      <div class="sphx-glr-thumbnail-title">03: Fitting algorithm</div>
     </div>
 
 
@@ -208,6 +208,23 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Run the whole pipeline from a shell, with no Python, and read the JSON summary it prints.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_20_command_line_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_20_command_line`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">20: The command line</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="Parameterise induced oscillatory bursts into zones, data-driven or from a published atlas.">
 
 .. only:: html
@@ -225,18 +242,18 @@ model does on one example curve.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Get the numbers out of a fit, one by one or all in a table.">
+    <div class="sphx-glr-thumbcontainer" tooltip="Change the settings of the model, and see what each one does to the result.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_02_reading_results_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_10_tuning_the_fit_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_02_reading_results`
+  :doc:`/auto_tutorials/plot_10_tuning_the_fit`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">02: Reading the results</div>
+      <div class="sphx-glr-thumbnail-title">10: Tuning the fit</div>
     </div>
 
 
@@ -288,23 +305,6 @@ model does on one example curve.
 .. raw:: html
 
       <div class="sphx-glr-thumbnail-title">14: Finding pulses and removing the artifact</div>
-    </div>
-
-
-.. raw:: html
-
-    <div class="sphx-glr-thumbcontainer" tooltip="Change the settings of the model, and see what each one does to the result.">
-
-.. only:: html
-
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_10_tuning_the_fit_thumb.png
-    :alt:
-
-  :doc:`/auto_tutorials/plot_10_tuning_the_fit`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">10: Tuning the fit</div>
     </div>
 
 
@@ -403,23 +403,23 @@ model does on one example curve.
 .. toctree::
    :hidden:
 
-   /auto_tutorials/plot_12_reporting
    /auto_tutorials/plot_01_model_description
-   /auto_tutorials/plot_18_across_subjects
+   /auto_tutorials/plot_12_reporting
    /auto_tutorials/plot_13_your_own_data
-   /auto_tutorials/plot_19_beyond_ccep
-   /auto_tutorials/plot_22_spatial
-   /auto_tutorials/plot_05_background_fitting
-   /auto_tutorials/plot_03_fitting_algorithm
-   /auto_tutorials/plot_04_component_fitting
-   /auto_tutorials/plot_20_command_line
-   /auto_tutorials/plot_07_fit_object
-   /auto_tutorials/plot_16_time_frequency
    /auto_tutorials/plot_02_reading_results
+   /auto_tutorials/plot_18_across_subjects
+   /auto_tutorials/plot_19_beyond_ccep
+   /auto_tutorials/plot_05_background_fitting
+   /auto_tutorials/plot_22_spatial
+   /auto_tutorials/plot_04_component_fitting
+   /auto_tutorials/plot_03_fitting_algorithm
+   /auto_tutorials/plot_07_fit_object
+   /auto_tutorials/plot_20_command_line
+   /auto_tutorials/plot_16_time_frequency
+   /auto_tutorials/plot_10_tuning_the_fit
    /auto_tutorials/plot_15_is_there_a_response
    /auto_tutorials/plot_06_metrics
    /auto_tutorials/plot_14_removing_the_artifact
-   /auto_tutorials/plot_10_tuning_the_fit
    /auto_tutorials/plot_09_trial_by_trial
    /auto_tutorials/plot_21_online_mode
    /auto_tutorials/plot_11_further_analysis

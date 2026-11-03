@@ -4,7 +4,7 @@
 ======================
 
 Choose the shape of the slow part of the curve, and see what it does to the bumps.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -21,7 +21,6 @@ Choose the shape of the slow part of the curve, and see what it does to the bump
 
 ###################################################################################################
 
-# Import what we need
 import numpy as np
 
 from evoparam import fit_response, gen_response, plot_fit
@@ -36,7 +35,7 @@ from evoparam.shapes import list_backgrounds
 # - ``"none"``: no background;
 # - ``"constant"``: a flat line (one number: its level);
 # - ``"linear"``: a straight line that may slope (two numbers);
-# - ``"exponential"``: a level plus a jump that fades away, ``c0 + c1 × exp(−t / tau)``.
+# - ``"exponential"``: a level plus a jump that fades away, ``c0 + c1 × exp(-t / tau)``.
 #   ``tau`` (the **time constant**) is how fast it fades: after ``tau``, about a third of
 #   the jump is left. This is the default of ``"ccep"``;
 # - ``"double_exponential"``: a level plus two fading jumps, a fast one (``tau1``) and a
@@ -51,16 +50,14 @@ print(list_backgrounds())
 # A curve with a fast and a slow tail
 # -----------------------------------
 #
-# We make the curve of the earlier tutorials (N1 at 25 ms, −150 µV; N2 at 150 ms, −80 µV)
+# We make the curve of the earlier tutorials (N1 at 25 ms, -150 µV; N2 at 150 ms, -80 µV)
 # on a background with two parts: a large jump that fades very fast (300 µV, ``tau`` =
 # 5 ms) and a slow drift that fades in 150 ms (60 µV).
 
 ###################################################################################################
 
-# N1, N2, the fast jump [height (µV), time constant (ms)] and the noise
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], background=[300, 5], seed=3)
 
-# Add the slow drift: 60 µV fading in 150 ms, starting at the stimulus
 signal = signal + np.where(times > 0, 60 * np.exp(-times / 0.15), 0)
 
 ###################################################################################################
@@ -90,7 +87,7 @@ fig = plot_fit(fit_one)
 # One exponential can not be fast and slow at the same time. Its time constant stops at
 # 50 ms, the largest the ``"ccep"`` preset allows (more on this below). The slow drift is
 # not fully taken by the background, and part of it goes into the bumps: the N1 comes out
-# at −164 µV and the N2 at −67 µV, instead of −150 and −80.
+# at -164 µV and the N2 at -67 µV, instead of -150 and -80.
 
 ###################################################################################################
 # Two fading jumps
@@ -117,7 +114,7 @@ fig = plot_fit(fit_two)
 #
 # The two parts are found: a fast one (3 ms) and a slow one (240 ms). They are not exactly
 # the true 5 and 150 ms, because the two parts can trade a little with each other and
-# with the N2. But the N1 (−153 µV) and the N2 (−82 µV) are now close to the truth, and
+# with the N2. But the N1 (-153 µV) and the N2 (-82 µV) are now close to the truth, and
 # the BIC is the lowest (43 against 64).
 #
 # The fit also warns ``ill_conditioned``: the slow part of the background and the broad N2

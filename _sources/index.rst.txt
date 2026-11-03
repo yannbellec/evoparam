@@ -6,6 +6,12 @@ evoparam
 evoparam describes an evoked response as a few bumps on a slow background, and gives the
 timing, height and width of each bump.
 
+.. note::
+
+   evoparam is a tool of the **Neural Signal Processing and Modeling Lab**
+   (PI: `Rachel June Smith <https://www.uab.edu/engineering/ece/people/faculty/rachel-smith>`_),
+   Department of Electrical and Computer Engineering, University of Alabama at Birmingham.
+
 Install
 -------
 

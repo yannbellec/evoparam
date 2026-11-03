@@ -4,7 +4,7 @@
 ==============
 
 Put error bars on a parameter, compare conditions, and plan how many trials you need.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -24,7 +24,6 @@ Put error bars on a parameter, compare conditions, and plan how many trials you 
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 import numpy as np
@@ -64,8 +63,10 @@ n1_amp = table.loc[table["label"] == "N1", "amplitude"].to_numpy()
 rng = np.random.default_rng(0)
 boot = np.array([rng.choice(n1_amp, n1_amp.size, replace=True).mean() for _ in range(2000)])
 interval = bootstrap_interval(float(n1_amp.mean()), boot, ci_level=0.95)
-print(f"mean N1 amplitude: {n1_amp.mean():.1f} uV, "
-      f"95% CI [{interval['low']:.1f}, {interval['high']:.1f}] ({interval['method']})")
+print(
+    f"mean N1 amplitude: {n1_amp.mean():.1f} uV, "
+    f"95% CI [{interval['low']:.1f}, {interval['high']:.1f}] ({interval['method']})"
+)
 
 ###################################################################################################
 # 2. Comparing two conditions
@@ -128,7 +129,7 @@ times = np.arange(-0.2, 0.4, 1.0 / sfreq)
 rng = np.random.default_rng(0)
 blocks, subjects = [], []
 for subject in range(10):
-    true_amplitude = -(30.0 + rng.uniform(0.0, 50.0))  # each subject has their own N1 size
+    true_amplitude = -(30.0 + rng.uniform(0.0, 50.0))
     bump = true_amplitude * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)
     blocks.append(rng.normal(0.0, 12.0, size=(16, 1, times.size)) + bump)
     subjects += [f"sub-{subject + 1}"] * 16

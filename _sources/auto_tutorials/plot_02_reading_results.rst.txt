@@ -33,12 +33,11 @@ In the first tutorial, ``report`` did everything at once: fit, summary and figur
 Here we look at what a fit gives back, and how to use it: read one number, check that the
 fit is good, keep all the numbers in a table, and choose the part of the curve to describe.
 
-.. GENERATED FROM PYTHON SOURCE LINES 19-25
+.. GENERATED FROM PYTHON SOURCE LINES 19-24
 
 .. code-block:: Python
 
 
-    # Import what we need
     import numpy as np
 
     from evoparam import fit_response, gen_response
@@ -50,7 +49,7 @@ fit is good, keep all the numbers in a table, and choose the part of the curve t
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 26-34
+.. GENERATED FROM PYTHON SOURCE LINES 25-33
 
 Fitting without drawing
 -----------------------
@@ -61,15 +60,13 @@ have many curves, or when you only want the numbers.
 We use the same curve as in the first tutorial: a sharp bump at 25 ms and a broad one at
 150 ms.
 
-.. GENERATED FROM PYTHON SOURCE LINES 36-43
+.. GENERATED FROM PYTHON SOURCE LINES 35-40
 
 .. code-block:: Python
 
 
-    # Make the example curve
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
-    # Fit the model, without drawing
     fit = fit_response(times, signal, preset="ccep")
 
 
@@ -79,12 +76,12 @@ We use the same curve as in the first tutorial: a sharp bump at 25 ms and a broa
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 44-46
+.. GENERATED FROM PYTHON SOURCE LINES 41-43
 
 ``fit`` now holds everything evoparam found. ``print(fit)`` still shows the summary at any
 time.
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-52
+.. GENERATED FROM PYTHON SOURCE LINES 46-49
 
 .. code-block:: Python
 
@@ -117,7 +114,7 @@ time.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 53-67
+.. GENERATED FROM PYTHON SOURCE LINES 50-64
 
 One trial, or the average?
 --------------------------
@@ -134,24 +131,20 @@ noise): with 20 trials, the noise is about 4.5 times smaller (the square root of
 Below we make 20 noisy trials of the same response, then fit one trial alone and the
 average of the 20.
 
-.. GENERATED FROM PYTHON SOURCE LINES 69-86
+.. GENERATED FROM PYTHON SOURCE LINES 66-79
 
 .. code-block:: Python
 
 
-    # 20 trials of the same response, each with a lot of noise (a new noise at every trial)
     trials = [
         gen_response([[25, -150, 10], [150, -80, 80]], noise=60, seed=trial)[1] for trial in range(20)
     ]
 
-    # One trial alone
     fit_one = fit_response(times, trials[0], preset="ccep")
 
-    # The average of the 20 trials, sample by sample
     average = np.mean(trials, axis=0)
     fit_average = fit_response(times, average, preset="ccep")
 
-    # How many bumps each fit found
     print("one trial:", len(fit_one.components), "bump(s)")
     print("average of 20:", len(fit_average.components), "bump(s)")
 
@@ -169,7 +162,7 @@ average of the 20.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-96
+.. GENERATED FROM PYTHON SOURCE LINES 80-89
 
 On the single trial the tool finds nothing: the response is there, but hidden in the
 noise, and evoparam does not invent bumps it cannot tell from noise. On the average it
@@ -181,7 +174,7 @@ a little earlier or later from one trial to the next?), evoparam has a separate 
 trial, and says when the noise is too strong to tell the trials apart. It works on all the
 trials of a recording at once (a ``TrialSet``), cut around each stimulus beforehand.
 
-.. GENERATED FROM PYTHON SOURCE LINES 99-114
+.. GENERATED FROM PYTHON SOURCE LINES 92-107
 
 Reading the bumps
 -----------------
@@ -199,12 +192,11 @@ numbers of the first tutorial:
     them in milliseconds, add ``_ms`` to the name: ``latency_ms``, ``fwhm_ms``,
     ``onset_ms``...
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-121
+.. GENERATED FROM PYTHON SOURCE LINES 109-113
 
 .. code-block:: Python
 
 
-    # Go through the bumps, one line each
     for bump in fit.components:
         print(bump.label, round(bump.latency_ms, 1), "ms,", round(bump.amplitude, 1), "µV")
 
@@ -222,16 +214,15 @@ numbers of the first tutorial:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 122-123
+.. GENERATED FROM PYTHON SOURCE LINES 114-115
 
 To keep one number, take the bump by its place in the list: ``[0]`` is the first one.
 
-.. GENERATED FROM PYTHON SOURCE LINES 126-131
+.. GENERATED FROM PYTHON SOURCE LINES 118-122
 
 .. code-block:: Python
 
 
-    # The first bump, and its latency in ms
     n1 = fit.components[0]
     print(round(n1.latency_ms, 1))
 
@@ -248,7 +239,7 @@ To keep one number, take the bump by its place in the list: ``[0]`` is the first
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 132-139
+.. GENERATED FROM PYTHON SOURCE LINES 123-130
 
 Each bump also has a few more numbers, all measured on the bump alone:
 
@@ -258,12 +249,11 @@ Each bump also has a few more numbers, all measured on the bump alone:
 - ``rise_time_ms`` and ``decay_time_ms``: how long it takes to reach its peak, and to
   come back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 142-146
+.. GENERATED FROM PYTHON SOURCE LINES 133-136
 
 .. code-block:: Python
 
 
-    # When the first bump starts and ends, in ms
     print(round(n1.onset_ms, 1), round(n1.offset_ms, 1))
 
 
@@ -279,7 +269,7 @@ Each bump also has a few more numbers, all measured on the bump alone:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 147-153
+.. GENERATED FROM PYTHON SOURCE LINES 137-143
 
 Reading the background
 ----------------------
@@ -288,12 +278,11 @@ The background is in ``fit.background``. Here it is a curve that fades away, and
 number to read is its **time constant**: how long it takes to lose about two thirds of its
 height. The smaller it is, the faster it fades.
 
-.. GENERATED FROM PYTHON SOURCE LINES 155-159
+.. GENERATED FROM PYTHON SOURCE LINES 145-148
 
 .. code-block:: Python
 
 
-    # The time constant of the background, in ms
     print(round(fit.background_ms["tau"], 1))
 
 
@@ -309,7 +298,7 @@ height. The smaller it is, the faster it fades.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 160-169
+.. GENERATED FROM PYTHON SOURCE LINES 149-158
 
 Is the fit good?
 ----------------
@@ -321,7 +310,7 @@ Before using the numbers, check that the model really follows the curve. Two num
 - ``rmse``: the typical distance between the curve and the model, in µV. It should be
   close to the level of the noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 171-174
+.. GENERATED FROM PYTHON SOURCE LINES 160-163
 
 .. code-block:: Python
 
@@ -341,7 +330,7 @@ Before using the numbers, check that the model really follows the curve. Two num
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 175-180
+.. GENERATED FROM PYTHON SOURCE LINES 164-169
 
 .. note::
 
@@ -349,7 +338,7 @@ Before using the numbers, check that the model really follows the curve. Two num
     noise we put in. A low R² means the model missed something: look at the figure
     (``report``) before trusting the numbers.
 
-.. GENERATED FROM PYTHON SOURCE LINES 183-189
+.. GENERATED FROM PYTHON SOURCE LINES 172-178
 
 All the numbers in a table
 --------------------------
@@ -358,12 +347,11 @@ All the numbers in a table
 can be sorted, plotted or saved like any spreadsheet (it needs the ``pandas`` package,
 already there in most notebooks).
 
-.. GENERATED FROM PYTHON SOURCE LINES 191-196
+.. GENERATED FROM PYTHON SOURCE LINES 180-184
 
 .. code-block:: Python
 
 
-    # One row per bump; show a few columns
     table = fit.to_dataframe()
     table[["label", "latency", "amplitude", "fwhm", "area"]]
 
@@ -424,7 +412,7 @@ already there in most notebooks).
     <br />
     <br />
 
-.. GENERATED FROM PYTHON SOURCE LINES 197-202
+.. GENERATED FROM PYTHON SOURCE LINES 185-190
 
 To keep it, save it as a file that any spreadsheet program opens:
 
@@ -432,7 +420,7 @@ To keep it, save it as a file that any spreadsheet program opens:
 
     table.to_csv("my_results.csv")
 
-.. GENERATED FROM PYTHON SOURCE LINES 205-213
+.. GENERATED FROM PYTHON SOURCE LINES 193-201
 
 Choosing the part of the curve to describe
 ------------------------------------------
@@ -443,12 +431,11 @@ after the stimulus. To look at another part, give a ``window``, in seconds.
 Here we keep only the first 100 ms: the broad bump at 150 ms is left out, and only the
 sharp one is described.
 
-.. GENERATED FROM PYTHON SOURCE LINES 215-220
+.. GENERATED FROM PYTHON SOURCE LINES 203-207
 
 .. code-block:: Python
 
 
-    # Describe only 9 to 100 ms after the stimulus
     early = fit_response(times, signal, preset="ccep", window=(0.009, 0.1))
     print(early)
 
@@ -477,7 +464,7 @@ sharp one is described.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 221-227
+.. GENERATED FROM PYTHON SOURCE LINES 208-214
 
 .. note::
 
@@ -486,7 +473,7 @@ sharp one is described.
     responses recorded on the scalp (EEG), ``"sep"`` for touch, ``"tep"`` for magnetic
     pulses (TMS), and there are a few more.
 
-.. GENERATED FROM PYTHON SOURCE LINES 230-236
+.. GENERATED FROM PYTHON SOURCE LINES 217-223
 
 Conclusion
 ----------
@@ -498,7 +485,7 @@ how good it is (``fit.gof``), and ``to_dataframe`` puts everything in one table.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.106 seconds)
+   **Total running time of the script:** (0 minutes 0.495 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_02_reading_results.py:

@@ -40,12 +40,11 @@ amplifier. Before fitting anything you must do two things:
 evoparam has eleven artifact methods. No single method is best everywhere, so evoparam
 gives every cleaned trial a **quality score** and can compare methods on the same data.
 
-.. GENERATED FROM PYTHON SOURCE LINES 26-39
+.. GENERATED FROM PYTHON SOURCE LINES 26-38
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     import numpy as np
@@ -70,7 +69,7 @@ gives every cleaned trial a **quality score** and can compare methods on the sam
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 40-46
+.. GENERATED FROM PYTHON SOURCE LINES 39-45
 
 1. Finding the pulses in the raw signal
 ---------------------------------------
@@ -79,7 +78,7 @@ A continuous recording is one long signal, not yet cut into trials. ``detect_pul
 finds the stimulation pulses from the artifact itself: a sudden jump much larger than
 the background. Here we build 30 s of noise with five pulses 5 s apart, on two channels.
 
-.. GENERATED FROM PYTHON SOURCE LINES 48-60
+.. GENERATED FROM PYTHON SOURCE LINES 47-59
 
 .. code-block:: Python
 
@@ -87,10 +86,10 @@ the background. Here we build 30 s of noise with five pulses 5 s apart, on two c
     sfreq = 2048.0
     n_samples = int(30 * sfreq)
     rng = np.random.default_rng(0)
-    raw = rng.normal(0.0, 15.0, size=(2, n_samples))  # 2 channels, 30 s of noise (uV)
+    raw = rng.normal(0.0, 15.0, size=(2, n_samples))
     pulse_samples = [int(t * sfreq) for t in (2.0, 7.0, 12.0, 17.0, 22.0)]
     for sample in pulse_samples:
-        raw[:, sample : sample + 4] += 4000.0  # a sharp 4 mV artifact at each pulse
+        raw[:, sample : sample + 4] += 4000.0
 
     events = detect_pulses(raw, sfreq, ch_names=["A1", "A2"])
     print(events[["onset_time", "peak_abs", "detector", "threshold"]].to_string(index=False))
@@ -113,7 +112,7 @@ the background. Here we build 30 s of noise with five pulses 5 s apart, on two c
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 61-67
+.. GENERATED FROM PYTHON SOURCE LINES 60-66
 
 The five onsets come back at 2, 7, 12, 17 and 22 s. The table holds everything needed to
 cut trials and to describe the stimulation: the sample and time of each pulse, its peak
@@ -122,7 +121,7 @@ the train each pulse belongs to. ``detect_events`` is the same detector that tak
 file or an MNE object instead of an array; the command line exposes it as
 ``evoparam detect-events`` and writes a BIDS ``events.tsv``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 70-78
+.. GENERATED FROM PYTHON SOURCE LINES 69-77
 
 2. Removing the artifact
 ------------------------
@@ -133,7 +132,7 @@ clean truth to compare against. The ``template`` method builds the shape of the 
 from the trials of the same stimulation and subtracts it, interpolating the few samples
 at the pulse that cannot be recovered.
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-97
+.. GENERATED FROM PYTHON SOURCE LINES 79-95
 
 .. code-block:: Python
 
@@ -151,7 +150,6 @@ at the pulse that cannot be recovered.
 
     print(result.methods_text())
 
-    # The cleaned trials of channel 0, over the raw trials
     fig = plots.plot_artifact(result, raw=dirty, channel=0)
 
 
@@ -172,14 +170,14 @@ at the pulse that cannot be recovered.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 98-102
+.. GENERATED FROM PYTHON SOURCE LINES 96-100
 
 ``window`` is the stretch around the pulse the method works on, in seconds: here from
 2 ms before to 9 ms after. Keep it as short as the artifact: everything inside it is
 replaced, so a window that is too wide eats into the early N1. ``result.cleaned`` is a
 ``TrialSet`` like any other, ready for the next steps.
 
-.. GENERATED FROM PYTHON SOURCE LINES 105-113
+.. GENERATED FROM PYTHON SOURCE LINES 103-111
 
 3. Which method is best here?
 -----------------------------
@@ -190,7 +188,7 @@ columns are ``sir_improvement_db`` (how many decibels the artifact is pushed bel
 signal, higher is better), ``rrmse`` (error against the truth, lower is better) and
 ``runtime_s``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-132
+.. GENERATED FROM PYTHON SOURCE LINES 113-130
 
 .. code-block:: Python
 
@@ -221,14 +219,14 @@ signal, higher is better), ``rrmse`` (error against the truth, lower is better) 
 
          method  median_quality  rrmse  sir_improvement_db  runtime_s
        template           0.625  3.265              18.359      0.014
-           tail           0.539  0.667              21.924      0.023
-    interpolate           0.539  3.265              16.903      0.011
-     polynomial           0.625  0.147               0.150      0.026
+           tail           0.539  0.667              21.924      0.021
+    interpolate           0.539  3.265              16.903      0.012
+     polynomial           0.625  0.147               0.150      0.027
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 133-140
+.. GENERATED FROM PYTHON SOURCE LINES 131-138
 
 On this made-up CCEP, ``polynomial`` and ``tail`` reach the lowest error (``rrmse``),
 ``template`` and ``interpolate`` are fast but leave more residual here. Which to use
@@ -238,7 +236,7 @@ depends on the modality: a short sharp CCEP artifact suits ``template`` or
 ``lowrank`` or ``subspace``. The presets (tutorial on presets) already pick a sensible
 method for each modality.
 
-.. GENERATED FROM PYTHON SOURCE LINES 143-150
+.. GENERATED FROM PYTHON SOURCE LINES 141-148
 
 4. Scoring each trial
 ---------------------
@@ -248,15 +246,16 @@ Even with a good method, some trials clean worse than others (movement, a bad co
 ``quality_components`` says why. ``artifact_quality`` can also score any cleaned trials
 on their own. Low-quality trials are flagged so you can drop them before fitting.
 
-.. GENERATED FROM PYTHON SOURCE LINES 152-158
+.. GENERATED FROM PYTHON SOURCE LINES 150-157
 
 .. code-block:: Python
 
 
     quality = artifact_quality(result.cleaned, window=(-0.002, 0.009))
     print(quality.round(3).head().to_string(index=False))
-    print(f"\nmedian quality: {np.median(result.quality):.3f}; "
-          f"worst trial: {np.min(result.quality):.3f}")
+    print(
+        f"\nmedian quality: {np.median(result.quality):.3f}; worst trial: {np.min(result.quality):.3f}"
+    )
 
 
 
@@ -278,7 +277,7 @@ on their own. Low-quality trials are flagged so you can drop them before fitting
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 159-168
+.. GENERATED FROM PYTHON SOURCE LINES 158-167
 
 Conclusion
 ----------
@@ -293,7 +292,7 @@ showed ``run_pipeline`` chaining clean, reference, baseline, fit and test in one
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.344 seconds)
+   **Total running time of the script:** (0 minutes 0.339 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_14_removing_the_artifact.py:

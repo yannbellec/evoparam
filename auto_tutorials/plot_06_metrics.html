@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>06: Metrics and model evaluation &#8212; evoparam</title>
+<title>06: Metrics and model evaluation | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -99,8 +98,7 @@ to download the full example code.</p>
 </ol>
 <p>evoparam answers each one: <code class="docutils literal notranslate"><span class="pre">fit.gof</span></code> (goodness of fit), the uncertainty of each bump
 (<code class="docutils literal notranslate"><span class="pre">ci</span></code>), and <code class="docutils literal notranslate"><span class="pre">fit.status</span></code> with <code class="docutils literal notranslate"><span class="pre">fit.warnings</span></code>.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="w">
 </span></pre></div></div>
 </section>
 <section id="the-scores-of-the-fit">
@@ -118,8 +116,7 @@ they mean nothing alone, only next to another model of the same data;</p></li>
 of the brain is slow, so it is never 0; a value close to 1 means a slow wave is left
 that the model missed.</p></li>
 </ul>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The curve of tutorial 01, and its fit</span><span class="w">
-</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
 </span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="w">
 </span><span class="n">gof</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">gof</span><span class="w">
@@ -247,7 +244,7 @@ figure (<code class="docutils literal notranslate"><span class="pre">plot_fit</s
 trust R² alone, report each number with its 95 % range, and read <code class="docutils literal notranslate"><span class="pre">fit.warnings</span></code>. The
 BIC compares models of the same curve; it is what evoparam uses to choose the bumps
 (tutorial 03).</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.086 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.525 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-06-metrics-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/c6993739dd7494c31b5656201da8e5dc/plot_06_metrics.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_06_metrics.ipynb</span></code></a></p>
@@ -270,14 +267,8 @@ BIC compares models of the same curve; it is what evoparam uses to choose the bu
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

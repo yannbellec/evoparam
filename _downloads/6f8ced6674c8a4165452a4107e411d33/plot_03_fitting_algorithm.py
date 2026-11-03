@@ -4,7 +4,7 @@
 =====================
 
 What evoparam does, step by step, to turn a curve into a background and a few bumps.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -34,21 +34,18 @@ What evoparam does, step by step, to turn a curve into a background and a few bu
 
 ###################################################################################################
 
-# Import what we need
 from evoparam import fit_response, gen_response, plot_fit
 
 ###################################################################################################
 #
-# We use the curve of tutorial 01: a sharp bump at 25 ms (−150 µV) and a broad one at
-# 150 ms (−80 µV), on a background that fades away (60 µV, fading in 30 ms), with noise of
+# We use the curve of tutorial 01: a sharp bump at 25 ms (-150 µV) and a broad one at
+# 150 ms (-80 µV), on a background that fades away (60 µV, fading in 30 ms), with noise of
 # 8 µV.
 
 ###################################################################################################
 
-# The example curve: [latency (ms), amplitude (µV), width (ms)]
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
-# The whole fit, in one call
 fit = fit_response(times, signal, preset="ccep", random_state=0)
 print(fit)
 
@@ -56,7 +53,7 @@ print(fit)
 # Step 1: the noise
 # -----------------
 #
-# Before the stimulus (from −500 to −20 ms here, the **baseline**), there is no response:
+# Before the stimulus (from -500 to -20 ms here, the **baseline**), there is no response:
 # only noise. evoparam measures it there: how large it is (its standard deviation,
 # ``sigma``) and how it is made (brain noise is slow: a point looks like its neighbours,
 # so evoparam also learns this rhythm).

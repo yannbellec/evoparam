@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>17: Statistics &#8212; evoparam</title>
+<title>17: Statistics | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -102,8 +101,7 @@ subjects);</p></li>
 </ul>
 <p>We work on made-up data so the truth is known, and keep the permutation counts small so
 the tutorial runs quickly; raise them for real work.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span><span class="w">
@@ -138,8 +136,10 @@ the values are skewed.</p>
 </span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">boot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n1_amp</span><span class="p">,</span> <span class="n">n1_amp</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">)</span><span class="p">]</span><span class="p">)</span><span class="w">
 </span><span class="n">interval</span> <span class="o">=</span> <span class="n">bootstrap_interval</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">n1_amp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">,</span> <span class="n">boot</span><span class="p">,</span> <span class="n">ci_level</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">mean N1 amplitude: </span><span class="si">{</span><span class="n">n1_amp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
-</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">95% CI [</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">low</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">high</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">] (</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">method</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">mean N1 amplitude: </span><span class="si">{</span><span class="n">n1_amp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">95% CI [</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">low</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">high</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">] (</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">method</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="w">
+</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>mean N1 amplitude: -212.9 uV, 95% CI [-270.6, -152.9] (bca)
 </pre></div>
@@ -199,7 +199,7 @@ build 10 subjects whose true N1 amplitude differs, 16 trials each.</p>
 </span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">blocks</span><span class="p">,</span> <span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="p">]</span><span class="w">
 </span><span class="k">for</span> <span class="n">subject</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="p">:</span><span class="w">
-</span>    <span class="n">true_amplitude</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">30.0</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># each subject has their own N1 size</span><span class="w">
+</span>    <span class="n">true_amplitude</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">30.0</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span>    <span class="n">bump</span> <span class="o">=</span> <span class="n">true_amplitude</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="mf">0.025</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.004</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span><span class="w">
 </span>    <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span> <span class="o">+</span> <span class="n">bump</span><span class="p">)</span><span class="w">
 </span>    <span class="n">subjects</span> <span class="o">+</span><span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">sub-</span><span class="si">{</span><span class="n">subject</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">16</span><span class="w">
@@ -242,7 +242,7 @@ can use the measurement uncertainty.</p>
 effect size, and <code class="docutils literal notranslate"><span class="pre">reliability</span></code> and <code class="docutils literal notranslate"><span class="pre">trials_needed</span></code> tell you how repeatable the
 measure is and how many trials a future study should collect. When you need a richer
 model, <code class="docutils literal notranslate"><span class="pre">to_long</span></code> hands the parameters, with their uncertainty, to a mixed-effects tool.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 3.007 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 8.130 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-17-statistics-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/756fdc349af4f568c0f64778bc415368/plot_17_statistics.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_17_statistics.ipynb</span></code></a></p>
@@ -265,14 +265,8 @@ model, <code class="docutils literal notranslate"><span class="pre">to_long</spa
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

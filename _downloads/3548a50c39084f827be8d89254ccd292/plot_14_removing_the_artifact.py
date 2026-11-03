@@ -4,7 +4,7 @@
 ============================================
 
 Find the stimulation pulses in the raw signal, then clean the artifact and score each trial.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -24,7 +24,6 @@ Find the stimulation pulses in the raw signal, then clean the artifact and score
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 import numpy as np
@@ -49,10 +48,10 @@ print("artifact methods:", METHODS)
 sfreq = 2048.0
 n_samples = int(30 * sfreq)
 rng = np.random.default_rng(0)
-raw = rng.normal(0.0, 15.0, size=(2, n_samples))  # 2 channels, 30 s of noise (uV)
+raw = rng.normal(0.0, 15.0, size=(2, n_samples))
 pulse_samples = [int(t * sfreq) for t in (2.0, 7.0, 12.0, 17.0, 22.0)]
 for sample in pulse_samples:
-    raw[:, sample : sample + 4] += 4000.0  # a sharp 4 mV artifact at each pulse
+    raw[:, sample : sample + 4] += 4000.0
 
 events = detect_pulses(raw, sfreq, ch_names=["A1", "A2"])
 print(events[["onset_time", "peak_abs", "detector", "threshold"]].to_string(index=False))
@@ -91,7 +90,6 @@ with warnings.catch_warnings():
 
 print(result.methods_text())
 
-# The cleaned trials of channel 0, over the raw trials
 fig = plots.plot_artifact(result, raw=dirty, channel=0)
 
 ###################################################################################################
@@ -152,8 +150,9 @@ print(comparison[cols].round(3).to_string(index=False))
 
 quality = artifact_quality(result.cleaned, window=(-0.002, 0.009))
 print(quality.round(3).head().to_string(index=False))
-print(f"\nmedian quality: {np.median(result.quality):.3f}; "
-      f"worst trial: {np.min(result.quality):.3f}")
+print(
+    f"\nmedian quality: {np.median(result.quality):.3f}; worst trial: {np.min(result.quality):.3f}"
+)
 
 ###################################################################################################
 # Conclusion

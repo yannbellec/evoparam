@@ -4,7 +4,7 @@
 ==================
 
 Change the settings of the model, and see what each one does to the result.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -22,7 +22,6 @@ Change the settings of the model, and see what each one does to the result.
 
 ###################################################################################################
 
-# Import what we need
 from evoparam import fit_response, gen_response, plot_fit, presets
 
 ###################################################################################################
@@ -49,14 +48,11 @@ def show(fit):
 
 ###################################################################################################
 
-# Three bumps: [latency (ms), amplitude (µV), width (ms)]
 times, signal = gen_response([[25, -150, 10], [60, 50, 20], [150, -80, 80]], seed=3)
 
-# Fit with the preset alone
 fit = fit_response(times, signal, preset="ccep", random_state=0)
 show(fit)
 
-# A few of the settings the preset chose
 print(fit.settings["max_components"], fit.settings["polarity"], fit.settings["background"])
 
 ###################################################################################################
@@ -82,7 +78,6 @@ print(fit.settings["max_components"], fit.settings["polarity"], fit.settings["ba
 
 ###################################################################################################
 
-# At most 2 bumps
 fit_two = fit_response(times, signal, preset="ccep", max_components=2, random_state=0)
 show(fit_two)
 
@@ -107,7 +102,6 @@ show(fit_two)
 
 ###################################################################################################
 
-# Only bumps that go down
 fit_down = fit_response(times, signal, preset="ccep", polarity="negative", random_state=0)
 show(fit_down)
 
@@ -134,15 +128,13 @@ show(fit_down)
 # - A **smaller** ``delta`` is looser: more small bumps are found, but some of them can be
 #   noise.
 #
-# Here is a curve with a large N1, a small real bump at 300 ms (−20 µV) and, in the
+# Here is a curve with a large N1, a small real bump at 300 ms (-20 µV) and, in the
 # noise, a slow wiggle near 480 ms that is not a real bump.
 
 ###################################################################################################
 
-# A large N1 and a small bump at 300 ms
 times2, signal2 = gen_response([[25, -150, 10], [300, -20, 40]], seed=2)
 
-# The preset's delta (10), then a stricter one (40)
 print("delta = 10")
 show(fit_response(times2, signal2, preset="ccep", random_state=0))
 print("delta = 40")
@@ -163,7 +155,6 @@ show(fit_response(times2, signal2, preset="ccep", delta=40, random_state=0))
 
 ###################################################################################################
 
-# Bumps smaller than 30 µV are not kept
 show(fit_response(times2, signal2, preset="ccep", min_amplitude=30, random_state=0))
 
 ###################################################################################################
@@ -194,25 +185,22 @@ show(fit_response(times2, signal2, preset="ccep", min_amplitude=30, random_state
 
 ###################################################################################################
 
-# Two bumps on a strong background: [height (µV), how fast it fades (ms)]
 times3, signal3 = gen_response([[25, -100, 10], [150, -60, 80]], background=[200, 40], seed=1)
 
-# The preset's background (exponential)
 fit_exp = fit_response(times3, signal3, preset="ccep", random_state=0)
 show(fit_exp)
 fig = plot_fit(fit_exp)
 
 ###################################################################################################
 
-# A flat background
 fit_flat = fit_response(times3, signal3, preset="ccep", background="constant", random_state=0)
 show(fit_flat)
 fig = plot_fit(fit_flat)
 
 ###################################################################################################
 #
-# With the exponential background, the two bumps come out close to what we put in (−100
-# and −60 µV). With a flat background, the fading jump cannot be followed, so the model
+# With the exponential background, the two bumps come out close to what we put in (-100
+# and -60 µV). With a flat background, the fading jump cannot be followed, so the model
 # invents bumps going up to imitate it, and the N1 comes out much smaller than it is.
 #
 # The R² is about the same for both: a good R² says the model follows the curve, not that
@@ -233,10 +221,8 @@ fig = plot_fit(fit_flat)
 
 ###################################################################################################
 
-# A preset like "ccep", but stricter and with only bumps that go down
 strict_ccep = presets.derive("ccep", delta=40.0, polarity="negative")
 
-# Use it like any preset
 show(fit_response(times2, signal2, preset=strict_ccep, random_state=0))
 
 ###################################################################################################

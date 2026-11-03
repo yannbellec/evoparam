@@ -37,12 +37,11 @@ The bumps are measured **from the background**: if the background is wrong, ever
 amplitude is wrong too. This tutorial shows the shapes the background can take, and the
 one setting that most often needs a thought: how slowly it may fade.
 
-.. GENERATED FROM PYTHON SOURCE LINES 23-30
+.. GENERATED FROM PYTHON SOURCE LINES 23-29
 
 .. code-block:: Python
 
 
-    # Import what we need
     import numpy as np
 
     from evoparam import fit_response, gen_response, plot_fit
@@ -55,7 +54,7 @@ one setting that most often needs a thought: how slowly it may fade.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 31-45
+.. GENERATED FROM PYTHON SOURCE LINES 30-44
 
 The background shapes
 ---------------------
@@ -65,14 +64,14 @@ The background shapes
 - ``"none"``: no background;
 - ``"constant"``: a flat line (one number: its level);
 - ``"linear"``: a straight line that may slope (two numbers);
-- ``"exponential"``: a level plus a jump that fades away, ``c0 + c1 × exp(−t / tau)``.
+- ``"exponential"``: a level plus a jump that fades away, ``c0 + c1 × exp(-t / tau)``.
   ``tau`` (the **time constant**) is how fast it fades: after ``tau``, about a third of
   the jump is left. This is the default of ``"ccep"``;
 - ``"double_exponential"``: a level plus two fading jumps, a fast one (``tau1``) and a
   slow one (``tau2``);
 - ``"pspline"`` and ``"artifact_basis"``: more flexible shapes, for special cases.
 
-.. GENERATED FROM PYTHON SOURCE LINES 47-50
+.. GENERATED FROM PYTHON SOURCE LINES 46-49
 
 .. code-block:: Python
 
@@ -92,24 +91,22 @@ The background shapes
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 51-57
+.. GENERATED FROM PYTHON SOURCE LINES 50-56
 
 A curve with a fast and a slow tail
 -----------------------------------
 
-We make the curve of the earlier tutorials (N1 at 25 ms, −150 µV; N2 at 150 ms, −80 µV)
+We make the curve of the earlier tutorials (N1 at 25 ms, -150 µV; N2 at 150 ms, -80 µV)
 on a background with two parts: a large jump that fades very fast (300 µV, ``tau`` =
 5 ms) and a slow drift that fades in 150 ms (60 µV).
 
-.. GENERATED FROM PYTHON SOURCE LINES 59-66
+.. GENERATED FROM PYTHON SOURCE LINES 58-63
 
 .. code-block:: Python
 
 
-    # N1, N2, the fast jump [height (µV), time constant (ms)] and the noise
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], background=[300, 5], seed=3)
 
-    # Add the slow drift: 60 µV fading in 150 ms, starting at the stimulus
     signal = signal + np.where(times > 0, 60 * np.exp(-times / 0.15), 0)
 
 
@@ -119,7 +116,7 @@ on a background with two parts: a large jump that fades very fast (300 µV, ``ta
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-78
+.. GENERATED FROM PYTHON SOURCE LINES 64-75
 
 .. code-block:: Python
 
@@ -141,12 +138,12 @@ on a background with two parts: a large jump that fades very fast (300 µV, ``ta
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 79-81
+.. GENERATED FROM PYTHON SOURCE LINES 76-78
 
 One fading jump, the preset
 ---------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 83-88
+.. GENERATED FROM PYTHON SOURCE LINES 80-85
 
 .. code-block:: Python
 
@@ -176,14 +173,14 @@ One fading jump, the preset
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 89-93
+.. GENERATED FROM PYTHON SOURCE LINES 86-90
 
 One exponential can not be fast and slow at the same time. Its time constant stops at
 50 ms, the largest the ``"ccep"`` preset allows (more on this below). The slow drift is
 not fully taken by the background, and part of it goes into the bumps: the N1 comes out
-at −164 µV and the N2 at −67 µV, instead of −150 and −80.
+at -164 µV and the N2 at -67 µV, instead of -150 and -80.
 
-.. GENERATED FROM PYTHON SOURCE LINES 96-102
+.. GENERATED FROM PYTHON SOURCE LINES 93-99
 
 Two fading jumps
 ----------------
@@ -192,7 +189,7 @@ Two fading jumps
 constant allowed, ``background_tau_max``, to 300 ms (0.3 s), so that the slow part can
 follow a drift of 150 ms.
 
-.. GENERATED FROM PYTHON SOURCE LINES 104-116
+.. GENERATED FROM PYTHON SOURCE LINES 101-113
 
 .. code-block:: Python
 
@@ -229,18 +226,18 @@ follow a drift of 150 ms.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 117-125
+.. GENERATED FROM PYTHON SOURCE LINES 114-122
 
 The two parts are found: a fast one (3 ms) and a slow one (240 ms). They are not exactly
 the true 5 and 150 ms, because the two parts can trade a little with each other and
-with the N2. But the N1 (−153 µV) and the N2 (−82 µV) are now close to the truth, and
+with the N2. But the N1 (-153 µV) and the N2 (-82 µV) are now close to the truth, and
 the BIC is the lowest (43 against 64).
 
 The fit also warns ``ill_conditioned``: the slow part of the background and the broad N2
 overlap in time, so the fit has trouble telling them apart, and their uncertainties are
 larger. The warnings of a fit are in ``fit.warnings``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 128-131
+.. GENERATED FROM PYTHON SOURCE LINES 125-128
 
 .. code-block:: Python
 
@@ -260,7 +257,7 @@ larger. The warnings of a fit are in ``fit.warnings``.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 132-141
+.. GENERATED FROM PYTHON SOURCE LINES 129-138
 
 Why the time constant is limited
 --------------------------------
@@ -272,7 +269,7 @@ after a pulse fades within a few ms to tens of ms, while the N2 lasts hundreds o
 
 Here is the same two-part background with the preset's limit of 50 ms.
 
-.. GENERATED FROM PYTHON SOURCE LINES 143-149
+.. GENERATED FROM PYTHON SOURCE LINES 140-146
 
 .. code-block:: Python
 
@@ -299,7 +296,7 @@ Here is the same two-part background with the preset's limit of 50 ms.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 150-158
+.. GENERATED FROM PYTHON SOURCE LINES 147-155
 
 The slow part stops at 50 ms and can not follow the 150 ms drift. What is left of the
 drift is fitted as an extra bump going down at about 410 ms (``delayed_b``), which is
@@ -310,7 +307,7 @@ high, a slow response becomes background. Raise it only when you know the record
 a slow drift (look at the curve far after the response, where only the background is
 left), and write the value in your methods.
 
-.. GENERATED FROM PYTHON SOURCE LINES 161-169
+.. GENERATED FROM PYTHON SOURCE LINES 158-166
 
 Conclusion
 ----------
@@ -324,7 +321,7 @@ at ``fit.warnings`` before trusting the amplitudes.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.268 seconds)
+   **Total running time of the script:** (0 minutes 1.424 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_05_background_fitting.py:

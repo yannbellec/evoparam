@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>22: Shapes and maps across space &#8212; evoparam</title>
+<title>22: Shapes and maps across space | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,8 +17,8 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="05: Background fitting" href="plot_05_background_fitting.html" />
-    <link rel="prev" title="19: Beyond CCEP: one tool, many modalities" href="plot_19_beyond_ccep.html" />
+    <link rel="next" title="04: Component fitting" href="plot_04_component_fitting.html" />
+    <link rel="prev" title="05: Background fitting" href="plot_05_background_fitting.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -106,8 +105,7 @@ analysis;</p></li>
 big response nearby.</p></li>
 </ul>
 <p>We simulate one stimulation on a 12-electrode grid, most of them responding.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="w">
@@ -130,9 +128,11 @@ all the channels of the stimulation into a few shared shapes and says which chan
 which. A handful of shapes that explain many channels is both a cleaner fit and a finding:
 the channels that share a shape are driven in the same way.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">basis</span> <span class="o">=</span> <span class="n">spatial</span><span class="o">.</span><span class="n">shared_shapes</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_shapes</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">basis</span><span class="o">.</span><span class="n">n_shapes</span><span class="si">}</span><span class="s2"> shared shapes explain the </span><span class="si">{</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="si">}</span><span class="s2"> channels </span><span class="s2">&quot;</span><span class="w">
-</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(median channel r2 = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">r2</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="s2">&quot;</span><span class="w">
-</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">shape stability = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">stability</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">basis</span><span class="o">.</span><span class="n">n_shapes</span><span class="si">}</span><span class="s2"> shared shapes explain the </span><span class="si">{</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="si">}</span><span class="s2"> channels </span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(median channel r2 = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">r2</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">shape stability = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">stability</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="w">
+</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>2 shared shapes explain the 12 channels (median channel r2 = 0.64, shape stability = 1.00)
 </pre></div>
@@ -213,7 +213,7 @@ shared shapes group the channels driven alike, parameter maps put the numbers on
 anatomy, the connectivity matrix feeds a network analysis, and the volume-conduction
 screen keeps passive spread out of it. It is the bridge from one stimulation’s fit to a
 map of the brain.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.838 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.958 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-22-spatial-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/4d14af9b04c921ba48e5ac375ce34a67/plot_22_spatial.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_22_spatial.ipynb</span></code></a></p>
@@ -236,14 +236,8 @@ map of the brain.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

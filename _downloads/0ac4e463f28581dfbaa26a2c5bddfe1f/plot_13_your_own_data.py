@@ -4,7 +4,7 @@
 =========================
 
 Turn a numpy array, an MNE object or a file into a ``TrialSet`` that evoparam can fit.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -23,7 +23,6 @@ Turn a numpy array, an MNE object or a file into a ``TrialSet`` that evoparam ca
 
 ###################################################################################################
 
-# Import what we need
 import numpy as np
 
 from evoparam import models, reports
@@ -42,12 +41,12 @@ from evoparam.io import from_array, read_mne
 ###################################################################################################
 
 sfreq = 1024.0
-times = np.arange(-0.2, 0.5, 1.0 / sfreq)  # seconds, stimulus at t = 0
+times = np.arange(-0.2, 0.5, 1.0 / sfreq)
 rng = np.random.default_rng(0)
 
-bump = -60.0 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)  # N1: -60 uV, 25 ms, narrow
-data = rng.normal(0.0, 10.0, size=(20, 2, times.size))  # 20 trials, 2 channels, noise
-data[:, 0, :] += bump  # add the N1 to the first channel only
+bump = -60.0 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)
+data = rng.normal(0.0, 10.0, size=(20, 2, times.size))
+data[:, 0, :] += bump
 
 ts = from_array(data, sfreq=sfreq, times=times, ch_names=["RESP", "FLAT"], units="uV")
 print(ts)
@@ -80,7 +79,7 @@ print(table[["channel", "label", "latency", "amplitude", "fwhm"]].round(4).to_st
 
 ###################################################################################################
 
-import mne  # noqa: E402  (optional dependency, imported where it is used)
+import mne  # noqa: E402
 
 info = mne.create_info(["RESP", "FLAT"], sfreq=sfreq, ch_types="eeg")
 epochs = mne.EpochsArray(data * 1e-6, info, tmin=float(times[0]), verbose="error")  # MNE: volts
@@ -141,4 +140,4 @@ print(ts_mne)
 # dataset. Set the units and the stimulus time right at this step; everything downstream
 # trusts them. From here, the next tutorials clean the trials, test for a response, and
 # fit the bumps exactly as they did on the made-up data.
-_ = reports  # noqa: B018  (named in the text; kept imported for the reader)
+_ = reports  # noqa: B018

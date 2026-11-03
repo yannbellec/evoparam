@@ -36,12 +36,11 @@ scaled. The shape decides what a bump can look like. Real responses are often
 **asymmetric**: they go down fast and come back slowly. A symmetric shape can not follow
 that, and the model then makes up for it in other ways.
 
-.. GENERATED FROM PYTHON SOURCE LINES 22-29
+.. GENERATED FROM PYTHON SOURCE LINES 22-28
 
 .. code-block:: Python
 
 
-    # Import what we need
     import numpy as np
 
     from evoparam import fit_response, gen_response, plot_fit
@@ -54,7 +53,7 @@ that, and the model then makes up for it in other ways.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 30-43
+.. GENERATED FROM PYTHON SOURCE LINES 29-42
 
 The shapes
 ----------
@@ -70,7 +69,7 @@ The others are for other kinds of responses: for example ``"gamma"`` (zero befor
 start, then a rise and a slow fall), or ``"damped_oscillation"`` for responses that
 ring.
 
-.. GENERATED FROM PYTHON SOURCE LINES 45-48
+.. GENERATED FROM PYTHON SOURCE LINES 44-47
 
 .. code-block:: Python
 
@@ -90,25 +89,23 @@ ring.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-56
+.. GENERATED FROM PYTHON SOURCE LINES 48-55
 
 An asymmetric N1
 ----------------
 
 We make a curve with an N1 that goes down fast and comes back slowly, built with the
-``"gamma"`` shape: it peaks at 24 ms, −150 µV, 20 ms wide at half height. It takes
+``"gamma"`` shape: it peaks at 24 ms, -150 µV, 20 ms wide at half height. It takes
 10 ms to go from its start to its peak, and 28 ms to come back. We add the broad N2 of
 the earlier tutorials, a background and noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 58-66
+.. GENERATED FROM PYTHON SOURCE LINES 57-63
 
 .. code-block:: Python
 
 
-    # The N2, the background and the noise
     times, signal = gen_response([[150, -80, 80]], seed=3)
 
-    # Add an asymmetric N1: gamma shape starting at 12 ms (start, shape, scale in seconds)
     n1 = get_shape("gamma").evaluate(times, np.array([0.012, 3.0, 0.006]))
     signal = signal - 150 * n1
 
@@ -119,13 +116,13 @@ the earlier tutorials, a background and noise.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-70
+.. GENERATED FROM PYTHON SOURCE LINES 64-67
 
 A small helper prints the bumps with the numbers that describe their form: latency,
 amplitude, width at half height, **rise time** (from the onset, where the bump reaches
 10 % of its height, to the peak) and **decay time** (from the peak back to 10 %).
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-86
+.. GENERATED FROM PYTHON SOURCE LINES 70-83
 
 .. code-block:: Python
 
@@ -149,14 +146,14 @@ amplitude, width at half height, **rise time** (from the onset, where the bump r
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-91
+.. GENERATED FROM PYTHON SOURCE LINES 84-88
 
 With symmetric bumps only
 -------------------------
 
 ``shapes`` sets the shapes the fit may use. First, the bell curve only.
 
-.. GENERATED FROM PYTHON SOURCE LINES 93-98
+.. GENERATED FROM PYTHON SOURCE LINES 90-95
 
 .. code-block:: Python
 
@@ -186,19 +183,19 @@ With symmetric bumps only
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 99-103
+.. GENERATED FROM PYTHON SOURCE LINES 96-100
 
 A symmetric N1 can not follow a fast fall and a slow return. So the model puts the N1
 too early (20 ms instead of 24) and too wide (30 ms instead of 20), and adds a bump
 going **up** at 12 ms (C1) to straighten the fast fall. C1 is not in the brain: it is
 made by the wrong shape.
 
-.. GENERATED FROM PYTHON SOURCE LINES 106-108
+.. GENERATED FROM PYTHON SOURCE LINES 103-105
 
 With bumps that can lean
 ------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 110-115
+.. GENERATED FROM PYTHON SOURCE LINES 107-112
 
 .. code-block:: Python
 
@@ -227,10 +224,10 @@ With bumps that can lean
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-128
+.. GENERATED FROM PYTHON SOURCE LINES 113-125
 
-Now one bump is enough for the N1: 23.4 ms, −157 µV, 21 ms wide, close to the truth
-(24 ms, −150 µV, 20 ms). Its rise (11 ms) is shorter than its decay (29 ms): the shape
+Now one bump is enough for the N1: 23.4 ms, -157 µV, 21 ms wide, close to the truth
+(24 ms, -150 µV, 20 ms). Its rise (11 ms) is shorter than its decay (29 ms): the shape
 found the asymmetry. And the BIC is lower (53 against 59): the model is better while
 using fewer numbers. The rise and decay (11 and 29 ms) are close to the true ones (10
 and 28 ms), although the skewed bell is not the same curve as the gamma one that made
@@ -242,7 +239,7 @@ the N1.
     chooses by the BIC. Look at the figure: a bump of the other sign stuck to another
     one, as C1 above, is often the sign of a shape that does not fit.
 
-.. GENERATED FROM PYTHON SOURCE LINES 131-142
+.. GENERATED FROM PYTHON SOURCE LINES 128-139
 
 Fit numbers and reported numbers
 --------------------------------
@@ -256,7 +253,7 @@ Each bump has two sets of numbers:
   area. They are measured on the fitted curve of the bump, so they mean the same thing
   whatever the shape. These are the ones to use in an analysis.
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-149
+.. GENERATED FROM PYTHON SOURCE LINES 141-146
 
 .. code-block:: Python
 
@@ -279,12 +276,12 @@ Each bump has two sets of numbers:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 150-152
+.. GENERATED FROM PYTHON SOURCE LINES 147-149
 
 For the skewed bell, ``xi`` (in seconds) is not the latency: when the bump leans, its
 peak is not at ``xi``. Always use ``latency``, not a fit number.
 
-.. GENERATED FROM PYTHON SOURCE LINES 155-162
+.. GENERATED FROM PYTHON SOURCE LINES 152-159
 
 The width limits
 ----------------
@@ -294,7 +291,7 @@ seconds; 3 and 250 ms for ``"ccep"``). The lower limit keeps the model from fitt
 single spikes of noise; the upper one keeps a bump from turning into a slow drift,
 which is the job of the background. A bump that ends at a limit is worth a look.
 
-.. GENERATED FROM PYTHON SOURCE LINES 164-167
+.. GENERATED FROM PYTHON SOURCE LINES 161-164
 
 .. code-block:: Python
 
@@ -314,7 +311,7 @@ which is the job of the background. A bump that ends at a limit is worth a look.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 168-175
+.. GENERATED FROM PYTHON SOURCE LINES 165-172
 
 Conclusion
 ----------
@@ -327,7 +324,7 @@ amplitude, width...), not the fit numbers of the shape.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.460 seconds)
+   **Total running time of the script:** (0 minutes 1.032 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_04_component_fitting.py:

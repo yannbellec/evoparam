@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>10: Tuning the fit &#8212; evoparam</title>
+<title>10: Tuning the fit | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,8 +17,8 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="09: Fitting trial by trial" href="plot_09_trial_by_trial.html" />
-    <link rel="prev" title="14: Finding pulses and removing the artifact" href="plot_14_removing_the_artifact.html" />
+    <link rel="next" title="15: Is there a response?" href="plot_15_is_there_a_response.html" />
+    <link rel="prev" title="16: Time-frequency responses" href="plot_16_time_frequency.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -98,8 +97,7 @@ go, how sure the model must be before it keeps a bump, what shape the background
 <code class="docutils literal notranslate"><span class="pre">fit_response</span></code> or <code class="docutils literal notranslate"><span class="pre">report</span></code> by its name, next to the preset. Everything not given
 keeps the preset’s value.</p>
 <p>Here we change the settings one at a time, on the same curves, and look at what moves.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">plot_fit</span><span class="p">,</span> <span class="n">presets</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">plot_fit</span><span class="p">,</span> <span class="n">presets</span><span class="w">
 </span></pre></div></div>
 <p>To compare the fits quickly, we write a small helper that prints one line per bump.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="p">:</span><span class="w">
@@ -114,14 +112,11 @@ keeps the preset’s value.</p>
 <p>Every fit keeps the settings it used in <code class="docutils literal notranslate"><span class="pre">fit.settings</span></code>. We make a curve with three
 bumps: the two of the first tutorial, and between them a smaller one that goes <strong>up</strong>,
 at 60 ms.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Three bumps: [latency (ms), amplitude (µV), width (ms)]</span><span class="w">
-</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">60</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">60</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># Fit with the preset alone</span><span class="w">
 </span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># A few of the settings the preset chose</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">max_components</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">polarity</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">background</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>  N1: 25 ms, -151 µV
@@ -146,8 +141,7 @@ result each time you run this page. <code class="docutils literal notranslate"><
 <h2>How many bumps at most<a class="headerlink" href="#how-many-bumps-at-most" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">max_components</span></code> is the largest number of bumps the model may use. It never adds
 bumps that are not there: it only stops the search early. Here we allow 2.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># At most 2 bumps</span><span class="w">
-</span><span class="n">fit_two</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_two</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_two</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -160 µV
@@ -169,8 +163,7 @@ own when no new bump helps.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">&quot;negative&quot;</span></code>: only bumps that go down;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&quot;positive&quot;</span></code>: only bumps that go up.</p></li>
 </ul>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Only bumps that go down</span><span class="w">
-</span><span class="n">fit_down</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">polarity</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">negative</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_down</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">polarity</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">negative</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_down</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -160 µV
@@ -196,12 +189,10 @@ real bumps can be missed.</p></li>
 <li><p>A <strong>smaller</strong> <code class="docutils literal notranslate"><span class="pre">delta</span></code> is looser: more small bumps are found, but some of them can be
 noise.</p></li>
 </ul>
-<p>Here is a curve with a large N1, a small real bump at 300 ms (−20 µV) and, in the
+<p>Here is a curve with a large N1, a small real bump at 300 ms (-20 µV) and, in the
 noise, a slow wiggle near 480 ms that is not a real bump.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># A large N1 and a small bump at 300 ms</span><span class="w">
-</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">300</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">300</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># The preset's delta (10), then a stricter one (40)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">delta = 10</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_response</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">delta = 40</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
@@ -226,8 +217,7 @@ two real bumps stay.</p>
 <p>Another way to drop small bumps is <code class="docutils literal notranslate"><span class="pre">min_amplitude</span></code>: the smallest height a bump may
 have, in µV (0, the default, means no limit). It is simpler to understand, but it does
 not look at the noise: it drops small real bumps just as well.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Bumps smaller than 30 µV are not kept</span><span class="w">
-</span><span class="n">show</span><span class="p">(</span><span class="n">fit_response</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">min_amplitude</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">show</span><span class="p">(</span><span class="n">fit_response</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">min_amplitude</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -148 µV
 R² = 0.78
@@ -254,10 +244,8 @@ recording equipment recovering after an electrical pulse;</p></li>
 </ul>
 <p>If the background shape cannot follow the real background, the model uses bumps to make
 up for it. Here is a curve with a strong fading background.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Two bumps on a strong background: [height (µV), how fast it fades (ms)]</span><span class="w">
-</span><span class="n">times3</span><span class="p">,</span> <span class="n">signal3</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">60</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">times3</span><span class="p">,</span> <span class="n">signal3</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">60</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># The preset's background (exponential)</span><span class="w">
 </span><span class="n">fit_exp</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times3</span><span class="p">,</span> <span class="n">signal3</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_exp</span><span class="p">)</span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit_exp</span><span class="p">)</span><span class="w">
@@ -267,8 +255,7 @@ N2: 154 ms, -61 µV
 R² = 0.96
 </pre></div>
 </div>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># A flat background</span><span class="w">
-</span><span class="n">fit_flat</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times3</span><span class="p">,</span> <span class="n">signal3</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">constant</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_flat</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times3</span><span class="p">,</span> <span class="n">signal3</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">constant</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_flat</span><span class="p">)</span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit_flat</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
@@ -279,8 +266,8 @@ N2: 160 ms, -58 µV
 R² = 0.96
 </pre></div>
 </div>
-<p>With the exponential background, the two bumps come out close to what we put in (−100
-and −60 µV). With a flat background, the fading jump cannot be followed, so the model
+<p>With the exponential background, the two bumps come out close to what we put in (-100
+and -60 µV). With a flat background, the fading jump cannot be followed, so the model
 invents bumps going up to imitate it, and the N1 comes out much smaller than it is.</p>
 <p>The R² is about the same for both: a good R² says the model follows the curve, not that
 the parts are the right ones. This is why the figure is worth a look.</p>
@@ -294,10 +281,8 @@ your recording.</p>
 <p>To keep your own changes in one place, <code class="docutils literal notranslate"><span class="pre">presets.derive</span></code> makes a new preset from an
 existing one. The new preset remembers where it comes from, and this is written in the
 methods text.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># A preset like &quot;ccep&quot;, but stricter and with only bumps that go down</span><span class="w">
-</span><span class="n">strict_ccep</span> <span class="o">=</span> <span class="n">presets</span><span class="o">.</span><span class="n">derive</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span> <span class="n">polarity</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">negative</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">strict_ccep</span> <span class="o">=</span> <span class="n">presets</span><span class="o">.</span><span class="n">derive</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span> <span class="n">polarity</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">negative</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># Use it like any preset</span><span class="w">
 </span><span class="n">show</span><span class="p">(</span><span class="n">fit_response</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="n">strict_ccep</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -147 µV
@@ -319,7 +304,7 @@ look at the bumps and at the figure (<code class="docutils literal notranslate">
 <code class="docutils literal notranslate"><span class="pre">min_amplitude</span></code> decide how sure the model must be before it keeps a bump, and
 <code class="docutils literal notranslate"><span class="pre">background</span></code> sets the shape of the slow part. Change one at a time, check the figure,
 and keep the same settings for all the curves you compare.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.634 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 2.091 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-10-tuning-the-fit-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/d84453332ac56f4b8f44fbd40de14483/plot_10_tuning_the_fit.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_10_tuning_the_fit.ipynb</span></code></a></p>
@@ -342,14 +327,8 @@ and keep the same settings for all the curves you compare.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>18: Across subjects &#8212; evoparam</title>
+<title>18: Across subjects | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,8 +17,8 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="13: Loading your own data" href="plot_13_your_own_data.html" />
-    <link rel="prev" title="01: Model description" href="plot_01_model_description.html" />
+    <link rel="next" title="19: Beyond CCEP: one tool, many modalities" href="plot_19_beyond_ccep.html" />
+    <link rel="prev" title="02: Reading the results" href="plot_02_reading_results.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -101,8 +100,7 @@ is left alone. The default engine is <strong>empirical Bayes</strong> (fast, in 
 Bayesian engine (<code class="docutils literal notranslate"><span class="pre">numpyro</span></code> or <code class="docutils literal notranslate"><span class="pre">pymc</span></code>) is an optional extra for when you want full
 posteriors. The result is a group estimate with honest uncertainty, and it can use a
 covariate such as age.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">hierarchical</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_hierarchical</span><span class="p">,</span> <span class="n">posterior_summary</span><span class="w">
@@ -190,9 +188,9 @@ trials. The figure shows the group estimate and the subject spread.</p>
        N1 amplitude                     subject 20.4362                         REML
        N1      fwhm                     channel  0.0032                         REML
        N1      fwhm                     subject  0.0000                         REML
-       N1   latency                       trial  0.0002 REML (residual beyond noise)
+       N1   latency                       trial  0.0000 REML (residual beyond noise)
        N1   latency   trial (ex-Gaussian sigma)  0.0000                      moments
-       N1   latency     trial (ex-Gaussian tau)  0.0002                      moments
+       N1   latency     trial (ex-Gaussian tau)  0.0000                      moments
 </pre></div>
 </div>
 <div class="admonition note">
@@ -211,7 +209,7 @@ trials, channels and subjects in one step, trusts each unit by how well it is me
 and returns a group estimate with uncertainty plus a variance breakdown that guides the
 next study’s design. Empirical Bayes is the fast default; the Bayesian engines are there
 when you need the whole posterior.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 4.243 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 8.165 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-18-across-subjects-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/d9f03212b9794872a2dd97f5a5bd27c3/plot_18_across_subjects.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_18_across_subjects.ipynb</span></code></a></p>
@@ -234,14 +232,8 @@ when you need the whole posterior.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

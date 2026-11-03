@@ -4,7 +4,7 @@
 ===============
 
 Fit a frozen template to each new pulse as it arrives, with a running existence test.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -25,7 +25,6 @@ Fit a frozen template to each new pulse as it arrives, with a running existence 
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 import numpy as np
@@ -35,9 +34,9 @@ from evoparam.models import fit
 from evoparam.stream import StreamFitter
 
 SFREQ = 2048.0
-N_CHANNELS = 8  # the first four respond, the last four are silent
-N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
-ARTIFACT = (-0.002, 0.008)  # artifact window, interpolated (s)
+N_CHANNELS = 8
+N1 = (-40.0, 0.03, 0.02)
+ARTIFACT = (-0.002, 0.008)
 
 
 def gauss(times, latency, fwhm):
@@ -88,8 +87,9 @@ estimates = []
 for _ in range(30):
     chunk = rng.normal(0.0, 10.0, (int(SFREQ), N_CHANNELS))
     onset = int(0.45 * SFREQ)
-    chunk[onset : onset + 3] += np.array([3000.0, -2000.0, 500.0, 400.0,
-                                          0.0, 0.0, 0.0, 0.0])[None, :]  # artifact
+    chunk[onset : onset + 3] += np.array([3000.0, -2000.0, 500.0, 400.0, 0.0, 0.0, 0.0, 0.0])[
+        None, :
+    ]  # artifact
     relative = (np.arange(len(chunk)) - onset) / SFREQ
     chunk[:, : N_CHANNELS // 2] += N1[0] * gauss(relative, N1[1], N1[2])[:, None]
     for first in range(0, len(chunk), 32):
@@ -97,9 +97,11 @@ for _ in range(30):
 
 print(f"\n{len(estimates)} per-channel estimates over 30 pulses; the last pulse:")
 for estimate in estimates[-N_CHANNELS:]:
-    print(f"  {estimate.channel}: amplitude {estimate.amplitude:7.1f} uV, "
-          f"latency {estimate.latency * 1e3:5.1f} ms, "
-          f"z {estimate.existence_z:5.1f}, {estimate.status}")
+    print(
+        f"  {estimate.channel}: amplitude {estimate.amplitude:7.1f} uV, "
+        f"latency {estimate.latency * 1e3:5.1f} ms, "
+        f"z {estimate.existence_z:5.1f}, {estimate.status}"
+    )
 
 ###################################################################################################
 #

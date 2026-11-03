@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>13: Loading your own data &#8212; evoparam</title>
+<title>13: Loading your own data | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,8 +17,8 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="19: Beyond CCEP: one tool, many modalities" href="plot_19_beyond_ccep.html" />
-    <link rel="prev" title="18: Across subjects" href="plot_18_across_subjects.html" />
+    <link rel="next" title="02: Reading the results" href="plot_02_reading_results.html" />
+    <link rel="prev" title="12: Reporting and referencing" href="plot_12_reporting.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -101,8 +100,7 @@ knew the truth. Your own recording comes as one of three things:</p>
 <p>All three give the same object, a <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code>: trials x channels x time, with the
 sampling rate, the channel names, the units and the time of the stimulus. Every later
 step (clean, fit, test) works on that object, whatever it came from.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">reports</span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">from_array</span><span class="p">,</span> <span class="n">read_mne</span><span class="w">
@@ -116,17 +114,17 @@ also allowed), the sampling rate in Hz, and the time of the first sample. Here w
 20 trials of 2 channels: channel <code class="docutils literal notranslate"><span class="pre">RESP</span></code> has a small negative bump at 25 ms (an N1),
 channel <code class="docutils literal notranslate"><span class="pre">FLAT</span></code> has only noise.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">sfreq</span> <span class="o">=</span> <span class="mf">1024.0</span><span class="w">
-</span><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">sfreq</span><span class="p">)</span>  <span class="c1"># seconds, stimulus at t = 0</span><span class="w">
+</span><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">sfreq</span><span class="p">)</span><span class="w">
 </span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="n">bump</span> <span class="o">=</span> <span class="o">-</span><span class="mf">60.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="mf">0.025</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.004</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># N1: -60 uV, 25 ms, narrow</span><span class="w">
-</span><span class="n">data</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># 20 trials, 2 channels, noise</span><span class="w">
-</span><span class="n">data</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">bump</span>  <span class="c1"># add the N1 to the first channel only</span><span class="w">
+</span><span class="n">bump</span> <span class="o">=</span> <span class="o">-</span><span class="mf">60.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="mf">0.025</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.004</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span><span class="w">
+</span><span class="n">data</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="n">data</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">bump</span><span class="w">
 </span><span class="w">
 </span><span class="n">ts</span> <span class="o">=</span> <span class="n">from_array</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">RESP</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">FLAT</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">uV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human&gt;
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 - 0.499 s, 1024 Hz, uV, human&gt;
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">times</span></code> sets the sampling rate and the stimulus time together: <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">=</span> <span class="pre">0</span></code> is the pulse,
@@ -153,14 +151,14 @@ no bump.</p>
 without going through a file. evoparam reads the sampling rate, the channel names, the
 times (including the baseline) and the units from the object. Here we make a small
 <code class="docutils literal notranslate"><span class="pre">EpochsArray</span></code> from the same array, then read it back.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>  <span class="c1"># noqa: E402  (optional dependency, imported where it is used)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>  <span class="c1"># noqa: E402</span><span class="w">
 </span><span class="w">
 </span><span class="n">info</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">create_info</span><span class="p">(</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">RESP</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">FLAT</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">ch_types</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">eeg</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span><span class="n">epochs</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">EpochsArray</span><span class="p">(</span><span class="n">data</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="p">)</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">error</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># MNE: volts</span><span class="w">
 </span><span class="n">ts_mne</span> <span class="o">=</span> <span class="n">read_mne</span><span class="p">(</span><span class="n">epochs</span><span class="p">)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">ts_mne</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human&gt;
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 - 0.499 s, 1024 Hz, uV, human&gt;
 </pre></div>
 </div>
 <p>MNE stores EEG in volts; evoparam keeps microvolts, so the numbers match what we started
@@ -204,9 +202,9 @@ a numpy array, <code class="docutils literal notranslate"><span class="pre">read
 dataset. Set the units and the stimulus time right at this step; everything downstream
 trusts them. From here, the next tutorials clean the trials, test for a response, and
 fit the bumps exactly as they did on the made-up data.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">_</span> <span class="o">=</span> <span class="n">reports</span>  <span class="c1"># noqa: B018  (named in the text; kept imported for the reader)</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">_</span> <span class="o">=</span> <span class="n">reports</span>  <span class="c1"># noqa: B018</span><span class="w">
 </span></pre></div></div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.183 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.722 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-13-your-own-data-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/ab720317a1f6a360f4cef048a435fd01/plot_13_your_own_data.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_13_your_own_data.ipynb</span></code></a></p>
@@ -229,14 +227,8 @@ fit the bumps exactly as they did on the made-up data.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

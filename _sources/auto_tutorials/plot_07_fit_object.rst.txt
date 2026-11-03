@@ -38,12 +38,11 @@ keeps more than that. Here we look at the rest of what it holds:
 - ``fit.provenance``: how the fit was made;
 - ``fit.save`` and ``load``: keep a fit on disk and open it again.
 
-.. GENERATED FROM PYTHON SOURCE LINES 24-34
+.. GENERATED FROM PYTHON SOURCE LINES 24-33
 
 .. code-block:: Python
 
 
-    # Import what we need
     import os
     import tempfile
 
@@ -59,12 +58,11 @@ keeps more than that. Here we look at the rest of what it holds:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 35-40
+.. GENERATED FROM PYTHON SOURCE LINES 34-38
 
 .. code-block:: Python
 
 
-    # The curve of tutorial 01, and its fit
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
     fit = fit_response(times, signal, preset="ccep", delta=20, random_state=0)
 
@@ -75,7 +73,7 @@ keeps more than that. Here we look at the rest of what it holds:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 41-47
+.. GENERATED FROM PYTHON SOURCE LINES 39-45
 
 The settings
 ------------
@@ -84,7 +82,7 @@ The settings
 those you gave. ``_changed_from_preset`` lists the ones you changed, so that they can be
 found later.
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-55
+.. GENERATED FROM PYTHON SOURCE LINES 47-53
 
 .. code-block:: Python
 
@@ -110,12 +108,12 @@ found later.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-58
+.. GENERATED FROM PYTHON SOURCE LINES 54-56
 
 Here we gave ``delta=20``, so it is listed as changed. The methods text (tutorial 12)
 reads the same list, so a changed setting is always written in the methods.
 
-.. GENERATED FROM PYTHON SOURCE LINES 61-67
+.. GENERATED FROM PYTHON SOURCE LINES 59-65
 
 The curves
 ----------
@@ -124,7 +122,7 @@ The curves
 ``fit.model`` is the fitted curve on that window, and ``fit.residual`` what is left
 (data minus model). They have one value per time point of the window.
 
-.. GENERATED FROM PYTHON SOURCE LINES 69-75
+.. GENERATED FROM PYTHON SOURCE LINES 67-73
 
 .. code-block:: Python
 
@@ -149,11 +147,11 @@ The curves
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 76-77
+.. GENERATED FROM PYTHON SOURCE LINES 74-75
 
 With these, you can draw the fit yourself, or compute your own measure of the leftover.
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-86
+.. GENERATED FROM PYTHON SOURCE LINES 78-84
 
 The classical measures
 ----------------------
@@ -162,7 +160,7 @@ Most papers measure a response directly on the curve: the lowest point in a wind
 (peak amplitude and latency), the mean over a window, the area. ``fit.classical`` gives
 these, measured the usual way, so that evoparam's numbers can be compared with them.
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-96
+.. GENERATED FROM PYTHON SOURCE LINES 86-94
 
 .. code-block:: Python
 
@@ -188,10 +186,10 @@ these, measured the usual way, so that evoparam's numbers can be compared with t
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-106
+.. GENERATED FROM PYTHON SOURCE LINES 95-104
 
-The lowest point of the curve is at 25.9 ms and −128 µV; the model's N1 is at 25.0 ms
-and −152 µV. They differ for two reasons:
+The lowest point of the curve is at 25.9 ms and -128 µV; the model's N1 is at 25.0 ms
+and -152 µV. They differ for two reasons:
 
 - the lowest point is measured from zero, and the model's amplitude from the
   background, which is still above zero at 25 ms (it fades from 60 µV);
@@ -200,7 +198,7 @@ and −152 µV. They differ for two reasons:
 
 ``classical["definition"]`` says exactly how each classical measure was taken.
 
-.. GENERATED FROM PYTHON SOURCE LINES 109-112
+.. GENERATED FROM PYTHON SOURCE LINES 107-110
 
 .. code-block:: Python
 
@@ -220,7 +218,7 @@ and −152 µV. They differ for two reasons:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 113-119
+.. GENERATED FROM PYTHON SOURCE LINES 111-117
 
 The history
 -----------
@@ -229,7 +227,7 @@ The history
 function and its settings, the random seed, and the computer (Python and package
 versions). This is what allows a result to be made again (tutorial 12).
 
-.. GENERATED FROM PYTHON SOURCE LINES 121-126
+.. GENERATED FROM PYTHON SOURCE LINES 119-124
 
 .. code-block:: Python
 
@@ -247,12 +245,12 @@ versions). This is what allows a result to be made again (tutorial 12).
  .. code-block:: none
 
     evoparam.models.fit_waveform | evoparam 0.1.0.dev0
-    seed: 0 | python 3.13.17
+    seed: 0 | python 3.13.18
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 127-133
+.. GENERATED FROM PYTHON SOURCE LINES 125-131
 
 Saving and opening a fit
 ------------------------
@@ -261,7 +259,7 @@ Saving and opening a fit
 ``.evoparam`` folder, or a single ``.zip`` file. ``ResponseFit.load`` opens it again,
 and checks that it was not changed.
 
-.. GENERATED FROM PYTHON SOURCE LINES 135-143
+.. GENERATED FROM PYTHON SOURCE LINES 133-141
 
 .. code-block:: Python
 
@@ -286,12 +284,12 @@ and checks that it was not changed.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-146
+.. GENERATED FROM PYTHON SOURCE LINES 142-144
 
 ``fit.to_dict()`` gives the same content as a plain dictionary, for example to store it
 in your own format.
 
-.. GENERATED FROM PYTHON SOURCE LINES 149-155
+.. GENERATED FROM PYTHON SOURCE LINES 147-153
 
 Conclusion
 ----------
@@ -303,7 +301,7 @@ of how it was made. It can be saved and opened again with all of it.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.041 seconds)
+   **Total running time of the script:** (0 minutes 0.156 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_07_fit_object.py:

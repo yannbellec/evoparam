@@ -4,7 +4,7 @@
 =============================
 
 Write what was done, share the results, and cite the tools.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -20,7 +20,6 @@ Write what was done, share the results, and cite the tools.
 
 ###################################################################################################
 
-# Import what we need
 import os
 import tempfile
 
@@ -29,7 +28,6 @@ from evoparam import fit_response, gen_response, reports
 
 ###################################################################################################
 
-# The curve of tutorial 01, fitted with one setting changed from the preset
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 fit = fit_response(times, signal, preset="ccep", delta=20, random_state=0)
 

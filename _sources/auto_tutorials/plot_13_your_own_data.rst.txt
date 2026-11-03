@@ -39,12 +39,11 @@ All three give the same object, a ``TrialSet``: trials x channels x time, with t
 sampling rate, the channel names, the units and the time of the stimulus. Every later
 step (clean, fit, test) works on that object, whatever it came from.
 
-.. GENERATED FROM PYTHON SOURCE LINES 25-32
+.. GENERATED FROM PYTHON SOURCE LINES 25-31
 
 .. code-block:: Python
 
 
-    # Import what we need
     import numpy as np
 
     from evoparam import models, reports
@@ -57,7 +56,7 @@ step (clean, fit, test) works on that object, whatever it came from.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 33-41
+.. GENERATED FROM PYTHON SOURCE LINES 32-40
 
 1. From a numpy array
 ---------------------
@@ -68,18 +67,18 @@ also allowed), the sampling rate in Hz, and the time of the first sample. Here w
 20 trials of 2 channels: channel ``RESP`` has a small negative bump at 25 ms (an N1),
 channel ``FLAT`` has only noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 43-55
+.. GENERATED FROM PYTHON SOURCE LINES 42-54
 
 .. code-block:: Python
 
 
     sfreq = 1024.0
-    times = np.arange(-0.2, 0.5, 1.0 / sfreq)  # seconds, stimulus at t = 0
+    times = np.arange(-0.2, 0.5, 1.0 / sfreq)
     rng = np.random.default_rng(0)
 
-    bump = -60.0 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)  # N1: -60 uV, 25 ms, narrow
-    data = rng.normal(0.0, 10.0, size=(20, 2, times.size))  # 20 trials, 2 channels, noise
-    data[:, 0, :] += bump  # add the N1 to the first channel only
+    bump = -60.0 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)
+    data = rng.normal(0.0, 10.0, size=(20, 2, times.size))
+    data[:, 0, :] += bump
 
     ts = from_array(data, sfreq=sfreq, times=times, ch_names=["RESP", "FLAT"], units="uV")
     print(ts)
@@ -92,12 +91,12 @@ channel ``FLAT`` has only noise.
 
  .. code-block:: none
 
-    <TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human>
+    <TrialSet | 20 trials × 2 channels × 717 times, -0.200 - 0.499 s, 1024 Hz, uV, human>
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-64
+.. GENERATED FROM PYTHON SOURCE LINES 55-63
 
 ``times`` sets the sampling rate and the stimulus time together: ``t = 0`` is the pulse,
 negative times are the baseline. If you pass ``times``, do not pass ``sfreq`` as well;
@@ -108,7 +107,7 @@ The object is ready to fit. We use ``models.fit`` with no preset: it picks a gen
 setting from the sampling rate. The N1 of ``RESP`` comes back near 25 ms; ``FLAT`` gets
 no bump.
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-72
+.. GENERATED FROM PYTHON SOURCE LINES 66-71
 
 .. code-block:: Python
 
@@ -133,7 +132,7 @@ no bump.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-80
+.. GENERATED FROM PYTHON SOURCE LINES 72-79
 
 2. From an MNE object
 ---------------------
@@ -143,12 +142,12 @@ without going through a file. evoparam reads the sampling rate, the channel name
 times (including the baseline) and the units from the object. Here we make a small
 ``EpochsArray`` from the same array, then read it back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 82-90
+.. GENERATED FROM PYTHON SOURCE LINES 81-89
 
 .. code-block:: Python
 
 
-    import mne  # noqa: E402  (optional dependency, imported where it is used)
+    import mne  # noqa: E402
 
     info = mne.create_info(["RESP", "FLAT"], sfreq=sfreq, ch_types="eeg")
     epochs = mne.EpochsArray(data * 1e-6, info, tmin=float(times[0]), verbose="error")  # MNE: volts
@@ -163,18 +162,18 @@ times (including the baseline) and the units from the object. Here we make a sma
 
  .. code-block:: none
 
-    <TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human>
+    <TrialSet | 20 trials × 2 channels × 717 times, -0.200 - 0.499 s, 1024 Hz, uV, human>
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 91-94
+.. GENERATED FROM PYTHON SOURCE LINES 90-93
 
 MNE stores EEG in volts; evoparam keeps microvolts, so the numbers match what we started
 with. ``read_mne`` also accepts an ``Evoked`` (one averaged curve) and a
 ``units="uV"`` keyword if your object is already in microvolts.
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-118
+.. GENERATED FROM PYTHON SOURCE LINES 96-117
 
 3. From a file
 --------------
@@ -198,7 +197,7 @@ For a whole **BIDS** dataset, ``read_bids`` reads one subject, session, task and
 and can read a few pulses straight from the server without downloading the file
 (``remote=True``), as shown in tutorial 08.
 
-.. GENERATED FROM PYTHON SOURCE LINES 120-134
+.. GENERATED FROM PYTHON SOURCE LINES 119-133
 
 4. Saving the result
 --------------------
@@ -215,7 +214,7 @@ the HTML report. Here we only show the call; it returns the list of files writte
     result = reports.run_pipeline(ts, "ccep", random_state=0)
     files = write_bids_derivatives(result, subject="01", task="SPESclin", out="derivatives/")
 
-.. GENERATED FROM PYTHON SOURCE LINES 136-144
+.. GENERATED FROM PYTHON SOURCE LINES 135-143
 
 Conclusion
 ----------
@@ -226,11 +225,11 @@ dataset. Set the units and the stimulus time right at this step; everything down
 trusts them. From here, the next tutorials clean the trials, test for a response, and
 fit the bumps exactly as they did on the made-up data.
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-145
+.. GENERATED FROM PYTHON SOURCE LINES 143-144
 
 .. code-block:: Python
 
-    _ = reports  # noqa: B018  (named in the text; kept imported for the reader)
+    _ = reports  # noqa: B018
 
 
 
@@ -241,7 +240,7 @@ fit the bumps exactly as they did on the made-up data.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.183 seconds)
+   **Total running time of the script:** (0 minutes 0.722 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_13_your_own_data.py:

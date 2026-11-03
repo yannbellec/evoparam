@@ -4,7 +4,7 @@
 ========================
 
 Decide, for each channel, whether the brain answered at all, and for how long.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -22,7 +22,6 @@ Decide, for each channel, whether the brain answered at all, and for how long.
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 import numpy as np
@@ -100,8 +99,10 @@ fig = plots.plot_existence(test)
 for channel in range(trials.n_channels):
     if test.significant[channel]:
         name = trials.ch_info["name"][channel]
-        print(f"  {name}: {1000 * test.duration[channel]:.0f} ms "
-              f"({1000 * test.onset[channel]:.0f} to {1000 * test.offset[channel]:.0f} ms)")
+        print(
+            f"  {name}: {1000 * test.duration[channel]:.0f} ms "
+            f"({1000 * test.onset[channel]:.0f} to {1000 * test.offset[channel]:.0f} ms)"
+        )
 
 ###################################################################################################
 # Published rules, side by side

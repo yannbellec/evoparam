@@ -46,12 +46,11 @@ Every command takes ``--json`` (one JSON summary on stdout), ``--random-state`` 
 5 a bad input, 6 a reproduction mismatch. We drive it here with :mod:`subprocess`, exactly
 as a shell would.
 
-.. GENERATED FROM PYTHON SOURCE LINES 32-55
+.. GENERATED FROM PYTHON SOURCE LINES 32-54
 
 .. code-block:: Python
 
 
-    # Import what we need
     import json
     import subprocess
     import sys
@@ -80,7 +79,7 @@ as a shell would.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-61
+.. GENERATED FROM PYTHON SOURCE LINES 55-60
 
 1. Make a dataset
 -----------------
@@ -88,7 +87,7 @@ as a shell would.
 ``simulate`` writes a small BIDS dataset with ground truth, so the rest of the tutorial
 needs no data of your own. In real use you point ``fit`` at your own BIDS root instead.
 
-.. GENERATED FROM PYTHON SOURCE LINES 63-67
+.. GENERATED FROM PYTHON SOURCE LINES 62-66
 
 .. code-block:: Python
 
@@ -104,13 +103,13 @@ needs no data of your own. In real use you point ``fit`` at your own BIDS root i
 
  .. code-block:: none
 
-    $ evoparam simulate --modality ccep --n-trials 10 --n-channels 4 --seed 0 --out /tmp/evoparam-cli-y6twz_zf/bids  ->  ok (exit 0)
+    $ evoparam simulate --modality ccep --n-trials 10 --n-channels 4 --seed 0 --out /tmp/evoparam-cli-8hsp1487/bids  ->  ok (exit 0)
 
-    {'command': 'simulate', 'version': '0.1.0.dev0', 'status': 'ok', 'exit_code': 0, 'outputs': ['/tmp/evoparam-cli-y6twz_zf/bids/sub-01/ieeg/sub-01_task-ccep_ieeg.vhdr'], 'n_units': {'ok': 0, 'no_response': 0, 'failed': 0, 'skipped': 0}, 'warnings': [], 'duration_s': 1.3468862859999717}
+    {'command': 'simulate', 'version': '0.1.0.dev0', 'status': 'ok', 'exit_code': 0, 'outputs': ['/tmp/evoparam-cli-8hsp1487/bids/sub-01/ieeg/sub-01_task-ccep_ieeg.vhdr'], 'n_units': {'ok': 0, 'no_response': 0, 'failed': 0, 'skipped': 0}, 'warnings': [], 'duration_s': 1.026036268000098}
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 68-73
+.. GENERATED FROM PYTHON SOURCE LINES 67-72
 
 2. Check the stimulation metadata, then fit
 -------------------------------------------
@@ -118,7 +117,7 @@ needs no data of your own. In real use you point ``fit`` at your own BIDS root i
 ``validate-bids`` reports, run by run, which stimulation fields are present, inferred,
 missing or inconsistent. Then ``fit`` runs the whole chain and writes the derivatives.
 
-.. GENERATED FROM PYTHON SOURCE LINES 75-85
+.. GENERATED FROM PYTHON SOURCE LINES 74-84
 
 .. code-block:: Python
 
@@ -140,16 +139,16 @@ missing or inconsistent. Then ``fit`` runs the whole chain and writes the deriva
 
  .. code-block:: none
 
-    $ evoparam validate-bids /tmp/evoparam-cli-y6twz_zf/bids  ->  ok (exit 0)
+    $ evoparam validate-bids /tmp/evoparam-cli-8hsp1487/bids  ->  ok (exit 0)
       metadata: {'present': 6, 'missing': 3, 'inferred': 1}
-    $ evoparam fit /tmp/evoparam-cli-y6twz_zf/bids --sub 01 --task ccep --preset ccep --random-state 0 --out /tmp/evoparam-cli-y6twz_zf/bids/derivatives/evoparam  ->  ok (exit 0)
+    $ evoparam fit /tmp/evoparam-cli-8hsp1487/bids --sub 01 --task ccep --preset ccep --random-state 0 --out /tmp/evoparam-cli-8hsp1487/bids/derivatives/evoparam  ->  ok (exit 0)
       units: {'ok': 3, 'no_response': 1, 'failed': 0, 'skipped': 0}
       wrote: 15 files
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 86-93
+.. GENERATED FROM PYTHON SOURCE LINES 85-92
 
 3. Report, and the JSON summary
 -------------------------------
@@ -159,7 +158,7 @@ object is the same on every command: ``status``, ``exit_code``, ``outputs``, ``n
 (ok, no_response, failed, skipped), ``warnings`` and ``duration_s``. A script reads that
 object to decide what to do next, and the exit code to stop on an error.
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-102
+.. GENERATED FROM PYTHON SOURCE LINES 94-101
 
 .. code-block:: Python
 
@@ -178,7 +177,7 @@ object to decide what to do next, and the exit code to stop on an error.
 
  .. code-block:: none
 
-    $ evoparam report /tmp/evoparam-cli-y6twz_zf/bids/derivatives/evoparam --format md --out /tmp/evoparam-cli-y6twz_zf/report  ->  ok (exit 0)
+    $ evoparam report /tmp/evoparam-cli-8hsp1487/bids/derivatives/evoparam --format md --out /tmp/evoparam-cli-8hsp1487/report  ->  ok (exit 0)
 
     full JSON summary of the last command:
     {
@@ -196,7 +195,7 @@ object to decide what to do next, and the exit code to stop on an error.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 103-115
+.. GENERATED FROM PYTHON SOURCE LINES 102-114
 
 The same four lines, as a shell script, are:
 
@@ -211,7 +210,7 @@ The same four lines, as a shell script, are:
 ``write_bids_derivatives(fit(read_bids(...)))``, so you can prototype in Python and run in
 a shell, or the other way round.
 
-.. GENERATED FROM PYTHON SOURCE LINES 118-125
+.. GENERATED FROM PYTHON SOURCE LINES 117-124
 
 Conclusion
 ----------
@@ -224,7 +223,7 @@ plus the exit codes make it safe to script over many subjects on a cluster.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 6.324 seconds)
+   **Total running time of the script:** (0 minutes 5.545 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_20_command_line.py:

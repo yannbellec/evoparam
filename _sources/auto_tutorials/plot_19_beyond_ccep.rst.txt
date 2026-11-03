@@ -38,12 +38,11 @@ names, the background shape and the artifact method. There are eleven.
 This tutorial fits two very different modalities with the same two lines each, then lists
 what the presets differ on.
 
-.. GENERATED FROM PYTHON SOURCE LINES 24-31
+.. GENERATED FROM PYTHON SOURCE LINES 24-30
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     from evoparam import models, plots, presets, reports
@@ -56,7 +55,7 @@ what the presets differ on.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 32-39
+.. GENERATED FROM PYTHON SOURCE LINES 31-38
 
 A scalp ERP
 -----------
@@ -66,7 +65,7 @@ A scalp ERP
 window is 50 to 700 ms and its components are the classic ERP peaks (P1, N1, N170, P2,
 P3, N400, MMN, N2pc, LRP, ERN).
 
-.. GENERATED FROM PYTHON SOURCE LINES 41-51
+.. GENERATED FROM PYTHON SOURCE LINES 40-50
 
 .. code-block:: Python
 
@@ -93,7 +92,7 @@ P3, N400, MMN, N2pc, LRP, ERN).
 
  .. code-block:: none
 
-    <TrialSet | 60 trials × 1 channels × 500 times, -0.200 – 0.798 s, 500 Hz, uV, human, erp>
+    <TrialSet | 60 trials × 1 channels × 500 times, -0.200 - 0.798 s, 500 Hz, uV, human, erp>
     label  latency  amplitude  fwhm
        P1    0.095     39.841 0.042
        N1    0.161    -42.389 0.056
@@ -102,12 +101,12 @@ P3, N400, MMN, N2pc, LRP, ERN).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 52-54
+.. GENERATED FROM PYTHON SOURCE LINES 51-53
 
 The P1, N1 and P3 come back at their true latencies, with the right sign. The only thing
 that told evoparam this was an ERP and not a CCEP was the string ``"erp"``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 57-65
+.. GENERATED FROM PYTHON SOURCE LINES 56-64
 
 A TMS-EEG response (TEP)
 ------------------------
@@ -118,7 +117,7 @@ decay artifact and a muscle artifact. The ``tep`` preset cleans them (interpolat
 a subspace projection across channels) before fitting. We run the whole chain with
 ``run_pipeline``, as in tutorial 08.
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-79
+.. GENERATED FROM PYTHON SOURCE LINES 66-78
 
 .. code-block:: Python
 
@@ -142,7 +141,7 @@ a subspace projection across channels) before fitting. We run the whole chain wi
 
  .. code-block:: none
 
-    <TrialSet | 40 trials × 4 channels × 3000 times, -0.200 – 0.400 s, 5000 Hz, uV, human, tep>
+    <TrialSet | 40 trials × 4 channels × 3000 times, -0.200 - 0.400 s, 5000 Hz, uV, human, tep>
     channel label  latency  amplitude
          Cz  P180    0.208      1.083
          Pz            NaN        NaN
@@ -153,7 +152,7 @@ a subspace projection across channels) before fitting. We run the whole chain wi
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-85
+.. GENERATED FROM PYTHON SOURCE LINES 79-84
 
 Same ``run_pipeline`` call as the CCEP tutorial, a different preset. The slow decay
 artifact that would swamp an early component is handled by the preset, not by you. TEP
@@ -161,7 +160,7 @@ is the hardest modality: the early N15 and P30 sit right after the pulse, and cl
 recovery of the later N45 and N100 is still being validated, so read the TEP labels with
 care and lean on the existence test and the figures.
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-95
+.. GENERATED FROM PYTHON SOURCE LINES 87-94
 
 What the presets differ on
 --------------------------
@@ -171,7 +170,7 @@ what actually changes from one evoked response to another: the time scale (micro
 for ECAP, hundreds of ms for ERP), the component names, and the artifact method (none
 for scalp, template subtraction for CCEP, periodic template for ERNA).
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-105
+.. GENERATED FROM PYTHON SOURCE LINES 96-104
 
 .. code-block:: Python
 
@@ -201,14 +200,14 @@ for scalp, template subtraction for CCEP, periodic template for ERNA).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 106-110
+.. GENERATED FROM PYTHON SOURCE LINES 105-109
 
 ``presets.list()`` is the full registry with each preset's validation status.
 ``presets.get(name)`` returns one, and ``presets.derive(base, ...)`` makes your own from
 a close one (a new window, an extra component) without starting from scratch, as the
 presets tutorial shows.
 
-.. GENERATED FROM PYTHON SOURCE LINES 113-121
+.. GENERATED FROM PYTHON SOURCE LINES 112-120
 
 Conclusion
 ----------
@@ -222,7 +221,7 @@ other modality. When none fits, ``derive`` builds a custom preset from the neare
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.470 seconds)
+   **Total running time of the script:** (0 minutes 1.842 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_19_beyond_ccep.py:

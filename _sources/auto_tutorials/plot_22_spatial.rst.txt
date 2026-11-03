@@ -44,12 +44,11 @@ uses it:
 
 We simulate one stimulation on a 12-electrode grid, most of them responding.
 
-.. GENERATED FROM PYTHON SOURCE LINES 30-47
+.. GENERATED FROM PYTHON SOURCE LINES 30-46
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     import numpy as np
@@ -72,7 +71,7 @@ We simulate one stimulation on a 12-electrode grid, most of them responding.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 48-55
+.. GENERATED FROM PYTHON SOURCE LINES 47-54
 
 Shared shapes
 -------------
@@ -82,15 +81,17 @@ all the channels of the stimulation into a few shared shapes and says which chan
 which. A handful of shapes that explain many channels is both a cleaner fit and a finding:
 the channels that share a shape are driven in the same way.
 
-.. GENERATED FROM PYTHON SOURCE LINES 57-63
+.. GENERATED FROM PYTHON SOURCE LINES 56-64
 
 .. code-block:: Python
 
 
     basis = spatial.shared_shapes(trials, by="channel", max_shapes=3, random_state=0)
-    print(f"{basis.n_shapes} shared shapes explain the {trials.n_channels} channels "
-          f"(median channel r2 = {np.nanmedian(basis.r2):.2f}, "
-          f"shape stability = {np.mean(basis.stability):.2f})")
+    print(
+        f"{basis.n_shapes} shared shapes explain the {trials.n_channels} channels "
+        f"(median channel r2 = {np.nanmedian(basis.r2):.2f}, "
+        f"shape stability = {np.mean(basis.stability):.2f})"
+    )
 
 
 
@@ -105,7 +106,7 @@ the channels that share a shape are driven in the same way.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 64-70
+.. GENERATED FROM PYTHON SOURCE LINES 65-71
 
 A parameter map
 ---------------
@@ -114,7 +115,7 @@ A parameter map
 coordinates, the table you hand to a brain plot. Here the N1 amplitude of each channel,
 with its position.
 
-.. GENERATED FROM PYTHON SOURCE LINES 72-79
+.. GENERATED FROM PYTHON SOURCE LINES 73-80
 
 .. code-block:: Python
 
@@ -146,14 +147,14 @@ with its position.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-84
+.. GENERATED FROM PYTHON SOURCE LINES 81-85
 
 Each row also carries the electrode coordinates (``x``, ``y``, ``z``) when the montage has
 them. ``plots.plot_parameter_map`` draws the map; with a full montage it goes on a brain
 surface through MNE (tutorial on MNE). Our simulated grid has only partial coordinates, so
 here it stays a table.
 
-.. GENERATED FROM PYTHON SOURCE LINES 87-93
+.. GENERATED FROM PYTHON SOURCE LINES 88-94
 
 A connectivity matrix
 ---------------------
@@ -162,7 +163,7 @@ A connectivity matrix
 with several stimulations it becomes the matrix a connectivity analysis works on (who
 drives whom, and how strongly). Here there is one site, so it is one row.
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-99
+.. GENERATED FROM PYTHON SOURCE LINES 96-100
 
 .. code-block:: Python
 
@@ -185,7 +186,7 @@ drives whom, and how strongly). Here there is one site, so it is one row.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 100-108
+.. GENERATED FROM PYTHON SOURCE LINES 101-109
 
 Screening for volume conduction
 -------------------------------
@@ -196,7 +197,7 @@ flags it: it checks for a polarity reversal across the contact, how fast the res
 decays with distance, and whether a different reference removes it. ``volume_conduction_risk``
 is the verdict per channel.
 
-.. GENERATED FROM PYTHON SOURCE LINES 110-115
+.. GENERATED FROM PYTHON SOURCE LINES 111-116
 
 .. code-block:: Python
 
@@ -226,14 +227,14 @@ is the verdict per channel.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 116-120
+.. GENERATED FROM PYTHON SOURCE LINES 117-121
 
 A channel with no polarity reversal, a slow decay and a response that survives a change of
 reference is a real local response (low risk); one that reverses, decays fast and vanishes
 under another reference is likely passive spread (high risk). Use the screen to drop the
 passive channels before reading a map as connectivity.
 
-.. GENERATED FROM PYTHON SOURCE LINES 123-131
+.. GENERATED FROM PYTHON SOURCE LINES 124-132
 
 Conclusion
 ----------
@@ -247,7 +248,7 @@ map of the brain.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.838 seconds)
+   **Total running time of the script:** (0 minutes 1.958 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_22_spatial.py:

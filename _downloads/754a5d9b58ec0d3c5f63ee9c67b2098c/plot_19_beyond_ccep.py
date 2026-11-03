@@ -4,7 +4,7 @@
 ==========================================
 
 Fit scalp ERP and TMS-EEG with the same calls; only the preset changes.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -22,7 +22,6 @@ Fit scalp ERP and TMS-EEG with the same calls; only the preset changes.
 
 ###################################################################################################
 
-# Import what we need
 import warnings
 
 from evoparam import models, plots, presets, reports

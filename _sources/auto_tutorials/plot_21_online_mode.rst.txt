@@ -41,12 +41,11 @@ existence test keeps its 5 % false-positive rate per channel however often you r
 We simulate a stream (no hardware): one pulse per second, an N1 on half of eight
 channels, fed in small chunks as a device would deliver it.
 
-.. GENERATED FROM PYTHON SOURCE LINES 27-48
+.. GENERATED FROM PYTHON SOURCE LINES 27-47
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     import numpy as np
@@ -56,9 +55,9 @@ channels, fed in small chunks as a device would deliver it.
     from evoparam.stream import StreamFitter
 
     SFREQ = 2048.0
-    N_CHANNELS = 8  # the first four respond, the last four are silent
-    N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
-    ARTIFACT = (-0.002, 0.008)  # artifact window, interpolated (s)
+    N_CHANNELS = 8
+    N1 = (-40.0, 0.03, 0.02)
+    ARTIFACT = (-0.002, 0.008)
 
 
     def gauss(times, latency, fwhm):
@@ -73,7 +72,7 @@ channels, fed in small chunks as a device would deliver it.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 49-54
+.. GENERATED FROM PYTHON SOURCE LINES 48-53
 
 1. The offline template
 ------------------------
@@ -81,7 +80,7 @@ channels, fed in small chunks as a device would deliver it.
 First, a normal fit on an offline block of 40 trials. Its bumps become the template the
 stream will track. This is the only fit done; the stream only shifts and scales it.
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-72
+.. GENERATED FROM PYTHON SOURCE LINES 55-71
 
 .. code-block:: Python
 
@@ -114,7 +113,7 @@ stream will track. This is the only fit done; the stream only shifts and scales 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-79
+.. GENERATED FROM PYTHON SOURCE LINES 72-78
 
 2. The stream
 -------------
@@ -123,7 +122,7 @@ stream will track. This is the only fit done; the stream only shifts and scales 
 second, in chunks of 32 samples (``push`` returns the finished estimates). Each pulse has
 a big artifact and an N1 on the first four channels.
 
-.. GENERATED FROM PYTHON SOURCE LINES 81-104
+.. GENERATED FROM PYTHON SOURCE LINES 80-106
 
 .. code-block:: Python
 
@@ -137,8 +136,9 @@ a big artifact and an N1 on the first four channels.
     for _ in range(30):
         chunk = rng.normal(0.0, 10.0, (int(SFREQ), N_CHANNELS))
         onset = int(0.45 * SFREQ)
-        chunk[onset : onset + 3] += np.array([3000.0, -2000.0, 500.0, 400.0,
-                                              0.0, 0.0, 0.0, 0.0])[None, :]  # artifact
+        chunk[onset : onset + 3] += np.array([3000.0, -2000.0, 500.0, 400.0, 0.0, 0.0, 0.0, 0.0])[
+            None, :
+        ]  # artifact
         relative = (np.arange(len(chunk)) - onset) / SFREQ
         chunk[:, : N_CHANNELS // 2] += N1[0] * gauss(relative, N1[1], N1[2])[:, None]
         for first in range(0, len(chunk), 32):
@@ -146,9 +146,11 @@ a big artifact and an N1 on the first four channels.
 
     print(f"\n{len(estimates)} per-channel estimates over 30 pulses; the last pulse:")
     for estimate in estimates[-N_CHANNELS:]:
-        print(f"  {estimate.channel}: amplitude {estimate.amplitude:7.1f} uV, "
-              f"latency {estimate.latency * 1e3:5.1f} ms, "
-              f"z {estimate.existence_z:5.1f}, {estimate.status}")
+        print(
+            f"  {estimate.channel}: amplitude {estimate.amplitude:7.1f} uV, "
+            f"latency {estimate.latency * 1e3:5.1f} ms, "
+            f"z {estimate.existence_z:5.1f}, {estimate.status}"
+        )
 
 
 
@@ -172,13 +174,13 @@ a big artifact and an N1 on the first four channels.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 105-108
+.. GENERATED FROM PYTHON SOURCE LINES 107-110
 
 The responding channels come back near the template's amplitude and latency with a high
 existence z; the silent channels stay near zero. Each estimate is one pulse on one
 channel, delivered as soon as its window closes.
 
-.. GENERATED FROM PYTHON SOURCE LINES 111-117
+.. GENERATED FROM PYTHON SOURCE LINES 113-119
 
 3. The running existence test and the timing budget
 ----------------------------------------------------
@@ -187,7 +189,7 @@ channel, delivered as soon as its window closes.
 being looked at after every pulse, so the 5 % false-positive rate holds however often you
 read it. ``latency_stats`` is the compute time per pulse: the online budget.
 
-.. GENERATED FROM PYTHON SOURCE LINES 119-127
+.. GENERATED FROM PYTHON SOURCE LINES 121-129
 
 .. code-block:: Python
 
@@ -216,12 +218,12 @@ read it. ``latency_stats`` is the compute time per pulse: the online budget.
       c6: response after 29 pulses
       c7: no response after 29 pulses
 
-    compute time per pulse (ms): {'p50': 1.12, 'p95': 1.24, 'p99': 1.36, 'max': 1.4}
+    compute time per pulse (ms): {'p50': 1.22, 'p95': 1.53, 'p99': 1.64, 'max': 1.65}
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 128-148
+.. GENERATED FROM PYTHON SOURCE LINES 130-150
 
 The four responding channels are found; among the four silent ones, a correction holds
 the false-positive rate at 5 % per channel across all the looks, so now and then one
@@ -244,7 +246,7 @@ rate in mind.
         outlet = LSLOutlet(fitter)   # tagged "research only; not a medical device"
         inlet.feed(fitter, duration=60.0, callback=outlet.push)
 
-.. GENERATED FROM PYTHON SOURCE LINES 151-159
+.. GENERATED FROM PYTHON SOURCE LINES 153-161
 
 Conclusion
 ----------
@@ -258,7 +260,7 @@ responsibility.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.791 seconds)
+   **Total running time of the script:** (0 minutes 0.990 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_21_online_mode.py:

@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>15: Is there a response? &#8212; evoparam</title>
+<title>15: Is there a response? | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -19,7 +18,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="06: Metrics and model evaluation" href="plot_06_metrics.html" />
-    <link rel="prev" title="02: Reading the results" href="plot_02_reading_results.html" />
+    <link rel="prev" title="10: Tuning the fit" href="plot_10_tuning_the_fit.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -99,8 +98,7 @@ the two decisions do not contaminate each other.</p>
 <p>evoparam ships a registry of <strong>published rules</strong> (van Blooijs, Hays, Keller,
 Silverstein, F-TRACT) so you can run exactly the rule a paper used, next to evoparam’s
 own permutation test, and see where they agree.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="w">
@@ -117,7 +115,7 @@ the rest see only noise. We know which is which, which lets us read the test hon
 </span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 6 channels × 768 times, -0.500 – 0.998 s, 512 Hz, uV, human, spes&gt;
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 6 channels × 768 times, -0.500 - 0.998 s, 512 Hz, uV, human, spes&gt;
 </pre></div>
 </div>
 </section>
@@ -171,8 +169,10 @@ you only want the timing.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="p">)</span><span class="p">:</span><span class="w">
 </span>    <span class="k">if</span> <span class="n">test</span><span class="o">.</span><span class="n">significant</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="p">:</span><span class="w">
 </span>        <span class="n">name</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">ch_info</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="w">
-</span>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">duration</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms </span><span class="s2">&quot;</span><span class="w">
-</span>              <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(</span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">onset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">offset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>        <span class="nb">print</span><span class="p">(</span><span class="w">
+</span>            <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">duration</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms </span><span class="s2">&quot;</span><span class="w">
+</span>            <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(</span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">onset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">offset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms)</span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>G01: 172 ms (27 to 199 ms)
 G03: 23 ms (16 to 39 ms)
@@ -255,14 +255,8 @@ it decides and how to read it.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

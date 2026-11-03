@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>21: Online mode &#8212; evoparam</title>
+<title>21: Online mode | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -101,8 +100,7 @@ existence score, in a few milliseconds, without re-fitting from scratch. A runni
 existence test keeps its 5 % false-positive rate per channel however often you read it.</p>
 <p>We simulate a stream (no hardware): one pulse per second, an N1 on half of eight
 channels, fed in small chunks as a device would deliver it.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="w">
@@ -111,9 +109,9 @@ channels, fed in small chunks as a device would deliver it.</p>
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">stream</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamFitter</span><span class="w">
 </span><span class="w">
 </span><span class="n">SFREQ</span> <span class="o">=</span> <span class="mf">2048.0</span><span class="w">
-</span><span class="n">N_CHANNELS</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># the first four respond, the last four are silent</span><span class="w">
-</span><span class="n">N1</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">)</span>  <span class="c1"># amplitude (uV), latency (s), FWHM (s)</span><span class="w">
-</span><span class="n">ARTIFACT</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.008</span><span class="p">)</span>  <span class="c1"># artifact window, interpolated (s)</span><span class="w">
+</span><span class="n">N_CHANNELS</span> <span class="o">=</span> <span class="mi">8</span><span class="w">
+</span><span class="n">N1</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">)</span><span class="w">
+</span><span class="n">ARTIFACT</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.008</span><span class="p">)</span><span class="w">
 </span><span class="w">
 </span><span class="w">
 </span><span class="k">def</span><span class="w"> </span><span class="nf">gauss</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="n">fwhm</span><span class="p">)</span><span class="p">:</span><span class="w">
@@ -158,8 +156,9 @@ a big artifact and an N1 on the first four channels.</p>
 </span><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="p">:</span><span class="w">
 </span>    <span class="n">chunk</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">SFREQ</span><span class="p">)</span><span class="p">,</span> <span class="n">N_CHANNELS</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span>    <span class="n">onset</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.45</span> <span class="o">*</span> <span class="n">SFREQ</span><span class="p">)</span><span class="w">
-</span>    <span class="n">chunk</span><span class="p">[</span><span class="n">onset</span> <span class="p">:</span> <span class="n">onset</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="mf">3000.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2000.0</span><span class="p">,</span> <span class="mf">500.0</span><span class="p">,</span> <span class="mf">400.0</span><span class="p">,</span><span class="w">
-</span>                                          <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span><span class="p">)</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="p">]</span>  <span class="c1"># artifact</span><span class="w">
+</span>    <span class="n">chunk</span><span class="p">[</span><span class="n">onset</span> <span class="p">:</span> <span class="n">onset</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="mf">3000.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2000.0</span><span class="p">,</span> <span class="mf">500.0</span><span class="p">,</span> <span class="mf">400.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span><span class="p">)</span><span class="p">[</span><span class="w">
+</span>        <span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="w">
+</span>    <span class="p">]</span>  <span class="c1"># artifact</span><span class="w">
 </span>    <span class="n">relative</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="p">)</span> <span class="o">-</span> <span class="n">onset</span><span class="p">)</span> <span class="o">/</span> <span class="n">SFREQ</span><span class="w">
 </span>    <span class="n">chunk</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="p">:</span> <span class="n">N_CHANNELS</span> <span class="o">/</span><span class="o">/</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">N1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">gauss</span><span class="p">(</span><span class="n">relative</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="p">)</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="w">
 </span>    <span class="k">for</span> <span class="n">first</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span><span class="p">:</span><span class="w">
@@ -167,9 +166,11 @@ a big artifact and an N1 on the first four channels.</p>
 </span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">estimates</span><span class="p">)</span><span class="si">}</span><span class="s2"> per-channel estimates over 30 pulses; the last pulse:</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span><span class="k">for</span> <span class="n">estimate</span> <span class="ow">in</span> <span class="n">estimates</span><span class="p">[</span><span class="o">-</span><span class="n">N_CHANNELS</span><span class="p">:</span><span class="p">]</span><span class="p">:</span><span class="w">
-</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">channel</span><span class="si">}</span><span class="s2">: amplitude </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">7.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
-</span>          <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">latency </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">latency</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e3</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="s2">&quot;</span><span class="w">
-</span>          <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">z </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">existence_z</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">channel</span><span class="si">}</span><span class="s2">: amplitude </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">7.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">latency </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">latency</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e3</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">z </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">existence_z</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>240 per-channel estimates over 30 pulses; the last pulse:
   c0: amplitude   -41.3 uV, latency  29.6 ms, z  33.4, ok
@@ -207,7 +208,7 @@ read it. <code class="docutils literal notranslate"><span class="pre">latency_st
   c6: response after 29 pulses
   c7: no response after 29 pulses
 
-compute time per pulse (ms): {'p50': 1.12, 'p95': 1.24, 'p99': 1.36, 'max': 1.4}
+compute time per pulse (ms): {'p50': 1.22, 'p95': 1.53, 'p99': 1.64, 'max': 1.65}
 </pre></div>
 </div>
 <p>The four responding channels are found; among the four silent ones, a correction holds
@@ -236,7 +237,7 @@ amplitude, latency and existence score per channel, in milliseconds, with a runn
 that stays honest under repeated looks. It targets soft real time (a latency budget), not
 hard deadlines, and it reports numbers only; closing a loop on them is the user’s
 responsibility.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.791 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.990 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-21-online-mode-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/ebebe83f254bc17f234362f5f6dcf589/plot_21_online_mode.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_21_online_mode.ipynb</span></code></a></p>
@@ -259,14 +260,8 @@ responsibility.</p>
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

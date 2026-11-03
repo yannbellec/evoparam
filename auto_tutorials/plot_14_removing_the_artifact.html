@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>14: Finding pulses and removing the artifact &#8212; evoparam</title>
+<title>14: Finding pulses and removing the artifact | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -18,7 +17,7 @@
     <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="10: Tuning the fit" href="plot_10_tuning_the_fit.html" />
+    <link rel="next" title="09: Fitting trial by trial" href="plot_09_trial_by_trial.html" />
     <link rel="prev" title="06: Metrics and model evaluation" href="plot_06_metrics.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
@@ -102,8 +101,7 @@ well it worked (<code class="docutils literal notranslate"><span class="pre">evo
 </ol>
 <p>evoparam has eleven artifact methods. No single method is best everywhere, so evoparam
 gives every cleaned trial a <strong>quality score</strong> and can compare methods on the same data.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
 </span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="w">
@@ -126,10 +124,10 @@ the background. Here we build 30 s of noise with five pulses 5 s apart, on two c
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">sfreq</span> <span class="o">=</span> <span class="mf">2048.0</span><span class="w">
 </span><span class="n">n_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">30</span> <span class="o">*</span> <span class="n">sfreq</span><span class="p">)</span><span class="w">
 </span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
-</span><span class="n">raw</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">15.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># 2 channels, 30 s of noise (uV)</span><span class="w">
+</span><span class="n">raw</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">15.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span><span class="n">pulse_samples</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="n">sfreq</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">17.0</span><span class="p">,</span> <span class="mf">22.0</span><span class="p">)</span><span class="p">]</span><span class="w">
 </span><span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">pulse_samples</span><span class="p">:</span><span class="w">
-</span>    <span class="n">raw</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="n">sample</span> <span class="p">:</span> <span class="n">sample</span> <span class="o">+</span> <span class="mi">4</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="mf">4000.0</span>  <span class="c1"># a sharp 4 mV artifact at each pulse</span><span class="w">
+</span>    <span class="n">raw</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="n">sample</span> <span class="p">:</span> <span class="n">sample</span> <span class="o">+</span> <span class="mi">4</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="mf">4000.0</span><span class="w">
 </span><span class="w">
 </span><span class="n">events</span> <span class="o">=</span> <span class="n">detect_pulses</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">sfreq</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">A1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">A2</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">events</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">onset_time</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">peak_abs</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">detector</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">threshold</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
@@ -169,7 +167,6 @@ at the pulse that cannot be recovered.</p>
 </span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">methods_text</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># The cleaned trials of channel 0, over the raw trials</span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_artifact</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">dirty</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <img src="../_images/sphx_glr_plot_14_removing_the_artifact_001.png" srcset="../_images/sphx_glr_plot_14_removing_the_artifact_001.png" alt="template: G01" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Evoked responses were analysed with evoparam (version 0.1.0.dev0). The stimulation artifact was removed by template subtraction (evoparam.artifact.remove_artifact, method 'template') in the window -2 to 9 ms (global template; templates grouped by the metadata columns stim_site, stim_current_mA and stim_polarity (those present); scaled to each trial and channel). A quality score between 0 and 1 was computed for every trial. Random draws used the seed 1; the result can be regenerated from its recorded provenance with evoparam.reproduce. Software: Bellec Y.V. evoparam: parameterizing evoked neural responses (version 0.1.0). https://github.com/yannbellec/evoparam
@@ -205,9 +202,9 @@ signal, higher is better), <code class="docutils literal notranslate"><span clas
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>     method  median_quality  rrmse  sir_improvement_db  runtime_s
    template           0.625  3.265              18.359      0.014
-       tail           0.539  0.667              21.924      0.023
-interpolate           0.539  3.265              16.903      0.011
- polynomial           0.625  0.147               0.150      0.026
+       tail           0.539  0.667              21.924      0.021
+interpolate           0.539  3.265              16.903      0.012
+ polynomial           0.625  0.147               0.150      0.027
 </pre></div>
 </div>
 <p>On this made-up CCEP, <code class="docutils literal notranslate"><span class="pre">polynomial</span></code> and <code class="docutils literal notranslate"><span class="pre">tail</span></code> reach the lowest error (<code class="docutils literal notranslate"><span class="pre">rrmse</span></code>),
@@ -226,8 +223,9 @@ method for each modality.</p>
 on their own. Low-quality trials are flagged so you can drop them before fitting.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">quality</span> <span class="o">=</span> <span class="n">artifact_quality</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">cleaned</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.009</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">quality</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">median quality: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quality</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">; </span><span class="s2">&quot;</span><span class="w">
-</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">worst trial: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quality</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">median quality: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quality</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">; worst trial: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quality</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">
+</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span> residual_ratio  edge_discontinuity  saturation_fraction  template_fit_r2  quality
          35.758              42.339                  0.0              NaN    0.625
@@ -248,7 +246,7 @@ out of each trial. Always read the quality: it tells you how much of the early w
 is trustworthy, and <code class="docutils literal notranslate"><span class="pre">compare_methods</span></code> lets you choose a method on your own data
 instead of trusting a default. In practice the preset does both for you, and tutorial 08
 showed <code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> chaining clean, reference, baseline, fit and test in one call.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.344 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.339 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-14-removing-the-artifact-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/b3e5126d4c4690a4f29b1ff757f0e72e/plot_14_removing_the_artifact.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_14_removing_the_artifact.ipynb</span></code></a></p>
@@ -271,14 +269,8 @@ showed <code class="docutils literal notranslate"><span class="pre">run_pipeline
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>

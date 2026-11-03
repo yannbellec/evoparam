@@ -50,12 +50,11 @@ The steps are:
     step. This is only to look inside: in practice, one call to ``fit_response`` does
     all of it.
 
-.. GENERATED FROM PYTHON SOURCE LINES 36-40
+.. GENERATED FROM PYTHON SOURCE LINES 36-39
 
 .. code-block:: Python
 
 
-    # Import what we need
     from evoparam import fit_response, gen_response, plot_fit
 
 
@@ -65,21 +64,19 @@ The steps are:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 41-44
+.. GENERATED FROM PYTHON SOURCE LINES 40-43
 
-We use the curve of tutorial 01: a sharp bump at 25 ms (−150 µV) and a broad one at
-150 ms (−80 µV), on a background that fades away (60 µV, fading in 30 ms), with noise of
+We use the curve of tutorial 01: a sharp bump at 25 ms (-150 µV) and a broad one at
+150 ms (-80 µV), on a background that fades away (60 µV, fading in 30 ms), with noise of
 8 µV.
 
-.. GENERATED FROM PYTHON SOURCE LINES 47-55
+.. GENERATED FROM PYTHON SOURCE LINES 46-52
 
 .. code-block:: Python
 
 
-    # The example curve: [latency (ms), amplitude (µV), width (ms)]
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
-    # The whole fit, in one call
     fit = fit_response(times, signal, preset="ccep", random_state=0)
     print(fit)
 
@@ -109,12 +106,12 @@ We use the curve of tutorial 01: a sharp bump at 25 ms (−150 µV) and a broad 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 56-66
+.. GENERATED FROM PYTHON SOURCE LINES 53-63
 
 Step 1: the noise
 -----------------
 
-Before the stimulus (from −500 to −20 ms here, the **baseline**), there is no response:
+Before the stimulus (from -500 to -20 ms here, the **baseline**), there is no response:
 only noise. evoparam measures it there: how large it is (its standard deviation,
 ``sigma``) and how it is made (brain noise is slow: a point looks like its neighbours,
 so evoparam also learns this rhythm).
@@ -122,7 +119,7 @@ so evoparam also learns this rhythm).
 The noise sets the scale for everything that follows: a bump is only worth keeping if it
 is clearly larger than what noise can make.
 
-.. GENERATED FROM PYTHON SOURCE LINES 68-71
+.. GENERATED FROM PYTHON SOURCE LINES 65-68
 
 .. code-block:: Python
 
@@ -142,7 +139,7 @@ is clearly larger than what noise can make.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 72-80
+.. GENERATED FROM PYTHON SOURCE LINES 69-77
 
 Step 2: the background alone
 ----------------------------
@@ -153,7 +150,7 @@ is about the background).
 
 ``max_components=0`` stops the fit here, so that we can see this step.
 
-.. GENERATED FROM PYTHON SOURCE LINES 82-87
+.. GENERATED FROM PYTHON SOURCE LINES 79-84
 
 .. code-block:: Python
 
@@ -180,7 +177,7 @@ is about the background).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 88-94
+.. GENERATED FROM PYTHON SOURCE LINES 85-91
 
 The background alone explains almost nothing of the curve (R² = 0.02): the two dips are
 left in the residual (the orange line at the bottom, shifted down to be readable).
@@ -189,7 +186,7 @@ The **BIC** (Bayesian information criterion) scores the model: how far it is fro
 data, compared with the noise, plus a cost for every number the model uses. Lower is
 better. Here it is 756.
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-104
+.. GENERATED FROM PYTHON SOURCE LINES 94-101
 
 Step 3: add one bump
 --------------------
@@ -199,7 +196,7 @@ troughs there that stand above 2 times the noise (``detection_threshold=2``), tr
 new bump at each of them, and refits **everything together**: the background and all the
 bumps move to fit best. The best of these tries is the candidate.
 
-.. GENERATED FROM PYTHON SOURCE LINES 106-111
+.. GENERATED FROM PYTHON SOURCE LINES 103-108
 
 .. code-block:: Python
 
@@ -226,12 +223,12 @@ bumps move to fit best. The best of these tries is the candidate.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 112-114
+.. GENERATED FROM PYTHON SOURCE LINES 109-111
 
 The first bump is the sharp N1 at 25 ms: it is the deepest trough of the curve. The BIC
 goes down from 756 to 440.
 
-.. GENERATED FROM PYTHON SOURCE LINES 117-123
+.. GENERATED FROM PYTHON SOURCE LINES 114-120
 
 Step 4: keep it or not
 ----------------------
@@ -240,7 +237,7 @@ A new bump always makes the model a little closer to the data, even if it only f
 noise. So evoparam keeps it only when the BIC goes down by at least ``delta`` (10 for
 the ``"ccep"`` preset). Here it went down by 316: the N1 is kept.
 
-.. GENERATED FROM PYTHON SOURCE LINES 125-130
+.. GENERATED FROM PYTHON SOURCE LINES 122-127
 
 Step 5: again, until no bump helps
 ----------------------------------
@@ -248,7 +245,7 @@ Step 5: again, until no bump helps
 The same is done again on what is left: a second bump is tried and kept if the BIC goes
 down by 10 or more.
 
-.. GENERATED FROM PYTHON SOURCE LINES 132-137
+.. GENERATED FROM PYTHON SOURCE LINES 129-134
 
 .. code-block:: Python
 
@@ -275,7 +272,7 @@ down by 10 or more.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 138-145
+.. GENERATED FROM PYTHON SOURCE LINES 135-142
 
 The broad N2 at 150 ms is added: the BIC goes down from 440 to 34, and R² goes up to
 0.94. The residual is now flat: only noise is left.
@@ -285,7 +282,7 @@ the BIC by only about 6, less than 10, so it was not kept and the fit stopped. T
 keeps the history of the BIC at each step, and by how much the best refused bump would
 have lowered it.
 
-.. GENERATED FROM PYTHON SOURCE LINES 148-153
+.. GENERATED FROM PYTHON SOURCE LINES 145-150
 
 .. code-block:: Python
 
@@ -310,7 +307,7 @@ have lowered it.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 154-160
+.. GENERATED FROM PYTHON SOURCE LINES 151-157
 
 The values of the history (754, 440, 35) differ a little from those printed for the
 separate fits above (756, 440, 34): each separate fit starts again from scratch. What
@@ -319,7 +316,7 @@ matters is how much the BIC goes down from one step to the next.
 The search also stops when ``max_components`` bumps are reached (6 for ``"ccep"``):
 this limit is a safety, it never adds bumps that are not there.
 
-.. GENERATED FROM PYTHON SOURCE LINES 163-176
+.. GENERATED FROM PYTHON SOURCE LINES 160-173
 
 Step 6: name and measure the bumps
 ----------------------------------
@@ -335,7 +332,7 @@ When the search stops, evoparam:
 - gives each number an **uncertainty**: a range of 95 % around it, computed from the
   noise and from how sharply the fit depends on that number.
 
-.. GENERATED FROM PYTHON SOURCE LINES 178-187
+.. GENERATED FROM PYTHON SOURCE LINES 175-184
 
 .. code-block:: Python
 
@@ -362,13 +359,13 @@ When the search stops, evoparam:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 188-191
+.. GENERATED FROM PYTHON SOURCE LINES 185-188
 
 The sharp N1 is placed within a fraction of a ms; the broad N2 within a few ms. This is
 the same lesson as for trials (tutorial 09): a narrow, large bump is timed much more
 precisely than a broad, small one.
 
-.. GENERATED FROM PYTHON SOURCE LINES 194-202
+.. GENERATED FROM PYTHON SOURCE LINES 191-199
 
 Conclusion
 ----------
@@ -382,7 +379,7 @@ and the scores that judge the fit (06).
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.530 seconds)
+   **Total running time of the script:** (0 minutes 0.733 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_03_fitting_algorithm.py:

@@ -40,12 +40,11 @@ Bayesian engine (``numpyro`` or ``pymc``) is an optional extra for when you want
 posteriors. The result is a group estimate with honest uncertainty, and it can use a
 covariate such as age.
 
-.. GENERATED FROM PYTHON SOURCE LINES 26-34
+.. GENERATED FROM PYTHON SOURCE LINES 26-33
 
 .. code-block:: Python
 
 
-    # Import what we need
     import warnings
 
     from evoparam import plots
@@ -59,7 +58,7 @@ covariate such as age.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 35-41
+.. GENERATED FROM PYTHON SOURCE LINES 34-40
 
 The data
 ~~~~~~~~
@@ -68,7 +67,7 @@ Ten subjects, five electrodes each, 20 trials. About 60 % of the electrodes answ
 a real study each subject would be one recording read with ``read_bids``; here each is a
 simulated ``TrialSet``, and we pass the list straight to ``fit_hierarchical``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 43-53
+.. GENERATED FROM PYTHON SOURCE LINES 42-52
 
 .. code-block:: Python
 
@@ -95,7 +94,7 @@ simulated ``TrialSet``, and we pass the list straight to ``fit_hierarchical``.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 54-59
+.. GENERATED FROM PYTHON SOURCE LINES 53-58
 
 The fit
 -------
@@ -103,7 +102,7 @@ The fit
 ``fit_hierarchical`` fits the N1 at every level. ``components=["N1"]`` keeps the model
 small for the tutorial. ``engine="eb"`` is empirical Bayes, the default.
 
-.. GENERATED FROM PYTHON SOURCE LINES 61-68
+.. GENERATED FROM PYTHON SOURCE LINES 60-67
 
 .. code-block:: Python
 
@@ -127,7 +126,7 @@ small for the tutorial. ``engine="eb"`` is empirical Bayes, the default.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 69-76
+.. GENERATED FROM PYTHON SOURCE LINES 68-75
 
 The group estimate
 ------------------
@@ -137,7 +136,7 @@ parameter, with a standard error and how many channels and subjects it rests on.
 the number a paper reports: the group N1 latency and amplitude, pooled correctly over
 the levels.
 
-.. GENERATED FROM PYTHON SOURCE LINES 78-82
+.. GENERATED FROM PYTHON SOURCE LINES 77-81
 
 .. code-block:: Python
 
@@ -161,13 +160,13 @@ the levels.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 83-86
+.. GENERATED FROM PYTHON SOURCE LINES 82-85
 
 At the **subject** level it gives one row per subject. ``pi`` is the share of that
 subject's channels with an N1; the latency and amplitude are the subject means, each
 pulled toward the group by an amount set by how well that subject is measured.
 
-.. GENERATED FROM PYTHON SOURCE LINES 89-94
+.. GENERATED FROM PYTHON SOURCE LINES 88-93
 
 .. code-block:: Python
 
@@ -194,7 +193,7 @@ pulled toward the group by an amount set by how well that subject is measured.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-102
+.. GENERATED FROM PYTHON SOURCE LINES 94-101
 
 Where the variance sits
 -----------------------
@@ -204,7 +203,7 @@ between-channel and between-trial parts. It answers "would more subjects or more
 help most?": if most variance is between subjects, add subjects; if between trials, add
 trials. The figure shows the group estimate and the subject spread.
 
-.. GENERATED FROM PYTHON SOURCE LINES 104-109
+.. GENERATED FROM PYTHON SOURCE LINES 103-108
 
 .. code-block:: Python
 
@@ -234,14 +233,14 @@ trials. The figure shows the group estimate and the subject spread.
            N1 amplitude                     subject 20.4362                         REML
            N1      fwhm                     channel  0.0032                         REML
            N1      fwhm                     subject  0.0000                         REML
-           N1   latency                       trial  0.0002 REML (residual beyond noise)
+           N1   latency                       trial  0.0000 REML (residual beyond noise)
            N1   latency   trial (ex-Gaussian sigma)  0.0000                      moments
-           N1   latency     trial (ex-Gaussian tau)  0.0002                      moments
+           N1   latency     trial (ex-Gaussian tau)  0.0000                      moments
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 110-117
+.. GENERATED FROM PYTHON SOURCE LINES 109-116
 
 .. note::
 
@@ -251,7 +250,7 @@ trials. The figure shows the group estimate and the subject spread.
     and credible intervals, ``engine="numpyro"`` or ``engine="pymc"`` (optional extras)
     fit the same model with MCMC; ``compare_hierarchical`` then contrasts several fits.
 
-.. GENERATED FROM PYTHON SOURCE LINES 120-128
+.. GENERATED FROM PYTHON SOURCE LINES 119-127
 
 Conclusion
 ----------
@@ -265,7 +264,7 @@ when you need the whole posterior.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.243 seconds)
+   **Total running time of the script:** (0 minutes 8.165 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_18_across_subjects.py:

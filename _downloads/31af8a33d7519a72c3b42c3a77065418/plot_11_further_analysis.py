@@ -5,7 +5,7 @@
 
 Use the results: pick one bump across electrodes, check its range, and relate it to where
 the electrodes are.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -26,7 +26,6 @@ the electrodes are.
 
 ###################################################################################################
 
-# Import what we need
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -59,7 +58,6 @@ trials = read_bids(
 )
 result = reports.run_pipeline(trials, "ccep", random_state=0, trial_fits=False)
 
-# One row per bump and per electrode, with the test of tutorial 08
 table = result.group.to_dataframe()
 columns = ["channel", "label", "latency", "amplitude", "existence_significant"]
 print(table[table["label"].isin(["N1", "N2"])][columns].head())
@@ -154,7 +152,7 @@ for ax, bumps, name, color in zip(axes, (n1, n2), ("N1", "N2"), ("C0", "C1"), st
 
 ###################################################################################################
 #
-# **ρ** (Spearman's rank correlation) goes from −1 to 1: 1 means "farther is always
+# **ρ** (Spearman's rank correlation) goes from -1 to 1: 1 means "farther is always
 # later", 0 means no relation. The p-value is the chance of a ρ this large if distance and
 # latency were unrelated.
 #

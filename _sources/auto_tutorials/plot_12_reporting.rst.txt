@@ -36,12 +36,11 @@ keeps a record of every step (tutorial 07). This last tutorial turns that record
 3. the **citations** of evoparam and of the methods it used;
 4. a way to **make the result again** later.
 
-.. GENERATED FROM PYTHON SOURCE LINES 22-30
+.. GENERATED FROM PYTHON SOURCE LINES 22-29
 
 .. code-block:: Python
 
 
-    # Import what we need
     import os
     import tempfile
 
@@ -55,12 +54,11 @@ keeps a record of every step (tutorial 07). This last tutorial turns that record
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 31-36
+.. GENERATED FROM PYTHON SOURCE LINES 30-34
 
 .. code-block:: Python
 
 
-    # The curve of tutorial 01, fitted with one setting changed from the preset
     times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
     fit = fit_response(times, signal, preset="ccep", delta=20, random_state=0)
 
@@ -71,7 +69,7 @@ keeps a record of every step (tutorial 07). This last tutorial turns that record
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 37-44
+.. GENERATED FROM PYTHON SOURCE LINES 35-42
 
 1. The methods paragraph
 ------------------------
@@ -81,7 +79,7 @@ preset and its version, the model, how bumps were chosen, the windows of the nam
 the uncertainty was computed, every setting changed from the preset, the random seed,
 and the citations.
 
-.. GENERATED FROM PYTHON SOURCE LINES 46-49
+.. GENERATED FROM PYTHON SOURCE LINES 44-47
 
 .. code-block:: Python
 
@@ -101,7 +99,7 @@ and the citations.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 50-62
+.. GENERATED FROM PYTHON SOURCE LINES 48-60
 
 The setting we changed (``delta=20``) is written in it: "kept when the BIC decreased by
 at least 20". This is why it is safer to give settings to evoparam than to change the
@@ -116,7 +114,7 @@ the test of a response.
     Adapt the wording to your paper, but keep the numbers: they are the ones that were
     used. ``cite=False`` leaves out the citations, if you add them yourself.
 
-.. GENERATED FROM PYTHON SOURCE LINES 65-78
+.. GENERATED FROM PYTHON SOURCE LINES 63-76
 
 2. Reports to share
 -------------------
@@ -132,7 +130,7 @@ quality of the fits, and the steps of the record:
 ``reports.to_json(result, path)`` writes **everything** (every number, setting and
 step) in one JSON file, which any language can read.
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-91
+.. GENERATED FROM PYTHON SOURCE LINES 78-89
 
 .. code-block:: Python
 
@@ -155,19 +153,19 @@ step) in one JSON file, which any language can read.
 
  .. code-block:: none
 
-    HTML report: 72 kB
+    HTML report: 73 kB
     JSON file: 52 kB
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 92-95
+.. GENERATED FROM PYTHON SOURCE LINES 90-93
 
 With many electrodes (a group fit, or the result of ``run_pipeline``), the reports show
 one figure per electrode, up to ``max_channels``. To store results next to a BIDS
 dataset, use ``evoparam.io.write_bids_derivatives``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 98-105
+.. GENERATED FROM PYTHON SOURCE LINES 96-103
 
 3. Citations
 ------------
@@ -177,7 +175,7 @@ gives an entry for a reference manager. The methods text also cites the publishe
 methods that the steps used (for example the false-discovery-rate correction of the
 test of a response).
 
-.. GENERATED FROM PYTHON SOURCE LINES 107-110
+.. GENERATED FROM PYTHON SOURCE LINES 105-108
 
 .. code-block:: Python
 
@@ -197,7 +195,7 @@ test of a response).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 111-114
+.. GENERATED FROM PYTHON SOURCE LINES 109-112
 
 .. code-block:: Python
 
@@ -223,12 +221,12 @@ test of a response).
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 115-117
+.. GENERATED FROM PYTHON SOURCE LINES 113-115
 
 Also cite the data: for the recording of tutorials 08 and 11, van Blooijs et al. (2023),
 *Nature Neuroscience*, and its OpenNeuro identifier (ds004080).
 
-.. GENERATED FROM PYTHON SOURCE LINES 120-131
+.. GENERATED FROM PYTHON SOURCE LINES 118-129
 
 4. Making the result again
 --------------------------
@@ -242,7 +240,7 @@ give them with ``data=``.
 The record also lists the computer's versions of Python and of the main packages, so
 that a difference in a later run can be traced to its cause.
 
-.. GENERATED FROM PYTHON SOURCE LINES 133-138
+.. GENERATED FROM PYTHON SOURCE LINES 131-136
 
 .. code-block:: Python
 
@@ -264,7 +262,7 @@ that a difference in a later run can be traced to its cause.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 139-148
+.. GENERATED FROM PYTHON SOURCE LINES 137-146
 
 Conclusion
 ----------
@@ -279,7 +277,7 @@ This is the end of the tutorials: from what the model is (01) to how to report i
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.772 seconds)
+   **Total running time of the script:** (0 minutes 0.441 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_12_reporting.py:

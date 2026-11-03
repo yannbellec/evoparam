@@ -4,8 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>11: Further analysis &#8212; evoparam</title>
+<title>11: Further analysis | evoparam</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
@@ -104,8 +103,7 @@ to measure this transmission speed across ages (van Blooijs et al., 2023).</p>
 <li><p>check that the latencies are spread inside their window, not piled at its edges;</p></li>
 <li><p>add the position of each electrode, and relate latency to distance.</p></li>
 </ol>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span><span class="nn">.</span><span class="nn">pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span><span class="w">
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span><span class="nn">.</span><span class="nn">pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
 </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span><span class="w">
 </span><span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="nn">.</span><span class="nn">stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span><span class="w">
@@ -133,7 +131,6 @@ electrodes of the grid, and the chain of the <code class="docutils literal notra
 </span><span class="p">)</span><span class="w">
 </span><span class="n">result</span> <span class="o">=</span> <span class="n">reports</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">trial_fits</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
 </span><span class="w">
-</span><span class="c1"># One row per bump and per electrode, with the test of tutorial 08</span><span class="w">
 </span><span class="n">table</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
 </span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">existence_significant</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
 </span><span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="p">]</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
@@ -141,7 +138,7 @@ electrodes of the grid, and the chain of the <code class="docutils literal notra
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   channel label   latency   amplitude  existence_significant
 3     PT03    N2  0.063838 -189.121469                  False
 6     PT04    N2  0.154738 -436.823246                   True
-8     PT05    N1  0.032477 -145.720014                   True
+8     PT05    N1  0.032477 -145.720015                   True
 11    PT06    N1  0.017296 -128.931295                   True
 13    PT06    N2  0.109734 -179.123171                   True
 </pre></div>
@@ -223,7 +220,7 @@ and the N2 (right), with a straight line through the points.</p>
 </span>    <span class="n">rho</span><span class="p">,</span> <span class="n">p_value</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">latency</span><span class="p">)</span><span class="w">
 </span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bumps</span><span class="p">)</span><span class="si">}</span><span class="s2"> electrodes, ρ = </span><span class="si">{</span><span class="n">rho</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, p = </span><span class="si">{</span><span class="n">p_value</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<img src="../_images/sphx_glr_plot_11_further_analysis_001.png" srcset="../_images/sphx_glr_plot_11_further_analysis_001.png" alt="N1: 9 electrodes, ρ = 0.72, p = 0.03, N2: 7 electrodes, ρ = 0.54, p = 0.22" class = "sphx-glr-single-img"/><p><strong>ρ</strong> (Spearman’s rank correlation) goes from −1 to 1: 1 means “farther is always
+<img src="../_images/sphx_glr_plot_11_further_analysis_001.png" srcset="../_images/sphx_glr_plot_11_further_analysis_001.png" alt="N1: 9 electrodes, ρ = 0.72, p = 0.03, N2: 7 electrodes, ρ = 0.54, p = 0.22" class = "sphx-glr-single-img"/><p><strong>ρ</strong> (Spearman’s rank correlation) goes from -1 to 1: 1 means “farther is always
 later”, 0 means no relation. The p-value is the chance of a ρ this large if distance and
 latency were unrelated.</p>
 <p>For the N1, farther electrodes respond later (ρ = 0.72, p = 0.03). For the N2 the trend
@@ -256,7 +253,7 @@ response smaller far from the stimulated pair?</p>
 <p>The table of a group fit is where an analysis starts: keep the bump you study, only on
 the electrodes that respond; check that its values are not piled at the edges of its
 window; then relate it to what you know about each electrode, here its position.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 11.023 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 39.529 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-11-further-analysis-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/c3a904d22df127fb7d49bbc6c82f3ebc/plot_11_further_analysis.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_11_further_analysis.ipynb</span></code></a></p>
@@ -279,14 +276,8 @@ window; then relate it to what you know about each electrode, here its position.
 </div>
 <footer class="footer">
   <div class="container">
-    <p class="pull-right">
-      <a href="#">Back to top</a>
-      
-    </p>
-    <p>
-        &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
-    </p>
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
   </div>
 </footer>
   </body>
