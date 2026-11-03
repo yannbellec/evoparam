@@ -6,6 +6,7 @@ trials of every contact is fitted with the ccep preset. Per patient: % of inject
 found, % invented on noise-only contacts, and median |latency error| (ms) of the found
 N1 / N2. Mean over patients, 95 % bootstrap CI.
 """
+
 import os
 
 import numpy as np
@@ -38,7 +39,10 @@ def figure():
     d = pd.read_csv(CSV).groupby(["subject", "n_trials"]).mean(numeric_only=True).reset_index()
     fig, axes = plt.subplots(1, 3, figsize=(7.4, 2.6))
     for ax, w, lab in ((axes[0], "n1", "a. N1"), (axes[1], "n2", "b. N2")):
-        for col, color, txt in ((f"{w}_found", c.BLUE, "true found"), (f"{w}_invented", c.ORANGE, "invented on noise")):
+        for col, color, txt in (
+            (f"{w}_found", c.BLUE, "true found"),
+            (f"{w}_invented", c.ORANGE, "invented on noise"),
+        ):
             tab = d.pivot_table(index="subject", columns="n_trials", values=col)
             c.band(ax, tab.columns.values, tab.values, color, label=txt)
         ax.axvline(5, color="0.3", ls=":", lw=0.7)
@@ -53,7 +57,12 @@ def figure():
     axes[2].set(xlabel="Number of trials averaged", ylabel="|Latency error| (ms, median)")
     axes[2].set_title("c. Latency error", loc="left")
     axes[2].legend(frameon=False, fontsize=6.5)
-    fig.suptitle(f"Known N1 and N2 in real noise ({d.subject.nunique()} patients)", x=0.01, ha="left", fontsize=9)
+    fig.suptitle(
+        f"Known N1 and N2 in real noise ({d.subject.nunique()} patients)",
+        x=0.01,
+        ha="left",
+        fontsize=9,
+    )
     fig.tight_layout()
     c.save(fig, "T7_n_trials")
 

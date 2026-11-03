@@ -7,6 +7,7 @@ applied for every α: Benjamini-Hochberg FDR (ccep), Holm, or none. Per patient:
 injected contacts declared responding (power) and % of noise-only contacts declared
 responding (false alarms). Mean over patients, 95 % bootstrap CI.
 """
+
 import os
 
 import numpy as np
@@ -49,8 +50,15 @@ def compute():
         inj = truth.injected.to_numpy()
         for a in ALPHAS:
             for name, dec in (("fdr", bh(p, a)), ("holm", holm(p, a)), ("none", p <= a)):
-                rows.append(dict(subject=s.subject, alpha=a, correction=name,
-                                 power=100 * dec[inj].mean(), false_alarm=100 * dec[~inj].mean()))
+                rows.append(
+                    dict(
+                        subject=s.subject,
+                        alpha=a,
+                        correction=name,
+                        power=100 * dec[inj].mean(),
+                        false_alarm=100 * dec[~inj].mean(),
+                    )
+                )
         print("T6", s.subject, flush=True)
     pd.DataFrame(rows).to_csv(CSV, index=False)
 
@@ -60,8 +68,10 @@ def figure():
     d = pd.read_csv(CSV)
     fig, axes = plt.subplots(1, 2, figsize=(7.4, 2.8))
     styles = {"fdr": ("-", "FDR (ccep)"), "holm": ("--", "Holm"), "none": (":", "no correction")}
-    for ax, col, color, lab in ((axes[0], "power", c.BLUE, "a. Responding contacts found"),
-                                (axes[1], "false_alarm", c.ORANGE, "b. Noise-only contacts flagged")):
+    for ax, col, color, lab in (
+        (axes[0], "power", c.BLUE, "a. Responding contacts found"),
+        (axes[1], "false_alarm", c.ORANGE, "b. Noise-only contacts flagged"),
+    ):
         for corr, (ls, txt) in styles.items():
             tab = d[d.correction == corr].pivot_table(index="subject", columns="alpha", values=col)
             ci = np.array([c.boot_ci(tab[x]) for x in tab.columns])
@@ -75,8 +85,15 @@ def figure():
         ax.legend(frameon=False, fontsize=6.5)
     x = np.array(sorted(d.alpha.unique()))
     axes[1].plot(x, 100 * x, color="0.5", lw=0.6)
-    axes[1].text(0.15, 100 * 0.15 * 1.05, "y = α", fontsize=6.5, color="0.5", ha="right", va="bottom")
-    fig.suptitle(f"Response test: known N1 and N2 in real noise ({d.subject.nunique()} patients)", x=0.01, ha="left", fontsize=9)
+    axes[1].text(
+        0.15, 100 * 0.15 * 1.05, "y = α", fontsize=6.5, color="0.5", ha="right", va="bottom"
+    )
+    fig.suptitle(
+        f"Response test: known N1 and N2 in real noise ({d.subject.nunique()} patients)",
+        x=0.01,
+        ha="left",
+        fontsize=9,
+    )
     fig.tight_layout()
     c.save(fig, "T6_response_test")
 

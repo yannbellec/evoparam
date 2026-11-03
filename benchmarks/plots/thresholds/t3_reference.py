@@ -8,6 +8,7 @@ of every contact is fitted with the ccep preset. Per patient: % of injected N1/N
 - car: minus the mean of all contacts (the injected responses leak into every contact);
 - car_adaptive: minus the mean of the least responsive contacts only.
 """
+
 import os
 
 import numpy as np
@@ -41,14 +42,20 @@ def figure():
     fig, axes = plt.subplots(2, 3, figsize=(7.4, 4.6))
     for i, w in enumerate(("n1", "n2")):
         W = w.upper()
-        for j, (col, color, ylab) in enumerate(((f"{w}_found", c.BLUE, f"True {W}s found (%)"),
-                                               (f"{w}_invented", c.ORANGE, f"{W}s invented on noise (%)"),
-                                               (f"{w}_amp_kept", c.GREEN, f"{W} amplitude found / true (%)"))):
+        for j, (col, color, ylab) in enumerate(
+            (
+                (f"{w}_found", c.BLUE, f"True {W}s found (%)"),
+                (f"{w}_invented", c.ORANGE, f"{W}s invented on noise (%)"),
+                (f"{w}_amp_kept", c.GREEN, f"{W} amplitude found / true (%)"),
+            )
+        ):
             tab = d.pivot_table(index="subject", columns="scheme", values=col)[list(SCHEMES)]
             c.paired(axes[i, j], tab.values, labels, color, ylab, f"{'abcdef'[3 * i + j]}. {W}")
     axes[0, 2].axhline(100, color="0.3", ls="--", lw=0.7)
     axes[1, 2].axhline(100, color="0.3", ls="--", lw=0.7)
-    fig.suptitle(f"Reference: known N1 and N2 in real noise ({n} patients)", x=0.01, ha="left", fontsize=9)
+    fig.suptitle(
+        f"Reference: known N1 and N2 in real noise ({n} patients)", x=0.01, ha="left", fontsize=9
+    )
     fig.tight_layout()
     c.save(fig, "T3_reference")
 

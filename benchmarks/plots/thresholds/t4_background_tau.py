@@ -9,6 +9,7 @@ The background b(t) = c0 + c1·exp(-t/τ) models the slow tail left by the pulse
     sign). Fitted with τ_max = 10..500 ms. Per patient: % of injected N1 (b) / N2 (c) found
     and % invented on noise-only contacts; mean over patients, 95 % bootstrap CI.
 """
+
 import os
 
 import numpy as np
@@ -40,7 +41,11 @@ def compute_b():
         tau = rng.choice(taus, n_ch)
         amp = np.exp(rng.uniform(np.log(20), np.log(500), n_ch)) * rng.choice([-1, 1], n_ch)
         t = np.clip(sim.times, 0, None)
-        tail = (amp * np.exp(0.009 / tau))[:, None] * np.exp(-t[None] / tau[:, None]) * (sim.times >= 0)[None]
+        tail = (
+            (amp * np.exp(0.009 / tau))[:, None]
+            * np.exp(-t[None] / tau[:, None])
+            * (sim.times >= 0)[None]
+        )
         avg = c.average(sim) + tail
         for tm in TAU_MAX:
             fits = c.fit_contacts(sim.times, avg, sim.ch_names, background_tau_max=float(tm))
@@ -59,11 +64,21 @@ def figure():
     c.log_ticks(axes[0], [1, 5, 10, 50, 100, 500])
     axes[0].axvline(50, color="0.3", ls=":", lw=0.7)
     share = 100 * (tau > 50).mean()
-    axes[0].text(55, axes[0].get_ylim()[1] * 0.95, f"ccep: 50 ms\n{share:.0f} % of contacts\nabove", fontsize=6.5, color="0.3", va="top")
+    axes[0].text(
+        55,
+        axes[0].get_ylim()[1] * 0.95,
+        f"ccep: 50 ms\n{share:.0f} % of contacts\nabove",
+        fontsize=6.5,
+        color="0.3",
+        va="top",
+    )
     axes[0].set(xlabel="Fitted τ of the background (ms)", ylabel="Contacts")
     axes[0].set_title(f"a. Real tails ({a.subject.nunique()} patients)", loc="left")
     for ax, w, lab in ((axes[1], "n1", "b. N1"), (axes[2], "n2", "c. N2")):
-        for col, color, txt in ((f"{w}_found", c.BLUE, "true found"), (f"{w}_invented", c.ORANGE, "invented on noise")):
+        for col, color, txt in (
+            (f"{w}_found", c.BLUE, "true found"),
+            (f"{w}_invented", c.ORANGE, "invented on noise"),
+        ):
             tab = b.pivot_table(index="subject", columns="tau_max_ms", values=col)
             c.band(ax, tab.columns.values, tab.values, color, label=txt)
         c.log_ticks(ax, 1000 * TAU_MAX)

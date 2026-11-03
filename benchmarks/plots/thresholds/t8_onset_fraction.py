@@ -7,6 +7,7 @@ ccep preset; the fitted bump curve is evaluated on a 0.05 ms grid and its onset 
 f = 5..50 %. Per patient: median |fitted onset - true onset| (ms) over found N1 / N2.
 Mean over patients, 95 % bootstrap CI.
 """
+
 import os
 
 import numpy as np
@@ -47,7 +48,14 @@ def compute():
                     true = row[f"{w}_latency"] - sigma * np.sqrt(2 * np.log(1 / f))
                     err[(w, f)].append(abs(onset_at(curve, f) - true))
         for (w, f), e in err.items():
-            rows.append(dict(subject=s.subject, wave=w, fraction=f, onset_err_ms=1000 * np.nanmedian(e) if e else np.nan))
+            rows.append(
+                dict(
+                    subject=s.subject,
+                    wave=w,
+                    fraction=f,
+                    onset_err_ms=1000 * np.nanmedian(e) if e else np.nan,
+                )
+            )
         print("T8", s.subject, flush=True)
         pd.DataFrame(rows).to_csv(CSV, index=False)
 
@@ -57,12 +65,16 @@ def figure():
     d = pd.read_csv(CSV)
     fig, ax = plt.subplots(figsize=(3.8, 2.8))
     for w, color, txt in (("n1", c.BLUE, "N1"), ("n2", c.GREEN, "N2")):
-        tab = d[d.wave == w].pivot_table(index="subject", columns="fraction", values="onset_err_ms")
+        tab = d[d.wave == w].pivot_table(
+            index="subject", columns="fraction", values="onset_err_ms"
+        )
         c.band(ax, 100 * tab.columns.values, tab.values, color, label=txt)
     ax.axvline(10, color="0.3", ls=":", lw=0.7)
     ax.set_yscale("log")
     ax.set(xlabel="Onset read at this % of the peak", ylabel="|Onset error| (ms, median)")
-    ax.set_title(f"Onset: known N1 and N2 in real noise ({d.subject.nunique()} patients)", loc="left")
+    ax.set_title(
+        f"Onset: known N1 and N2 in real noise ({d.subject.nunique()} patients)", loc="left"
+    )
     ax.legend(frameon=False, fontsize=6.5)
     c.save(fig, "T8_onset_fraction")
 

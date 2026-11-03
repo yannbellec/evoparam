@@ -1,4 +1,5 @@
 """Shared helpers for the threshold figures: data access, style, bootstrap, saving."""
+
 import os
 import sys
 
@@ -8,10 +9,10 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "evoparam", "tests", "models"))
-import test_engine_ccep as t  # noqa: E402  (ds004080 cache of the N1 validation)
+import test_engine_ccep as t  # noqa: E402
 
 FIG = os.path.join(ROOT, "figures", "thresholds")
-BASELINE = (-0.5, -0.02)  # ccep preset baseline (s)
+BASELINE = (-0.5, -0.02)
 K0 = 3.4
 BLUE, ORANGE, GREEN, PINK = "#0072B2", "#D55E00", "#009E73", "#CC79A7"
 
@@ -35,11 +36,15 @@ def average(ts, baseline=BASELINE):
 
 def style():
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import scienceplots  # noqa: F401
+
     plt.style.use(["science", "no-latex"])
-    plt.rcParams.update({"font.size": 8, "axes.titlesize": 9, "savefig.dpi": 300, "figure.dpi": 150})
+    plt.rcParams.update(
+        {"font.size": 8, "axes.titlesize": 9, "savefig.dpi": 300, "figure.dpi": 150}
+    )
     return plt
 
 
@@ -66,9 +71,13 @@ def band(ax, x, table, color, label=None, lw=1.6):
 def save(fig, name):
     os.makedirs(FIG, exist_ok=True)
     for ext in ("png", "pdf", "svg"):
-        fig.savefig(os.path.join(FIG, f"{name}.{ext}"), bbox_inches="tight",
-                    metadata={"Software": None} if ext == "png" else None)
+        fig.savefig(
+            os.path.join(FIG, f"{name}.{ext}"),
+            bbox_inches="tight",
+            metadata={"Software": None} if ext == "png" else None,
+        )
     import matplotlib.pyplot as plt
+
     plt.close(fig)
 
 
@@ -100,11 +109,18 @@ def inject(ts, rng, fraction=0.5, n2=True, jitter=0.002):
         amp = np.exp(rng.uniform(np.log(prior["amp"][0]), np.log(prior["amp"][1]), n_ch))
         for ch in np.flatnonzero(inj):
             jit = rng.normal(0, jitter, n_tr)[:, None]
-            x[:, ch] -= amp[ch] * np.exp(-0.5 * ((times[None] - lat[ch] - jit) / (fwhm[ch] / 2.3548)) ** 2)
+            x[:, ch] -= amp[ch] * np.exp(
+                -0.5 * ((times[None] - lat[ch] - jit) / (fwhm[ch] / 2.3548)) ** 2
+            )
         truth[f"{name}_latency"], truth[f"{name}_fwhm"] = lat, fwhm
         truth[f"{name}_amplitude"] = np.where(inj, -amp, 0.0)
-    new = TrialSet(data=x, times=times, sfreq=ts.sfreq, ch_names=list(ts.ch_names),
-                   metadata=pd.DataFrame({"stim_site": ["sim"] * n_tr}))
+    new = TrialSet(
+        data=x,
+        times=times,
+        sfreq=ts.sfreq,
+        ch_names=list(ts.ch_names),
+        metadata=pd.DataFrame({"stim_site": ["sim"] * n_tr}),
+    )
     return new, truth
 
 
@@ -119,7 +135,11 @@ def fit_contacts(times, avg, names, **overrides):
     rows = []
     for name, y in zip(names, avg):
         f = fit_response(times, y, preset="ccep", random_state=0, **overrides)
-        row = {"contact": name, "n_bumps": len(f.components), "tau_ms": 1000 * f.background.get("tau", np.nan)}
+        row = {
+            "contact": name,
+            "n_bumps": len(f.components),
+            "tau_ms": 1000 * f.background.get("tau", np.nan),
+        }
         for lab in ("N1", "N2"):
             b = [b for b in f.components if b.label == lab]
             row[f"{lab.lower()}_fit_amplitude"] = b[0].amplitude if b else np.nan
@@ -140,8 +160,16 @@ def score(fits, truth):
         out[f"{w}_found"] = 100 * found[inj].mean()
         out[f"{w}_invented"] = 100 * found[~inj].mean()
         ok = inj & found
-        out[f"{w}_amp_kept"] = 100 * float(np.median(d[f"{w}_fit_amplitude"][ok] / d[f"{w}_amplitude"][ok])) if ok.any() else np.nan
-        out[f"{w}_lat_err_ms"] = 1000 * float(np.median(np.abs(d[f"{w}_fit_latency"][ok] - d[f"{w}_latency"][ok]))) if ok.any() else np.nan
+        out[f"{w}_amp_kept"] = (
+            100 * float(np.median(d[f"{w}_fit_amplitude"][ok] / d[f"{w}_amplitude"][ok]))
+            if ok.any()
+            else np.nan
+        )
+        out[f"{w}_lat_err_ms"] = (
+            1000 * float(np.median(np.abs(d[f"{w}_fit_latency"][ok] - d[f"{w}_latency"][ok])))
+            if ok.any()
+            else np.nan
+        )
     return out
 
 
@@ -153,10 +181,28 @@ def paired(ax, table, labels, color, ylabel, title):
         ax.plot(x, row, color="0.8", lw=0.4, zorder=1)
     ci = np.array([boot_ci(arr[:, j]) for j in range(len(labels))])
     mean = np.nanmean(arr, 0)
-    ax.errorbar(x, mean, yerr=[mean - ci[:, 0], ci[:, 1] - mean], color=color, lw=1.4, capsize=2, marker="o",
-                ms=4, mec="white", mew=0.8, zorder=3)
+    ax.errorbar(
+        x,
+        mean,
+        yerr=[mean - ci[:, 0], ci[:, 1] - mean],
+        color=color,
+        lw=1.4,
+        capsize=2,
+        marker="o",
+        ms=4,
+        mec="white",
+        mew=0.8,
+        zorder=3,
+    )
     for xi, m in zip(x, mean):
-        ax.annotate(f"{m:.1f}" if abs(m) < 10 else f"{m:.0f}", (xi, m), xytext=(5, 0), textcoords="offset points", fontsize=6.5, va="center")
+        ax.annotate(
+            f"{m:.1f}" if abs(m) < 10 else f"{m:.0f}",
+            (xi, m),
+            xytext=(5, 0),
+            textcoords="offset points",
+            fontsize=6.5,
+            va="center",
+        )
     ax.set_xticks(x, labels)
     ax.set_xlim(-0.4, len(labels) - 0.6)
     ax.set_ylabel(ylabel)
@@ -166,6 +212,7 @@ def paired(ax, table, labels, color, ylabel, title):
 def log_ticks(ax, values):
     """Log x axis labelled with the plain tested values."""
     from matplotlib.ticker import FixedLocator, NullLocator
+
     ax.set_xscale("log")
     ax.xaxis.set_major_locator(FixedLocator(values))
     ax.xaxis.set_minor_locator(NullLocator())

@@ -11,7 +11,7 @@ for k = 1.0 to 10.0 (step 0.1).
 
 - **K1**: % of injected N1s found (blue) and % of noise-only contacts wrongly flagged
   (orange) vs k; mean over patients, band = 95 % bootstrap CI over patients.
-  At k = 3.4: 56.7 % found, 2.5 % invented. Best compromise (max found − invented):
+  At k = 3.4: 56.7 % found, 2.5 % invented. Best compromise (max found - invented):
   k = 2.7, 63.7 % found, 6.7 % invented. Invented ≤ 5 % from k = 3.0, ≤ 1 % from k = 4.2.
 - **K2**: % of injected N1s found vs their size relative to the noise (peak / baseline SD).
   At k = 3.4 an N1 is found 81 % of the time at 4-6 SD and ~100 % above 6 SD.

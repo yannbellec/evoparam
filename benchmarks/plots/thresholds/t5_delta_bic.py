@@ -6,6 +6,7 @@ Known truth: N1 and N2 injected into the real pre-pulse noise of half of the con
 injected N1 / N2 found, % invented on noise-only contacts, and mean number of bumps on
 noise-only contacts. Mean over patients, 95 % bootstrap CI.
 """
+
 import os
 
 import numpy as np
@@ -26,7 +27,14 @@ def compute():
         for d in DELTAS:
             fits = c.fit_contacts(sim.times, avg, sim.ch_names, delta=d)
             noise = fits.merge(truth, on="contact").query("~injected")
-            rows.append(dict(subject=s.subject, delta=d, bumps_on_noise=noise.n_bumps.mean(), **c.score(fits, truth)))
+            rows.append(
+                dict(
+                    subject=s.subject,
+                    delta=d,
+                    bumps_on_noise=noise.n_bumps.mean(),
+                    **c.score(fits, truth),
+                )
+            )
         print("T5", s.subject, flush=True)
         pd.DataFrame(rows).to_csv(CSV, index=False)
 
@@ -36,7 +44,10 @@ def figure():
     d = pd.read_csv(CSV)
     fig, axes = plt.subplots(1, 3, figsize=(7.4, 2.6))
     for ax, w, lab in ((axes[0], "n1", "a. N1"), (axes[1], "n2", "b. N2")):
-        for col, color, txt in ((f"{w}_found", c.BLUE, "true found"), (f"{w}_invented", c.ORANGE, "invented on noise")):
+        for col, color, txt in (
+            (f"{w}_found", c.BLUE, "true found"),
+            (f"{w}_invented", c.ORANGE, "invented on noise"),
+        ):
             tab = d.pivot_table(index="subject", columns="delta", values=col)
             c.band(ax, tab.columns.values, tab.values, color, label=txt)
         c.log_ticks(ax, DELTAS)
@@ -50,7 +61,12 @@ def figure():
     axes[2].axvline(10, color="0.3", ls=":", lw=0.7)
     axes[2].set(xlabel="ΔBIC needed to keep a bump", ylabel="Bumps per noise-only contact")
     axes[2].set_title("c. Bumps fitted on pure noise", loc="left")
-    fig.suptitle(f"Known N1 and N2 in real noise ({d.subject.nunique()} patients)", x=0.01, ha="left", fontsize=9)
+    fig.suptitle(
+        f"Known N1 and N2 in real noise ({d.subject.nunique()} patients)",
+        x=0.01,
+        ha="left",
+        fontsize=9,
+    )
     fig.tight_layout()
     c.save(fig, "T5_delta_bic")
 

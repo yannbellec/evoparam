@@ -68,7 +68,7 @@ L 0 3
       </g>
      </g>
      <g id="text_1">
-      <!-- $\mathdefault{−1.00}$ -->
+      <!-- $\mathdefault{-1.00}$ -->
       <g transform="translate(31.900253 188.285968) scale(0.08 -0.08)">
        <defs>
         <path id="STIXGeneral-Regular-2212" d="M 3974 1408 
@@ -154,7 +154,7 @@ z
       </g>
      </g>
      <g id="text_2">
-      <!-- $\mathdefault{−0.75}$ -->
+      <!-- $\mathdefault{-0.75}$ -->
       <g transform="translate(61.064016 188.285968) scale(0.08 -0.08)">
        <defs>
         <path id="STIXGeneral-Regular-37" d="M 2874 4134 
@@ -220,7 +220,7 @@ z
       </g>
      </g>
      <g id="text_3">
-      <!-- $\mathdefault{−0.50}$ -->
+      <!-- $\mathdefault{-0.50}$ -->
       <g transform="translate(90.227779 188.285968) scale(0.08 -0.08)">
        <use xlink:href="#STIXGeneral-Regular-2212" transform="translate(0 0.203125)"/>
        <use xlink:href="#STIXGeneral-Regular-30" transform="translate(68.499985 0.203125)"/>
@@ -242,7 +242,7 @@ z
       </g>
      </g>
      <g id="text_4">
-      <!-- $\mathdefault{−0.25}$ -->
+      <!-- $\mathdefault{-0.25}$ -->
       <g transform="translate(119.391542 188.285968) scale(0.08 -0.08)">
        <defs>
         <path id="STIXGeneral-Regular-32" d="M 3034 877 
@@ -739,7 +739,7 @@ L -3 0
       </g>
      </g>
      <g id="text_7">
-      <!-- $\mathdefault{−150}$ -->
+      <!-- $\mathdefault{-150}$ -->
       <g transform="translate(14.8075 168.543318) scale(0.08 -0.08)">
        <use xlink:href="#STIXGeneral-Regular-2212" transform="translate(0 0.203125)"/>
        <use xlink:href="#STIXGeneral-Regular-31" transform="translate(68.499985 0.203125)"/>
@@ -760,7 +760,7 @@ L -3 0
       </g>
      </g>
      <g id="text_8">
-      <!-- $\mathdefault{−100}$ -->
+      <!-- $\mathdefault{-100}$ -->
       <g transform="translate(14.8075 141.521767) scale(0.08 -0.08)">
        <use xlink:href="#STIXGeneral-Regular-2212" transform="translate(0 0.40625)"/>
        <use xlink:href="#STIXGeneral-Regular-31" transform="translate(68.499985 0.40625)"/>
@@ -781,7 +781,7 @@ L -3 0
       </g>
      </g>
      <g id="text_9">
-      <!-- $\mathdefault{−50}$ -->
+      <!-- $\mathdefault{-50}$ -->
       <g transform="translate(18.8075 114.500216) scale(0.08 -0.08)">
        <use xlink:href="#STIXGeneral-Regular-2212" transform="translate(0 0.203125)"/>
        <use xlink:href="#STIXGeneral-Regular-35" transform="translate(68.499985 0.203125)"/>
@@ -3654,7 +3654,7 @@ L 333.132658 109.810843
 z
 " style="fill: #ffffff; opacity: 0.8"/>
     </g>
-    <!-- threshold = level − 3.4 × SD = -61 µV -->
+    <!-- threshold = level - 3.4 × SD = -61 µV -->
     <g style="fill: #1b6cae" transform="translate(333.717658 114.842249) scale(0.065 -0.065)">
      <defs>
       <path id="STIXGeneral-Regular-33" d="M 390 3264 
@@ -4780,7 +4780,7 @@ z
   </g>
   <g id="axes_3">
    <g id="text_31">
-    <!-- • Noise: SD of the average between −1 and −0.1 s = 17 µV.   Reference level = MEAN of that period. -->
+    <!-- • Noise: SD of the average between -1 and -0.1 s = 17 µV.   Reference level = MEAN of that period. -->
     <g transform="translate(35.8275 220.146316) scale(0.07 -0.07)">
      <defs>
       <path id="DejaVuSans-2022" d="M 959 2381 
