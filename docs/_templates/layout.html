@@ -1,0 +1,2 @@
+{% extends "!layout.html" %}
+{%- block htmltitle %}<title>{{ title|striptags|e }}{% if pagename != master_doc %} | {{ docstitle|e }}{% endif %}</title>{%- endblock %}

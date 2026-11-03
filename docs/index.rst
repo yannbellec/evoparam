@@ -6,6 +6,9 @@ ERPs, SEPs, TEPs, ERNA, ECAPs, animal evoked potentials): each response becomes 
 amplitude, a width and their uncertainty, a test of whether there is a response at all, and
 a methods paragraph generated from what was run.
 
+A tool of the **Neural Signal Processing and Modeling Lab** (PI: Rachel June Smith),
+University of Alabama at Birmingham.
+
 *For research use only: not a medical device.*
 
 .. toctree::

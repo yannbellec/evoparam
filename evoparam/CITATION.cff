@@ -7,3 +7,4 @@ repository-code: "https://github.com/yannbellec/evoparam"
 authors:
   - family-names: "Bellec"
     given-names: "Yann V."
+    affiliation: "Neural Signal Processing and Modeling Lab (PI: Rachel June Smith), University of Alabama at Birmingham"

@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """evoparam - Parameterizing evoked neural responses.
 
+A tool of the Neural Signal Processing and Modeling Lab (PI: Rachel June Smith),
+University of Alabama at Birmingham.
+
 For research use only; not a medical device. Its outputs are not intended for diagnosis or
 treatment decisions.
 """

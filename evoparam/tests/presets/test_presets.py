@@ -73,9 +73,8 @@ def _number(text: Any) -> Any:
 
 
 def _tuples(cell: Any) -> Any:
-    return [
-        (_number(a), _number(b)) for a, b in re.findall(r"\(([\u2212\-\d.]+),\s*([\u2212\-\d.]+)\)", cell)
-    ]
+    pairs = re.findall(r"\(([\u2212\-\d.]+),\s*([\u2212\-\d.]+)\)", cell)
+    return [(_number(a), _number(b)) for a, b in pairs]
 
 
 def _table() -> Any:

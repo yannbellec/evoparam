@@ -23,7 +23,7 @@ def carries_statement(text: Any) -> Any:
 
 
 def test_req015_documentation() -> None:
-    assert carries_statement((ROOT / "README.rst").read_text(encoding="utf-8"))
+    assert carries_statement((ROOT / "README.md").read_text(encoding="utf-8"))
     assert carries_statement(evoparam.__doc__)
 
 

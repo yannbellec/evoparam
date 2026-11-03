@@ -94,7 +94,7 @@ def test_req394_name_paired_with_the_phrase() -> None:
     """REQ-394: README and the docs home pair the name with "evoked response
     parameterization"."""
 
-    for path in ("README.rst", "docs/index.rst"):
+    for path in ("README.md", "docs/index.rst"):
         text = (ROOT / path).read_text(encoding="utf-8")
         assert re.search(
             r"evoparam.{0,80}evoked response parameterization", text, re.IGNORECASE | re.DOTALL

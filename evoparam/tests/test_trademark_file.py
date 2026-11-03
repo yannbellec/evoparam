@@ -40,8 +40,8 @@ def test_req397_trademark_file_states_the_policy() -> None:
 
 
 def test_req397_linked_from_the_readme() -> None:
-    readme = (ROOT / "README.rst").read_text(encoding="utf-8")
-    assert "`TRADEMARK.md <TRADEMARK.md>`_" in readme
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "[TRADEMARK.md](TRADEMARK.md)" in readme
 
 
 def test_req397_reviewed_at_each_major_release() -> None:

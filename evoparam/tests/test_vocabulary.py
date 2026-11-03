@@ -63,7 +63,7 @@ def pattern(word: Any) -> Any:
 
 
 def scanned_files() -> Any:
-    files = [ROOT / "README.rst", ROOT / "CITATION.cff", ROOT / "pyproject.toml"]
+    files = [ROOT / "README.md", ROOT / "CITATION.cff", ROOT / "pyproject.toml"]
     for folder in ("evoparam", "docs", "examples", "tools", "benchmarks", "validation"):
         for path in sorted((ROOT / folder).rglob("*")):
             rel = path.relative_to(ROOT).as_posix()

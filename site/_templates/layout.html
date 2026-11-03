@@ -1,0 +1,10 @@
+{% extends "!layout.html" %}
+{%- block htmltitle %}<title>{{ title|striptags|e }}{% if pagename != master_doc %} | {{ docstitle|e }}{% endif %}</title>{%- endblock %}
+{%- block footer %}
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right"><a href="#">Back to top</a></p>
+    <p>evoparam is a tool of the <a href="https://www.uab.edu/engineering/ece/people/faculty/rachel-smith">Neural Signal Processing and Modeling Lab</a> (PI: Rachel June Smith), University of Alabama at Birmingham.</p>
+  </div>
+</footer>
+{%- endblock %}

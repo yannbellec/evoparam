@@ -26,7 +26,7 @@ def test_files_exist_and_are_linked() -> None:
 
     for name in FILES:
         assert os.path.isfile(os.path.join(ROOT, name)), name
-    readme = _read("README.rst")
+    readme = _read("README.md")
     for name in FILES:
         assert name in readme, f"README does not link {name}"
     assert os.path.isfile(os.path.join(ROOT, "docs", "contributing", "add_shape.rst"))
