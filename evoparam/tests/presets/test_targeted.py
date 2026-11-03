@@ -9,7 +9,6 @@ import pytest
 from evoparam import fit, presets, sim
 from evoparam.errors import SettingsError
 
-# Latency tolerance (s) of the fitted P3.
 LATENCY_TOLERANCE = 0.03
 
 

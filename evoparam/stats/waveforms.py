@@ -16,7 +16,6 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 
-# Waveforms of a band: [n_trials, n_times]
 _WAVEFORMS_NDIM = 2
 
 

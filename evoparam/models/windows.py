@@ -18,7 +18,6 @@ from .labels import label_components
 __all__ = ["ComponentWindows", "label_components"]
 
 _POLARITIES = {-1, 0, 1}
-# a window is (start, end) or (start, end, polarity)
 _SPAN_ONLY = 2
 _SPAN_AND_POLARITY = 3
 

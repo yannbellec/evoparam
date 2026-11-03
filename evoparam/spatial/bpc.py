@@ -36,20 +36,19 @@ __all__ = [
     "BASIS_COLUMNS",
 ]
 
-# Columns of ShapeBasis.assignment, one row per group (stimulation site or channel).
 BASIS_COLUMNS = ("group", "shape_id", "weight", "r2", "n_trials", "used", "nmf_loading")
 
 MIN_TRIALS = 3
 MIN_GROUPS = 3
-SPLIT_MAX = 0.75  # largest between / within ratio of the mean t-values of two clusters
-TOLERANCE = 0.5  # inclusion: at least half the equal-contribution loading
+SPLIT_MAX = 0.75
+TOLERANCE = 0.5
 NMF_TOL = 1e-5
 NMF_MAX_ITER = 1000
 _MIN_RESTARTS = 2
 _MIN_WINDOW_SAMPLES = 4
-_NMF_MIN_STEPS = 10  # multiplicative updates before the convergence test applies
-_MIN_PAIR = 2  # two rows (or values) at least for an overlap (or a standard deviation)
-_ZERO_NORM = 1e-12  # a t-value profile of smaller norm has no positive t-value
+_NMF_MIN_STEPS = 10
+_MIN_PAIR = 2
+_ZERO_NORM = 1e-12
 
 
 ###################################################################################################
@@ -253,7 +252,6 @@ def _cluster_kpca(
         lab = np.full(len(xi), -1)
         lab[keep] = _kmeans(coords, q, rng) if q > 1 else 0
         labels_all.append(lab)
-    # The run with the smallest within-cluster spread is kept
     spread = []
     for lab in labels_all:
         sub = lab[keep]
@@ -334,7 +332,7 @@ def _basis_curve(trials: Any) -> Any:
 
 def _contacts(site: Any) -> list[Any]:
     """Return the contact names of a bipolar site name (``"A1-A2"``: ``A1`` and ``A2``)."""
-    return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
+    return [part.strip() for part in re.split(r"[-\u2013]", str(site)) if part.strip()]
 
 
 def _usable_trials(ts: Any, rows: Any, channel: Any, win: Any) -> tuple[Any, Any]:
@@ -456,10 +454,9 @@ def _select_nmf(unit: tuple[Any, ...]) -> tuple[dict[str, Any], tuple[Any, ...] 
 
 
 ###################################################################################################
-## Main entry point
 
 
-def shared_shapes(  # noqa: PLR0913  (spec §5.9 fixes 11 parameters; DECISIONS.md §7.2)
+def shared_shapes(  # noqa: PLR0913
     ts: "TrialSet",
     *,
     by: str = "stim_site",
@@ -561,7 +558,7 @@ def shared_shapes(  # noqa: PLR0913  (spec §5.9 fixes 11 parameters; DECISIONS.
 
     qs = list(range(1, min(max_shapes, len(defining) - 1) + 1))
     selection, chosen, unstable = _select(xi, qs, method, (n_restarts, stability_min), rng, n_jobs)
-    q, labels, h, stability, w_nmf = cast("tuple[Any, ...]", chosen)  # set when q == 1
+    q, labels, h, stability, w_nmf = cast("tuple[Any, ...]", chosen)
     warns = []
     if q == 1 and unstable:
         _warn(
@@ -576,7 +573,6 @@ def shared_shapes(  # noqa: PLR0913  (spec §5.9 fixes 11 parameters; DECISIONS.
         if not np.any(labels == 0):
             labels[:] = 0
 
-    # Basis curves from the trials of each cluster's defining groups
     curves = np.array(
         [
             _basis_curve(
@@ -666,15 +662,12 @@ def _select(
     """
     n_restarts, stability_min = restarts
     if method == "nmf":
-        # the random starts of every number of shapes, drawn in the order of the serial
-        # loop, so that the selection does not depend on n_jobs (one unit per q)
         units = [
             (xi, q, n_restarts, stability_min, _nmf_starts(xi.shape, q, rng, n_restarts))
             for q in qs
         ]
         outcomes = parallel_map(_select_nmf, units, n_jobs, desc="shared_shapes")
     else:
-        # k-means++ draws depend on the data: the restarts run in this process
         outcomes = [
             _assess(xi, q, stability_min, _cluster_kpca(xi, q, n_restarts, rng)) for q in qs
         ]
@@ -700,7 +693,7 @@ def _projections(groups: Any, curves: Any) -> tuple[FloatArray, FloatArray]:
     alphas = np.zeros((n_groups, q))
     r2_all = np.zeros((n_groups, q))
     for g, (_, v, _) in enumerate(groups):
-        alpha = v @ curves.T  # trials x shapes
+        alpha = v @ curves.T
         alphas[g] = alpha.mean(axis=0)
         total = np.sum(v**2)
         for k in range(q):

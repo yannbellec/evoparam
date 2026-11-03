@@ -27,7 +27,6 @@ from evoparam.prep import baseline_correct
 
 pd = pytest.importorskip("pandas")
 
-# Fewest subjects, and the kappa with vanblooijs2023 (REQ-135).
 MIN_SUBJECTS = 5
 MIN_KAPPA = 0.7
 
@@ -176,9 +175,6 @@ def _pooled(rows: Any, method: Any, rule: Any) -> Any:
     return _kappa(a, b)
 
 
-# Measured on the REQ-371 runs (six subjects, 515 channels, 10 trials each): kappa 0.495
-# with the registry row read as a negative peak, 0.586 read as the window's most negative
-# sample, 0.496 with the published code. On the development runs 0.533, 0.600 and 0.597.
 @pytest.mark.xfail(
     strict=False,
     reason="REQ-135 is judged on the registry row read as written, a negative peak (D8 "

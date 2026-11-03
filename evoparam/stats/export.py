@@ -26,7 +26,6 @@ from evoparam.utils._optional import require
 
 from .bootstrap import bootstrap_interval
 
-# Trial arrays of a TrialFit: [n_trials, n_components]
 _TRIAL_ARRAY_NDIM = 2
 
 
@@ -40,7 +39,6 @@ __all__ = [
     "LONG_COLUMNS",
 ]
 
-# Component parameters exported, with their units ("data": the amplitude unit).
 PARAMETERS = {
     "latency": "s",
     "amplitude": "data",
@@ -54,8 +52,6 @@ PARAMETERS = {
     "sharpness": "",
 }
 
-# Trial-level and other parameters that may appear in TrialFit, HierarchicalFit and TFFit
-# tables, with their units.
 OTHER_PARAMETERS = {
     "shift": "s",
     "scale": "",
@@ -70,7 +66,6 @@ OTHER_PARAMETERS = {
     "p_response": "",
 }
 
-# The value columns of the long format (identifying columns come before them).
 LONG_COLUMNS = {
     "parameter": "",
     "value": "unit",
@@ -81,7 +76,6 @@ LONG_COLUMNS = {
     "weight": "unit^-2",
 }
 
-# Descriptions of the columns the package writes (the sidecar of REQ-235 / REQ-342).
 DESCRIPTIONS = {
     "channel": "Channel name.",
     "condition": "Condition label of the averaged trials ('' when there is none).",
@@ -287,7 +281,6 @@ def _from_trials(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
     table = result.table
     if table is not None and hasattr(table, "columns") and len(table):
         return _from_table(pd, table)
-    # no table: one row per trial and component from the arrays
     labels = [c.label or str(k) for k, c in enumerate(result.template.components)]
     n_trials, n_comp = (
         result.latency.shape[:2]
@@ -445,7 +438,6 @@ def _long_table(pd: Any, result: Any) -> tuple[Any, dict[Any, Any], str]:
     if isinstance(result, TFFit):
         return (*_from_tf(pd, result), "TFFit")
     if hasattr(result, "fits") and hasattr(getattr(result, "table", None), "columns"):
-        # evoparam.trials.TrialFitSet (not imported: stats sits beside trials, §4.2)
         return (*_from_table(pd, result.table), "TrialFitSet")
     if hasattr(result, "columns"):
         return (*_from_frame(pd, result), "DataFrame")
@@ -748,7 +740,7 @@ def _complete_rows(table: Any, formula: Any, columns: Any, re_formula: Any = Non
     What ``missing="drop"`` of statsmodels does. statsmodels 0.15 drops them itself only for plain
     names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found.
     """
-    import patsy  # a dependency of statsmodels
+    import patsy
 
     data = table.loc[table[columns].notna().all(axis=1)]
     _, design = patsy.dmatrices(formula, data, NA_action="drop", return_type="dataframe")

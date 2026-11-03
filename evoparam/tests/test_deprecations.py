@@ -21,7 +21,6 @@ from evoparam import _deprecated
 from evoparam.utils import EvoparamDeprecationWarning
 from evoparam.utils._deprecation import minor_gap, version_tuple
 
-# Minor releases between a deprecation and the removal.
 MINOR_GAP = 2
 
 pytestmark = pytest.mark.core
@@ -34,11 +33,9 @@ def _check_entry(old: Any, new: Any, since: Any, remove_in: Any) -> None:
     assert version_tuple(evoparam.__version__) < version_tuple(remove_in), (
         f"{old}: the shim must be removed in {remove_in} (this is {evoparam.__version__})"
     )
-    with pytest.warns(EvoparamDeprecationWarning) as record:  # noqa: PT031  (the shim warns on access or on call: both are in the block)
+    with pytest.warns(EvoparamDeprecationWarning) as record:  # noqa: PT031
         shim = getattr(evoparam, old)
         if callable(shim):
-            # forwarding is checked with a temporary target in the test below; here the
-            # message is produced by calling with no argument when possible
             try:
                 shim()
             except TypeError:
@@ -82,15 +79,15 @@ def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch: Any) -> None:
 def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch: Any) -> None:
     monkeypatch.setitem(_deprecated.REGISTRY, "old_mean", ("numpy:mean", "0.2.0", "0.3.0"))
     with pytest.raises(AssertionError):
-        _check_entry("old_mean", "numpy:mean", "0.2.0", "0.3.0")  # one minor version only
+        _check_entry("old_mean", "numpy:mean", "0.2.0", "0.3.0")
     monkeypatch.setitem(_deprecated.REGISTRY, "old_mean", ("numpy:mean", "0.0.0", "0.1.0"))
     with pytest.raises(AssertionError):
-        _check_entry("old_mean", "numpy:mean", "0.0.0", "0.1.0")  # removal version reached
+        _check_entry("old_mean", "numpy:mean", "0.0.0", "0.1.0")
 
 
 def test_req293_unknown_name_still_raises_attribute_error() -> None:
     with pytest.raises(AttributeError):
-        evoparam.no_such_name  # noqa: B018  (the attribute access is what is tested)
+        evoparam.no_such_name  # noqa: B018
 
 
 def test_req394_name_paired_with_the_phrase() -> None:

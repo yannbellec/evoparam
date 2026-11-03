@@ -14,7 +14,6 @@ from evoparam.errors import DataError, ReaderError
 from evoparam.io import from_array, read
 from evoparam.tests.io.helpers import write_brainvision
 
-# Trials of one condition, start (s) of the part read, and trials kept by the epoching.
 N_PER_CONDITION = 2
 PART_START = 2.0
 N_KEPT = 2
@@ -52,7 +51,6 @@ def test_from_array_shapes() -> None:
     assert trials.provenance.steps[-1]["function"] == "evoparam.io.from_array"
     assert trials.provenance.data_hash is not None
 
-    # Integer data are accepted and converted
     assert from_array(np.ones((2, 5), dtype=int), 10.0).data.dtype == np.float64
 
 
@@ -104,7 +102,6 @@ def test_read_dispatch(tmp_path: Any) -> None:
     )
     assert read(evoked).n_trials == 1
 
-    # A BrainVision file: the recording as one trial, or epochs around onsets
     continuous = np.arange(3)[:, None] * 1000.0 + np.arange(2000)[None, :]
     vhdr = write_brainvision(tmp_path, "rec", continuous, 100.0, ["C1", "C2", "C3"])
     whole = read(vhdr)

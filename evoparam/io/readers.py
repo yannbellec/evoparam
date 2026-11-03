@@ -20,14 +20,12 @@ from evoparam.errors import warn as _warn
 from evoparam.io._fetch import is_url, sha256_file
 from evoparam.utils._optional import require
 
-# Array shapes accepted by from_array: (n_channels, n_times) or (n_trials, n_channels, n_times)
 _CONTINUOUS_NDIM = 2
 _EPOCHED_NDIM = 3
 
 
 __all__ = ["from_array", "read", "read_mne", "read_edf", "read_events_edf", "READERS"]
 
-# formats of read(format=...) and their extensions; a plugin reader may use neither
 BUILTIN_FORMATS = ("array", "mne", "brainvision", "mef", "edf", "bids", "evoparam", "nwb", "neo")
 BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".zip")
 
@@ -72,8 +70,6 @@ def _plugin_reader(name: Any, obj: Any, origin: Any) -> Any:
     return obj
 
 
-# plugin readers by name, loaded on the first call of read (no built-in entries: the
-# built-in formats are dispatched by read itself)
 READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=BUILTIN_FORMATS)
 
 
@@ -99,7 +95,7 @@ def _plugin_for(path: str, fmt: str | None) -> tuple[str, Any] | None:
         )
     if claims:
         name = claims[0][0]
-        return name, READERS[name]  # marks the plugin as used
+        return name, READERS[name]
     return None
 
 
@@ -121,7 +117,6 @@ def _read_plugin(name: Any, reader: Any, path: Any, kwargs: Any) -> "TrialSet":
     return replace(out, provenance=replace(provenance, environment=environment))
 
 
-# MNE channel types measured in volts, and their type in the channel table (Table 4.2).
 _MNE_VOLTS = {
     "eeg": "eeg",
     "ecog": "ecog",
@@ -133,7 +128,6 @@ _MNE_VOLTS = {
 }
 _MNE_HEAD_FRAME = 4  # FIFFV_COORD_HEAD
 
-# Physical dimensions of EDF signals -> factor to µV.
 _EDF_TO_UV = {"uv": 1.0, "µv": 1.0, "μv": 1.0, "mv": 1e3, "v": 1e6, "nv": 1e-3}
 
 
@@ -155,7 +149,7 @@ def _table(value: Any, name: Any) -> Any:
     return value.reset_index(drop=True)
 
 
-def from_array(  # noqa: PLR0913  (spec §5.1 fixes 9 parameters; DECISIONS.md §7.2)
+def from_array(  # noqa: PLR0913
     data: ArrayLike,
     sfreq: float,
     *,
@@ -246,7 +240,6 @@ def from_array(  # noqa: PLR0913  (spec §5.1 fixes 9 parameters; DECISIONS.md �
 ## Dispatch
 
 
-# Formats told by the end of the path
 _SUFFIX_FORMATS = (
     ((".vhdr",), "brainvision"),
     ((".edf", ".bdf"), "edf"),
@@ -320,7 +313,6 @@ def _read_continuous(
     start = _time.perf_counter()
     if onsets is not None:
         onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
-        # Read only the span that holds the epochs (one sample of margin on each side)
         tmin = max(float(onsets.min()) + epoch[0] - 1.0, 0.0)
         tmax = float(onsets.max()) + epoch[1] + 1.0
     if fmt == "brainvision":
@@ -333,7 +325,6 @@ def _read_continuous(
         data, sfreq, names, t0 = read_edf(path, tmin=tmin, tmax=tmax, picks=picks)
         source = {"path": path, "format": "edf", "sha256": sha256_file(path)}
     source["reader"] = "evoparam.io.read"
-    # Samples without data (gaps of a MEF recording) are NaN and masked
     gaps = np.isnan(data) if fmt == "mef" else np.zeros(data.shape, dtype=bool)
     if onsets is not None:
         trials = cut(
@@ -390,7 +381,7 @@ def _read_continuous(
     )
 
 
-def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet":  # noqa: A002  (spec §5.1 names the keyword format)
+def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet":  # noqa: A002
     """Read data from any supported source into a TrialSet.
 
     Dispatch on the type or the extension of ``source``:
@@ -490,8 +481,6 @@ def _read_container(path: str, kwargs: dict[str, Any]) -> "TrialSet":
         obj = obj.as_trialset()
     if not isinstance(obj, TrialSet):
         raise ReaderError(f"{path} holds a {type(obj).__name__}, not a TrialSet.")
-    # REQ-294: reading creates the TrialSet that the next steps work on; its saved
-    # record is kept and the read is one more step (no machine path: REQ-352)
     return replace(
         obj,
         provenance=obj.provenance.with_step(

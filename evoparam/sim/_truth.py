@@ -26,7 +26,6 @@ from evoparam.utils._optional import require
 
 __all__ = ["GroundTruth", "TRUTH_COLUMNS", "PARAM_UNITS"]
 
-# Features shared with ResponseFit / GroupFit tables, with the same units.
 FEATURES = (
     "latency",
     "amplitude",
@@ -40,12 +39,9 @@ FEATURES = (
     "symmetry",
     "sharpness",
 )
-# Features that move with the latency shift, and those that scale with the amplitude.
 _SHIFTED = ("latency", "onset", "offset", "peak_time")
 _SCALED = ("amplitude", "area")
 
-# Columns of GroundTruth.to_dataframe(): the component columns of GroupFit.to_dataframe()
-# (same names and units, without "status"), then the truth-only columns.
 TRUTH_COLUMNS = {
     key: unit for key, unit in COMPONENT_COLUMNS.items() if key not in ("status", "resolvable")
 }
@@ -53,7 +49,6 @@ TRUTH_COLUMNS.update(
     {"trial": "", "role": "", "event": "", "snr": "", "shift": "s", "scale": "", "n_trials": ""}
 )
 
-# Units of the shape parameters (columns "param_<name>").
 PARAM_UNITS = {
     "mu": "s",
     "sigma": "s",
@@ -371,7 +366,6 @@ class GroundTruth(DeepEqualMixin):
         dct["provenance"] = Provenance.from_dict(dct["provenance"])
         components = copy.deepcopy(dct["components"])
         for comp in components:
-            # Strict JSON writes NaN as null; features are numbers, so null means NaN.
             comp["features"] = {
                 key: np.nan if value is None else value for key, value in comp["features"].items()
             }

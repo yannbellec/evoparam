@@ -3,7 +3,7 @@
 
 The stimulation artifact of an electrical pulse is modelled as the potential of
 the stimulating current in a resistive medium (a current source and sink at the
-two stimulating contacts, potential ``∝ 1/r+ − 1/r−``) times the recorded pulse
+two stimulating contacts, potential ``∝ 1/r+ - 1/r-``) times the recorded pulse
 shape: the rectangular current pulse (biphasic or monophasic) seen through the
 amplifier's anti-aliasing filter, followed by a double-exponential recovery tail.
 Sub-sample pulses are resolved on a grid finer than the sampling period.
@@ -31,14 +31,11 @@ __all__ = [
     "PULSE_SHAPES",
 ]
 
-# Contact spacing (mm): sEEG shafts, ECoG grids, DBS leads.
 SEEG_SPACING = 3.5
 GRID_SPACING = 10.0
 SHAFT_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 
-# Recorded pulse shapes (scaled by the potential of each channel).
 PULSE_SHAPES = ("biphasic", "monophasic")
-# fewest samples on which a pulse is filtered
 _MIN_SAMPLES = 2
 
 
@@ -81,7 +78,6 @@ def line_layout(
     return names, coords, [prefix] * n_channels
 
 
-# 10-20 positions by row (y) and by number (x); odd numbers on the left.
 _SCALP_ROWS = {
     "FP": 0.92,
     "AF": 0.75,
@@ -95,7 +91,6 @@ _SCALP_ROWS = {
     "PO": -0.75,
     "O": -0.92,
 }
-# Midline and central channels first, so that small montages are centred on the vertex.
 _SCALP_NAMES = (
     "Cz",
     "Pz",
@@ -143,7 +138,7 @@ def _scalp_xy(name: Any) -> tuple[float, float]:
     x = {1: 0.18, 2: 0.18, 3: 0.4, 4: 0.4, 5: 0.62, 6: 0.62, 7: 0.85, 8: 0.85, 9: 0.95, 10: 0.95}[
         number
     ]
-    radius = max(1.0, float(np.hypot(x, y)))  # the outer ring stays on the disc
+    radius = max(1.0, float(np.hypot(x, y)))
     return (-x if number % 2 else x) / radius, y / radius
 
 
@@ -169,11 +164,10 @@ def scalp_layout(n_channels: int) -> tuple[list[Any], NDArray[Any], Any]:
 
 
 ###################################################################################################
-## Potentials and waveforms
 
 
 def dipole_gain(coords: Any, source: Any, sink: Any = None, radius: float = 1.0) -> FloatArray:
-    """Potential of a current source (and sink) at each contact, ``r0/r+ − r0/r−``.
+    """Potential of a current source (and sink) at each contact, ``r0/r+ - r0/r-``.
 
     Distances below ``radius`` (mm, about the contact size) are clamped to it, so
     the stimulating contacts get the largest values (±1).
@@ -203,7 +197,6 @@ class AntiAliasFilter:
     order: int = 4
 
 
-#: The anti-aliasing filter of the simulated amplifiers.
 AMPLIFIER = AntiAliasFilter()
 
 

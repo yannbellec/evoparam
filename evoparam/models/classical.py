@@ -36,9 +36,6 @@ def _local_peak(_t: Any, y: Any, polarity: Any, n_neighbors: Any) -> tuple[Any, 
     n = len(s)
     best = None
     if n_neighbors >= 1 and n > 2 * n_neighbors:
-        # all samples at once (the loop over samples took a sixth of the time of a fit):
-        # windows[j] holds s[j : j + n_neighbors], left of i is j = i - n_neighbors and
-        # right of i is j = i + 1
         windows = np.lib.stride_tricks.sliding_window_view(s, n_neighbors)
         centre = s[n_neighbors : n - n_neighbors]
         left = windows[: n - 2 * n_neighbors]
@@ -50,7 +47,6 @@ def _local_peak(_t: Any, y: Any, polarity: Any, n_neighbors: Any) -> tuple[Any, 
             & (centre > right.mean(axis=1))
         )
         if ok.any():
-            # the first of the largest qualifying samples, as the loop kept
             best = n_neighbors + int(np.argmax(np.where(ok, centre, -np.inf)))
     elif n_neighbors < 1:
         for i in range(n_neighbors, n - n_neighbors):
@@ -77,7 +73,7 @@ def _area(t: Any, y: Any, kind: Any, baseline: Any) -> float:
         values = np.clip(values, None, 0)
     elif kind == "rectified":
         values = np.abs(values)
-    integrate = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201
     return float(integrate(values, t))
 
 
@@ -148,7 +144,7 @@ def _scores(
     return out, local
 
 
-def classical_measures(  # noqa: PLR0913  (spec §5.5.8 fixes 12 parameters; DECISIONS.md §7.2)
+def classical_measures(  # noqa: PLR0913
     times: Any,
     y: Any,
     *,
@@ -232,9 +228,6 @@ def classical_measures(  # noqa: PLR0913  (spec §5.5.8 fixes 12 parameters; DEC
         if names:
             boots: dict[str, list[Any]]
             boots = {k: [] for k in names}
-            # the window first, without copying the whole epochs at each draw; time is kept
-            # along the contiguous axis, as in trials[pick][:, inside], so that the averages
-            # are summed in the same order (the same numbers)
             by_time = np.ascontiguousarray(trials[:, inside].T)
             for _ in range(n_bootstrap):
                 pick = rng.integers(0, n, n)

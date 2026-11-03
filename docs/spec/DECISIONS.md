@@ -4,7 +4,7 @@
 is not edited. This file records:
 
 1. the owner's resolution of each point where the letter of the spec is impossible or
-   contradictory (D1–D16 of the audit of 2026-10-09);
+   contradictory (D1-D16 of the audit of 2026-10-09);
 2. the resolved import table of §4.2 (D3, D4, D5), which `evoparam/tests/test_import_graph.py`
    enforces and checks against this file;
 3. the divergences kept because they measured better than the reviewed procedure. The
@@ -14,7 +14,7 @@ is not edited. This file records:
 
 Measured values come from `CHANGELOG.md`, which holds the full record.
 
-## 1. Owner decisions on D1–D16
+## 1. Owner decisions on D1-D16
 
 | item | point of the spec | decision |
 |---|---|---|
@@ -30,7 +30,7 @@ Measured values come from `CHANGELOG.md`, which holds the full record.
 | D10 | REQ-372: the responsive channels of the published analysis exist only as figures | The authors' code, run on the data, is the comparator. |
 | D11 | REQ-213: "20 % power increase" is ambiguous | The strict reading is tested too. If it cannot be reached, it is an xfail with the measured value. |
 | D12 | §4.3.4 "baseline-normalised" maps against the exact identity of REQ-211 | Both maps are given: power maps for the exact identity and `*_norm` maps. |
-| D13 | `ccep` label "delayed (0.100–1.0)" against fit window (0.009, 0.5) | The fit window is kept. "delayed" can be reached with an extended `fit_window`, and this is documented. |
+| D13 | `ccep` label "delayed (0.100-1.0)" against fit window (0.009, 0.5) | The fit window is kept. "delayed" can be reached with an extended `fit_window`, and this is documented. |
 | D14 | §7.3 "the first five subjects … plus `sub-ccepAgeUMCU01`" | Six subjects: the first five other than UMCU01, plus UMCU01. |
 | D15 | REQ-194: the paper does not name its example channel | All channels are reported with the paper's window. |
 | D16 | REQ-016/REQ-306 (no network by default) and REQ-017/§12 (green in CI) need a network job that the spec does not describe | A local runner, `tools/run_all_tests.py`, runs the whole suite with the network, slow and perf tests on a chosen Python. It writes a JUnit report and a summary. The GitHub workflow also defines the matching jobs (`network-slow-perf`, scheduled and manual). GitHub Actions is not used for now. |
@@ -42,7 +42,7 @@ nothing from the package. Every module may import them. "may import" lists the o
 modules a module may import. An edge that is not in this table makes
 `tests/test_import_graph.py` fail, and the test exempts no module. The test also parses
 `from evoparam import X` as an edge to `X`. It fails on cycles and on any top-level
-import of an optional package (REQ-296 i–iii).
+import of an optional package (REQ-296 i-iii).
 
 <!-- import-table -->
 
@@ -78,17 +78,17 @@ left in the test.
 
 - **Reviewed rule** (still available as `identify_stim_site(..., method="spec")` and
   `detect_pulses(..., site_method="spec")`). The rule computes
-  `a_c = max_{|t|≤1 ms} |x_c(t) − x_c(−2 ms)|` for each channel and ranks the channels.
+  `a_c = max_{|t|≤1 ms} |x_c(t) - x_c(-2 ms)|` for each channel and ranks the channels.
   The guess is the two largest channels, ordered by channel index. The confidence is
-  `(a_1 − a_3) / a_1`, halved when the first deflections are not of opposite signs or,
+  `(a_1 - a_3) / a_1`, halved when the first deflections are not of opposite signs or,
   when `ch_info.group` is given, when the two contacts are not on the same shaft.
-- **Default** (`method="evidence"`). The artifact is measured from −5 ms to +1 ms and
+- **Default** (`method="evidence"`). The artifact is measured from -5 ms to +1 ms and
   divided by the channel's pre-pulse noise. A channel that moves (at least 5 % of the
   largest artifact) gains one point of evidence when it *leads*: before the onset it
   already moves by ≥ 10 noise SD and by ≥ 30 % of its artifact. It gains another when it
   is *held*: from 5 to 100 ms after the onset, at least half of its steps are below a
   tenth of the typical pre-pulse step. Channels are ranked by evidence, then by size. The
-  confidence is `(s_2 − s_3) / s_2`, computed on evidence when evidence separates the
+  confidence is `(s_2 - s_3) / s_2`, computed on evidence when evidence separates the
   channels and on size otherwise. It is halved by the same polarity and shaft checks. For
   close pulses, the lead window shrinks to a quarter of the interval (at least 2 ms) and
   the hold window ends before the next pulse.
@@ -99,17 +99,17 @@ left in the test.
   |---|---|---|
   | agreement with `events.tsv`, per pulse | 0.61 | 0.980 |
   | after `vote_sites` | 0.66 | 0.995 |
-  | 13 even runs (development) | — | 0.981 / 0.990 |
-  | 12 odd runs (held out) | — | 0.979 / 1.000 |
+  | 13 even runs (development) | - | 0.981 / 0.990 |
+  | 12 odd runs (held out) | - | 0.979 / 1.000 |
 
   Of the pulses with `site_confidence ≥ 0.5`, the default identifies 100 % correctly; these
   are 81 % of all pulses. Halving or doubling any one threshold or window gives 0.94 to
   0.985 per pulse and 0.955 to 0.995 after the vote. Speed is unchanged: 0.79 s against
   0.81 s for 10 minutes of 100 channels at 2048 Hz.
 - **Why the reviewed rule fails on these data.** The amplifier holds the stimulating
-  contacts, or leaves them at the rail, while the common reference spreads a 1–3 mV
-  artifact to every contact. The stimulating contacts also move 1–3 ms before the
-  shared artifact, so the −2 ms reference sample already lies inside their artifact.
+  contacts, or leaves them at the rail, while the common reference spreads a 1-3 mV
+  artifact to every contact. The stimulating contacts also move 1-3 ms before the
+  shared artifact, so the -2 ms reference sample already lies inside their artifact.
 - The text of §5.2 method 5 in `SPEC.md` is the reviewed text. The description above
   replaces the edit that had been made to the spec after review (audit F61).
 
@@ -117,7 +117,7 @@ left in the test.
 
 Measured on the merged engine of `integration-2` (2026-10-09). Choices were made on
 development data: the five ds004080 development runs (UMCU07, 19, 28, 40, 49), simulation
-seeds 0–2 of the ECAP simulators and the development seeds of the layer-2 grid (41 cells of
+seeds 0-2 of the ECAP simulators and the development seeds of the layer-2 grid (41 cells of
 the weekly design, every fifth cell, 5 replicates). The values reported for REQs are on the
 REQ data (the REQ-371 runs and the example run, held-out seeds). The full table is in
 `CHANGELOG.md`, "Defaults settled by measurement".
@@ -147,7 +147,7 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   `reseed=True`, `reject_cancelling=False`**: on the ECAP simulations the refusal leaves
   the greedy path in a worse optimum (held-out seeds: amplitude error 14.6 % against 6.8 %
   cochlear, 10.8 % against 5.6 % spinal; 10 of 21 cochlear fits above five times the noise
-  against 2), and on ds004977 ROC11–ROC12 the shared fit built on refused pairs drops three
+  against 2), and on ds004977 ROC11-ROC12 the shared fit built on refused pairs drops three
   components and its residual cost is 1.8 times higher. On the layer-2 grid and the N1 case
   the two are within noise of each other. The ECAP presets (`ecap`, `ecap_ci`, v1.1) set
   `reseed="always"` (every final model refitted from the extrema): amplitude error 1.5 %
@@ -157,7 +157,7 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   fit has no reseeding, and a pair present in the per-channel fits is removed by dropping
   the member whose removal fits best. Its latency bounds keep every channel's latency in the
   fit window (a bug fix, not a choice: on ds004977 all 11 channels had a component before
-  the stimulation, at −9 ms, or −18 ms with free latencies, before it; none after).
+  the stimulation, at -9 ms, or -18 ms with free latencies, before it; none after).
 - **Noise that does not fill its band (step 1).** When the noise has an empty band above
   1/k of the Nyquist frequency (k = 2 to 4: an upsampled recording, or an anti-alias or
   hardware low-pass well below the Nyquist frequency), the whitened residuals of step 1 are
@@ -183,7 +183,7 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   `delta` (`engine.CANDIDATE_SCAN`; a step with a qualifying extremum still scans until its
   beam is full). Six because the first qualifying extremum of a step was at most the sixth
   on the layer-2 development cells (the first in 546 of the 559 steps that added one). Measured on both seed
-  sets of the layer-2 grid, the REQ-104–112 engine waveforms and the seven ds004080 runs
+  sets of the layer-2 grid, the REQ-104-112 engine waveforms and the seven ds004080 runs
   of layer 3: recall, F1 on the engine waveforms and the N1 kappa unchanged, precision equal
   or higher, 3 of 936 simulated fits and 32 of 615 channels differ (CHANGELOG "Engine
   speed, part 4"). Three extrema were measured too and rejected: recall drops on `ecap`,
@@ -437,10 +437,10 @@ default of models 1.4) and `"aic"` stay available.
 - **Why** (CHANGELOG "Trials: speed, REQ-150/151/155/156/158 as written, spec options",
   Q8). With every component moving, the channel fits of ds004080 often split an N1 into
   overlapping parts (`N1`, `N1_b`, …); the neighbour rule then clips the N1 `max_shift` to
-  0.1–2 ms and the trials sit at that bound. Median trusted fraction on the significant N1
+  0.1-2 ms and the trials sit at that bound. Median trusted fraction on the significant N1
   channels, `"anchored"` / `"all"`: 0.9 / 0.7 on four held-out subjects (UMCU07, 08, 10,
   11; 25 channels; the choice was made there) and 0.9 / 0.7 on the six REQ-156 subjects
-  (56 channels). `"anchored"` is 30–45 % faster than `"all"`, and the trials and
+  (56 channels). `"anchored"` is 30-45 % faster than `"all"`, and the trials and
   `jitter_sd_null` then use the same procedure (the null fit already held the other
   components at their channel values).
 - **Cost on simulations.** `simulate_ccep` with 10 trials, N1 latency and amplitude MAE,
@@ -449,7 +449,7 @@ default of models 1.4) and `"aic"` stay available.
   regularized latency MAE 1.828 ms (all), 1.858 ms (anchored), 1.902 ms (selected).
   REQ-150 at SNR 3 with an N2 added: `"all"` and `"anchored"` give the same numbers. The
   CHANGELOG flags this default for the owner as a trade-off (robustness and speed on real
-  data against about 1–3 % of simulated MAE).
+  data against about 1-3 % of simulated MAE).
 - Tests: `tests/trials/test_trials_ccep.py::test_req156_trusted_fraction` and
   `test_req156_speed` (network, the default), `tests/trials/test_trials_table.py`
   (`test_options_are_checked_and_recorded`,
@@ -468,9 +468,9 @@ default of models 1.4) and `"aic"` stay available.
   trial, and realignment is refused unless `jitter_sd` exceeds both 1.2 ×
   `jitter_sd_null` and the 95 % quantile of the ratio of two noise SDs (F distribution).
 - **Measured** on REQ-151 (CHANGELOG "Trials: speed, …, spec options", Q9). 200 jitter-free
-  runs of 40 trials (seeds 100–299), segments / spec: ratio `jitter_sd_null / jitter_sd`
+  runs of 40 trials (seeds 100-299), segments / spec: ratio `jitter_sd_null / jitter_sd`
   below 0.8 in 7 / 15 runs; realignment refused in 99.0 % / 86.5 % of runs (REQ-151 asks
-  for at least 95 %). With 200 trials per run (100 runs, seeds 1000–1099) both rules pass
+  for at least 95 %). With 200 trials per run (100 runs, seeds 1000-1099) both rules pass
   in every run.
 - Tests: `tests/trials/test_trials_sim.py::test_req151_no_invented_jitter_and_realign_refused`
   (default), `test_req151_as_written` (both rules, 200 trials per run) and
@@ -483,7 +483,7 @@ default of models 1.4) and `"aic"` stay available.
   350 ms, FWHM 200 ms, 40 trials, 500 Hz, preset `erp`, `r2_min=0`): under
   `null_rule="segments"` a jitter was reported in every jitter-free run (raw `jitter_sd`
   7.0 / 14.8 / 29.3 ms at noise 5 / 10 / 20, `jitter_sd_null` about 1 / 2 / 4 ms). Cause: the
-  `erp` baseline (−200 to 0 ms) is shorter than the trial window; repeated end to end it
+  `erp` baseline (-200 to 0 ms) is shorter than the trial window; repeated end to end it
   has no power below 5 Hz, where the latency of a 200 ms component lives, so the null
   jitter is far too small. The raw `jitter_sd` itself equals the Cramér-Rao SD of one trial's
   latency (about 7 / 14 / 28 ms): it measures the noise.
@@ -495,7 +495,7 @@ default of models 1.4) and `"aic"` stay available.
 - **Default** `null_rule="ar"`: the noise-only segments are drawn from an autoregressive
   model (order ≤ 8) of the baseline, 20 per trial, over the whole window; the refusal limit
   is unchanged (1.2 × and the F quantile). `jitter()` adds `jitter_detected`,
-  `jitter_min_detectable = jitter_sd_null·sqrt(limit² − 1)`, `jitter_sd_eb` (the excess
+  `jitter_min_detectable = jitter_sd_null·sqrt(limit² - 1)`, `jitter_sd_eb` (the excess
   jitter when detected, else 0) and `jitter_status` (`"not measurable (< x ms)"`); the trial
   table adds `latency_se` (= `jitter_sd_null`) and `latency_shrunk`. `"segments"` and
   `"spec"` stay available.
@@ -519,7 +519,7 @@ default of models 1.4) and `"aic"` stay available.
 ### Pulse detection: `procedure="evoparam"` (§5.2 methods 1 and 2)
 
 - **Reviewed procedure** (still available as `detect_pulses(..., procedure="spec")`,
-  `events/_spec.py`): the median of `|x_c[n] − x_c[n−1]|` over every picked channel, a
+  `events/_spec.py`): the median of `|x_c[n] - x_c[n-1]|` over every picked channel, a
   robust z-score, the first crossing of `threshold_sd` after the refractory period, the
   onset at the largest change within ±2 ms minus one sample; then a template from the
   first `n_template` detections, scanned by normalised cross-correlation over the whole
@@ -619,7 +619,7 @@ There is no option for a BCa interval of a fit.
 - **Measured.** REQ-116, fit intervals, 200 runs each, plain percentile → expanded
   (CHANGELOG "Interval coverage", 2026-10-10): latency 0.900 → 0.935 and amplitude 0.945 →
   0.960 under white noise; 0.935 → 0.945 and 0.900 → 0.940 under AR(1) rho 0.9 (REQ-116
-  asks 92–97 %). `stats.bootstrap` with 30 trials (CHANGELOG "Build step S14"): the
+  asks 92-97 %). `stats.bootstrap` with 30 trials (CHANGELOG "Build step S14"): the
   textbook intervals cover 0.935 (normal) and 0.925 (log-normal, CV 0.5), below the 0.93
   of REQ-230; expanded, BCa 0.948 and percentile 0.949 on normal statistics, 0.940 and
   0.938 on log-normal ones.
@@ -639,7 +639,7 @@ There is no option for a BCa interval of a fit.
   `plot_signals`, `plot_signals_shading`, `plot_signals_yshade`, `plot_scatter_1`,
   `plot_scatter_2` and `plot_hist` in `evoparam/plots/_signals.py`. They follow the
   conventions of `evoparam.plots` (§5.13): each returns the `Figure`, takes `ax=`, uses
-  the Okabe–Ito palette, and seeds the scatter jitter from `random_state` (§9.4). The
+  the Okabe-Ito palette, and seeds the scatter jitter from `random_state` (§9.4). The
   inherited style decorators are not kept: they used `legend.legendHandles`, which was
   removed in matplotlib ≥ 3.9 (§4.5). `plts/fm.py` and `plts/peaks.py` are removed, as
   §4.5 requires.
@@ -667,7 +667,7 @@ There is no option for a BCa interval of a fit.
   fit with a warning and NaN existence columns. `existence=True` raises instead, and
   `existence=False` skips the test. The test seed is `random_state`, or the seed drawn and
   recorded by the fit. When the fit settings have no baseline, the test uses
-  (−0.5, −0.05) s if the data start before −0.5 s, else the pre-stimulus samples.
+  (-0.5, -0.05) s if the data start before -0.5 s, else the pre-stimulus samples.
   `evoparam.read` is `evoparam.io.read`, as REQ-002 names it.
 - **REQ-006, the existence table.** `response_duration` gives the onset, the offset and
   the duration, each with its interval (percentiles of the same bootstrap over trials
@@ -860,14 +860,14 @@ There is no option for a BCa interval of a fit.
   hints at the published range and at `max_peak_delay=0.2` for the optional peak-delay
   cut. As for the rows whose paper does not state the baseline, running the rule without
   `k` raises `SettingsError` naming it (REQ-137). Window, baseline and band are the row's
-  (0–800 ms, −400 to −10 ms, 1–45 Hz). The benchmark sets `k = 5`, "the middle of the
+  (0-800 ms, -400 to -10 ms, 1-45 Hz). The benchmark sets `k = 5`, "the middle of the
   published 3 to 7", without the peak-delay cut, and records it in the method's settings
   (`evoparam/benchmark/baselines.py`, §8.3 item 1). No measurement chose this value.
   Tests: `tests/existence/test_rules_registry.py::test_req137_unspecified_fields_raise`;
   the benchmark tests run the rule with `k = 5` (`tests/benchmark/test_suite_core.py`).
 - **REQ-133 for the `ftract` rule.** "Every registry rule" includes `ftract`; its row has
   no `k`, so the test passes `k` explicitly, at 3, 5 and 7 (both ends and the middle of
-  the published range). The statistic is taken after the 1–45 Hz band-pass, so the
+  the published range). The statistic is taken after the 1-45 Hz band-pass, so the
   waveform of the other rules (one sample at the threshold) does not lie at the threshold
   after the filter. The test builds one that does: a 20 Hz Hann-tapered sinusoid in the
   baseline (inside the band; tapered so that it leaks below `|z| = 1e-3` into the window)
@@ -890,7 +890,7 @@ There is no option for a BCa interval of a fit.
   pipelines the spec gives as the reason. Recorded in `diagnostics["masked_support"]`
   (`component`, `masked_fraction`, `factor`) and the warning `masked_onset:<i>`.
   Example (`tests/models/test_varpro.py::test_masked_onset_widens_the_intervals`, a
-  Gaussian at 100 ms, FWHM 40 ms, a 55–75 ms gap over its onset): `f` = 0.130, latency SE
+  Gaussian at 100 ms, FWHM 40 ms, a 55-75 ms gap over its onset): `f` = 0.130, latency SE
   0.517 ms without the mask, 0.536 ms with it, 0.606 ms widened.
 - **§5.5.9, decimated search of a long window.** The rule applies when the fit window is
   longer than 10 s *and* the sampling rate is 1 kHz or more, as written (a 50 s window at
@@ -927,18 +927,18 @@ There is no option for a BCa interval of a fit.
   N2pc, LRP and ERN; §6.2 gives the source of the `erp` windows, ERP CORE
   [LIT-erpmeas-39], and D6 asks for published windows with citations. The windows added
   are ERP CORE's published measurement windows, the ones `validation/erpcore.py` and task
-  T6 of the benchmark (`evoparam/benchmark/erpcore.json`) already use: MMN 125–225 ms,
-  N2pc 200–275 ms, LRP −100–0 ms, ERN 0–100 ms, all negative. No value was chosen here.
+  T6 of the benchmark (`evoparam/benchmark/erpcore.json`) already use: MMN 125-225 ms,
+  N2pc 200-275 ms, LRP -100-0 ms, ERN 0-100 ms, all negative. No value was chosen here.
   They come after the six labels of the table, which keep their windows and their
   precedence where windows overlap (a negative component at 150 ms is still N1). The
   label windows are names only (§5.5.7): in a stimulus-locked fit a negative component
-  at 50–100 ms is named ERN and one at 200–225 ms MMN. REQ-270 compares the preset with
+  at 50-100 ms is named ERN and one at 200-225 ms MMN. REQ-270 compares the preset with
   the table: the new labels are a listed deviation explained in the preset's notes
   (`DEVIATIONS` in `tests/presets/test_presets.py`); `erp` 1.1 → 1.2.
 
 ## 5. Requirements that cannot both be read literally
 
-### 5.1 `prep.reference_sensitivity` runs the existence test (§5.4) — import graph (§4.2)
+### 5.1 `prep.reference_sensitivity` runs the existence test (§5.4) - import graph (§4.2)
 
 - §5.4, method 3: `reference_sensitivity` "runs the existence test (§5.6) under each
   scheme". §4.2: `prep` may import `data`, `utils` and `shapes` only, and `models`
@@ -962,27 +962,27 @@ There is no option for a BCa interval of a fit.
 ### 5.2 REQ-114: the published rule's peak is not always an N1 (§5.5.10, §5.5.7)
 
 - REQ-114 compares "the model latency" with the published rule's peak on the channels where
-  both find an N1. The rule's peak is the most negative sample of 9–100 ms (registry row)
+  both find an N1. The rule's peak is the most negative sample of 9-100 ms (registry row)
   or the largest local minimum there (published code). On the REQ runs (the example run
   and the REQ-371 runs) that peak is an N1 trough of the average the rule reads (the
-  deepest negative interior local minimum in 9–50 ms) on 39 of the 74 channels where the
+  deepest negative interior local minimum in 9-50 ms) on 39 of the 74 channels where the
   registry row and the preset both find an N1, and on 24 of 30 with the code. The other
   peaks are the first samples of the window on the recovery tail (18 and 3), slow
-  deflections at 52–100 ms (16 and 2) and one more each (the deepest sample just after
+  deflections at 52-100 ms (16 and 2) and one more each (the deepest sample just after
   50 ms; a positive-valued minimum). A model whose N1 latency is a trough of the data is
-  therefore bounded by 53 % (registry row) and 80 % (code). Any latency in 9–50 ms is
+  therefore bounded by 53 % (registry row) and 80 % (code). Any latency in 9-50 ms is
   bounded by 78 % (58 of 74) and 93 % (28 of 30); reaching the second bound would mean
   naming an N1 at the window start, where the average is on the recovery tail and has no
   trough. The criterion is unchanged: the tests stay expected failures with the measured
   values.
 - "The model latency" is read two ways, as before: the latency of the component the
-  preset names N1 (§5.5.7: the larger `|A|` of the negative components in 9–50 ms; the
+  preset names N1 (§5.5.7: the larger `|A|` of the negative components in 9-50 ms; the
   test as written) and the trough of the fitted curve (`fitted_peak`, K3). On the
   channels where the rule's peak is an N1 trough, the trough is within 2 ms on 24 of 24
   (code) and 31 of 39 (registry row), the component on 11 of 24 and 18 of 39. On real
   N1s the engine's fit puts its trough on the data's trough; the component's own mode
   misses because the N1 is fitted by overlapping components (several negative components
-  in 9–50 ms, the one named N1 often 20–250 ms wide, about half in cancelling pairs, every
+  in 9-50 ms, the one named N1 often 20-250 ms wide, about half in cancelling pairs, every
   fit `ill_conditioned`). The label rule of §5.5.7 is kept.
 - With the registry row, 8 of the 39 N1 troughs are missed by the fitted trough. On 6 of
   them the trough of the preset's own input misses too: the rule reads the monopolar
@@ -991,7 +991,7 @@ There is no option for a BCa interval of a fit.
   trough of the channels' median, a common-mode deflection the common average removes). Fitted on the
   rule's own average (no re-referencing; a diagnostic, not the preset), the input's trough
   is within 2 ms on 33 of 33 such channels and the fitted trough on 29 of 33. The other
-  misses are flat-bottomed N1s 20–70 ms wide, whose deepest sample moves with the noise.
+  misses are flat-bottomed N1s 20-70 ms wide, whose deepest sample moves with the noise.
 - Model changes tried for the component latency, chosen on the five development runs
   (UMCU07, 19, 28, 40, 49), none adopted (component / trough within 2 ms, registry row,
   then code; current 26 % / 54 % and 33 % / 81 %): `reject_cancelling=True` 26 / 51 and
@@ -1034,11 +1034,11 @@ There is no option for a BCa interval of a fit.
   with the registry row. 7 of the 10 misses are the rule's peaks at 87-100 ms: small
   local minima of the noisy average on a slope, where the fitted curve has no local
   minimum. The third reading gives 72 %.
-- With the rule's N1 detections (its peaks in 9–50 ms, §5.11) the fourth reading gives
+- With the rule's N1 detections (its peaks in 9-50 ms, §5.11) the fourth reading gives
   94.1 % (48 of 51) with the registry row and 96.3 % (26 of 27) with the code on the REQ
-  runs, met; 91–93 % on the development runs.
+  runs, met; 91-93 % on the development runs.
 
-### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
+### 5.3 REQ-105 (recall >= 0.95 from SNR 3) - REQ-112 (>= 95 % of pure-noise windows silent)
 
 - REQ-105 asks a recall of 0.95 down to SNR 3 and a FWHM of 3 samples; REQ-112 asks no
   component in >= 95 % of pure-noise windows at the default `delta`. A Gaussian of FWHM 3
@@ -1075,7 +1075,7 @@ There is no option for a BCa interval of a fit.
   (a third component on a pair of opposite bumps). REQ-105 stays an expected failure; the
   gap is two components of the 600 at a setting that keeps REQ-112.
 
-### 5.4 REQ-106 with the default pair — the latency of §5.5.1 and the pair of REQ-106
+### 5.4 REQ-106 with the default pair - the latency of §5.5.1 and the pair of REQ-106
 
 - REQ-106 asks a latency MAE <= 0.5 sample for gamma and biexponential truths fitted with
   the default `("gaussian", "skewed_gaussian")` pair; §5.5.1 defines the latency as the
@@ -1161,7 +1161,7 @@ There is no option for a BCa interval of a fit.
     moves by +0.010 (development) and +0.022 (tests' seeds), the ex-Gaussian row by
     -0.010 and +0.002, the Gaussian row by -0.013 and -0.017 (§3).
 
-### 5.5 REQ-111 at 0.5 FWHM — §5.5.3 steps 4 and 5
+### 5.5 REQ-111 at 0.5 FWHM - §5.5.3 steps 4 and 5
 
 - REQ-111 asks one component flagged `merged:<k>,<k+1>` for two equal Gaussians 0.5 FWHM
   apart at SNR 10, and never two components unless flagged ill-conditioned. The pair
@@ -1191,7 +1191,7 @@ There is no option for a BCa interval of a fit.
   latency per dataset, a between-channel SD of 4 ms and channel errors of 1 to 2 ms.
 - Measured bound. With the true subject latencies, the true between-channel SD and the
   standard errors of the engine, the posterior mean wins on 86 % of 200 development datasets
-  (seeds 1000–1199); on datasets drawn from the Gaussian model itself (known prior, errors
+  (seeds 1000-1199); on datasets drawn from the Gaussian model itself (known prior, errors
   exactly normal with those standard errors) it wins on 84 %. The posterior mean minimises
   the expected squared error, not the chance of beating the raw estimates on a given
   dataset: that chance rises as the shrinkage falls (with the new standard errors divided
@@ -1232,7 +1232,7 @@ There is no option for a BCa interval of a fit.
   of 20 (160 of 200 on the development seeds), reported by the former test, kept as an
   expected failure (`test_req171_shrunken_latencies_beat_the_channel_fits`).
 
-### 5.7 REQ-395 (no copyleft package declared as an extra) — §9.2 (`bids` declares `pybids>=0.16`)
+### 5.7 REQ-395 (no copyleft package declared as an extra) - §9.2 (`bids` declares `pybids>=0.16`)
 
 - The §9.2 table gives the extra `bids` two packages: `mne-bids>=0.15` and `pybids>=0.16`.
   REQ-395 forbids declaring as an extra any package under GPL, LGPL or AGPL, and its
@@ -1264,7 +1264,7 @@ There is no option for a BCa interval of a fit.
   (MPL-2.0 is file-level weak copyleft, not GPL, LGPL or AGPL). The PR template carries
   the checklist item.
 
-### 5.8 D8 (both readings of the published N1 rule) — REQ-113, REQ-114, REQ-135, REQ-273
+### 5.8 D8 (both readings of the published N1 rule) - REQ-113, REQ-114, REQ-135, REQ-273
 
 - D8 asks REQ-113 (kappa >= 0.8 for the preset's N1 decision) and REQ-135 (kappa >= 0.7 for
   the default existence method) under both readings of the published rule: the registry
@@ -1287,7 +1287,7 @@ There is no option for a BCa interval of a fit.
   and `test_req135_cannot_hold_under_both_readings` keep it measured.
 - Owner decision (2026-10-13, revising D8 for the N1 requirements). The reading the
   requirements are judged on is the one the spec itself defines: its §5.6 registry row
-  (`|x| > 3.4·SD_baseline`, a negative peak, 9–100 ms; rule `vanblooijs2023`). REQ-113,
+  (`|x| > 3.4·SD_baseline`, a negative peak, 9-100 ms; rule `vanblooijs2023`). REQ-113,
   REQ-114, REQ-135 and REQ-273 pass or fail on that reading. The published code's reading
   (`vanblooijs2023_code`) is still measured and reported by its own parametrised tests,
   which stay expected failures where it is not met, but it no longer gates. The reason is
@@ -1309,7 +1309,7 @@ There is no option for a BCa interval of a fit.
   choice follows the spec text, not the results: REQ-113 on the PT contacts falls from
   0.46 to 0.24.
 - The row's peak (2026-10-13). The row reads "`|x| > 3.4·SD_baseline` with a negative
-  peak, ≥ 1 sample", in 9–100 ms. A peak is a local extremum, so the window's most
+  peak, ≥ 1 sample", in 9-100 ms. A peak is a local extremum, so the window's most
   negative sample is not a peak when it lies on a monotone slope at the window's edge
   (its first sample on the recovery tail, its last on a drift). The published code reads
   the word the same way: peakfinder's local minima, the first sample excluded. The row
@@ -1361,14 +1361,14 @@ There is no option for a BCa interval of a fit.
   runs (the `ccep` preset's own chain before the test) gives 0.548 (0.623) on the
   REQ-371 runs; without the correction 0.710 (0.807).
   Measured variants and numbers: CHANGELOG, "N1 case: the two readings".
-- REQ-113 and REQ-114 with the rule's N1 detections (the rule's peaks in 9–50 ms, the N1
-  window REQ-113 names), asked alongside the detections over 9–100 ms: §5.11.
+- REQ-113 and REQ-114 with the rule's N1 detections (the rule's peaks in 9-50 ms, the N1
+  window REQ-113 names), asked alongside the detections over 9-100 ms: §5.11.
 - REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
   subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
   trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
   development subjects are used to choose settings.
 
-### 5.9 REQ-274: the `erp` preset as written — the targeted measurement
+### 5.9 REQ-274: the `erp` preset as written - the targeted measurement
 
 REQ-274 reads "`erp` on ERP CORE ... recovers the component named by the paradigm ... as a
 labelled component on the canonical channel for >= 90 % of participants, with model latency
@@ -1381,7 +1381,7 @@ within +/-10 ms of the fractional-area latency of the same average".
   85 %, N400 57.5 %, N170 45 %, MMN 37.5 %, N2pc 36 %, P3 30 %. Kept as its own tests
   (`test_req274_*_as_written`, expected failures with these values): not met.
 - **Targeted measurement** (`reading="targeted"`, the default of the script): the `erp`
-  preset derived by `presets.targeted` — three components of the component's polarity in
+  preset derived by `presets.targeted` - three components of the component's polarity in
   the measurement window +/- 25 ms, no background; the component is the sum of its labelled
   parts. Measured 2026-10-13: ERN 95 %, LRP 95 %, MMN 100 %, N170 95 %, N2pc 92 %, N400
   95 %, P3 90 % (no margin). Two limits, stated with the numbers: the settings (three parts,
@@ -1392,7 +1392,7 @@ within +/-10 ms of the fractional-area latency of the same average".
   that a single component was recovered. The targeted measurement is therefore reported as
   a reading of REQ-274, and the requirement stays marked not met as written.
 
-### 5.10 §10.6 fixed-shape method (one common shift and scale) — REQ-324 and REQ-347 (agreement with `fit_trials(mode="shift_scale")`)
+### 5.10 §10.6 fixed-shape method (one common shift and scale) - REQ-324 and REQ-347 (agreement with `fit_trials(mode="shift_scale")`)
 
 - §10.6, "Method (fixed shape)": per pulse and channel "the only free parameters are a
   common shift ... and a linear scale". REQ-324 and REQ-347: the streamed `amplitude` and
@@ -1442,23 +1442,23 @@ within +/-10 ms of the fractional-area latency of the same average".
 
 ### 5.11 REQ-113 and REQ-114: the rule's N1 detections; REQ-135 over whole runs (§5.5.10, §5.6)
 
-- REQ-113 asks the preset to detect "an N1 (negative component with latency in 9–50 ms) on
-  every channel on which the published rule (`3.4 × SD` of the baseline in `9–100 ms`)
+- REQ-113 asks the preset to detect "an N1 (negative component with latency in 9-50 ms) on
+  every channel on which the published rule (`3.4 × SD` of the baseline in `9-100 ms`)
   detects one". The "one" the rule detects is an N1, but the rule's window runs to
-  100 ms, and REQ-113 itself gives an N1 a latency of 9–50 ms. On the example run 10 of
+  100 ms, and REQ-113 itself gives an N1 a latency of 9-50 ms. On the example run 10 of
   the registry row's 11 detections on the PT contacts peak after 50 ms; by REQ-113's own
   definition they are not N1s, and the preset may not label them N1 (§5.5.7). The text
   can be read two ways:
-  - A, the rule's detections over 9–100 ms (every channel the rule marks), the reading of
+  - A, the rule's detections over 9-100 ms (every channel the rule marks), the reading of
     the tests until now (`test_req113_as_written`);
   - C, the rule's N1 detections: the channels where the rule finds a peak beyond its
-    threshold with a latency in 9–50 ms. For the registry row (a negative peak, a strict
-    local minimum, §5.8) these are its peaks of 9–100 ms that lie in 9–50 ms; the rule
+    threshold with a latency in 9-50 ms. For the registry row (a negative peak, a strict
+    local minimum, §5.8) these are its peaks of 9-100 ms that lie in 9-50 ms; the rule
     is applied unchanged (baseline, SD, operator, time axis) with its window ending at
     50 ms (`N1_WINDOW`). The rule's peak latency of REQ-114 is then the latency of that
     N1 peak.
 
-  A third reading, the channels whose deepest peak of 9–100 ms lies in 9–50 ms, is a
+  A third reading, the channels whose deepest peak of 9-100 ms lies in 9-50 ms, is a
   subset of C and was not kept: it drops an N1 when a later deflection is deeper.
 - Neither A nor C is the less demanding one throughout: A asks the preset to find more
   channels, C asks it to stay silent on channels where only a later deflection crosses
@@ -1489,12 +1489,12 @@ within +/-10 ms of the fractional-area latency of the same average".
   on one REQ-371 run of six (pooled 0.78), and on 4 of 9, 2 of 6 and 2 of 6 runs of the
   development sets (`test_req113_rule_on_the_presets_input_bound`). The second group is
   the engine's: N1s present in its input that the fit decomposes into components
-  outside 9–50 ms, cancels with the background, or does not accept at all.
+  outside 9-50 ms, cancels with the background, or does not accept at all.
 - Variants measured on the development runs and not adopted (registry row, C, pooled
   kappa on the first two sets; 0.47 and 0.43 with the preset):
   - fit without the SEM weights: 0.55 and 0.61;
   - the recording reference instead of the adjusted common average: 0.56 and 0.46;
-  - no edge extension (the 9–15 ms artifact tail): 0.43 and 0.49;
+  - no edge extension (the 9-15 ms artifact tail): 0.43 and 0.49;
   - background `tau_max` 10 ms: 0.46 and 0.46;
   - both of these: 0.45 and 0.52.
 
@@ -1552,7 +1552,7 @@ within +/-10 ms of the fractional-area latency of the same average".
   its trials). With no trials, `noise_source="auto"` cannot use the plus-minus average
   and falls back to the baseline residual, whose effective sample size at 512 Hz is
   about 2 (lag-one autocorrelation about 0.985), so the noise is badly estimated and
-  large N1s can come out `no_response` (on a development run of UMCU01 a −420 µV N1).
+  large N1s can come out `no_response` (on a development run of UMCU01 a -420 µV N1).
   `run_pipeline` fits the `TrialSet`, and the harness now does the same (template
   removal, adjusted common average, baseline correction, then
   `ResponseModel("ccep").fit_group(trials)`; checked bit-identical to the pipeline's
@@ -1563,11 +1563,11 @@ within +/-10 ms of the fractional-area latency of the same average".
 - Where the preset's N1 and the rule on its own input differ, development runs
   (registry row, C, the average fitted alone; classes counted channel by channel).
   Misses: the trough is made by positive components and the fit names no negative
-  component in 9–50 ms (30), `no_response` (25), the trough of the data not fitted (23),
-  a negative component just outside 9–50 ms (13), a constant offset `c0` taking the
+  component in 9-50 ms (30), `no_response` (25), the trough of the data not fitted (23),
+  a negative component just outside 9-50 ms (13), a constant offset `c0` taking the
   deflection (9), a large exponential tail `c1` (5). False N1s: the fitted curve has no
-  trough in 9–50 ms (51), or has one that stays below 3.4 SD on the input (51). In the
-  cases inspected the background absorbing the N1 (for instance `c1` of −4971 µV with
+  trough in 9-50 ms (51), or has one that stays below 3.4 SD on the input (51). In the
+  cases inspected the background absorbing the N1 (for instance `c1` of -4971 µV with
   `tau` 44 ms and positive components on top) is a fit with a lower criterion than the
   N1 fit, so reseeding the optimizer does not change it.
 - Engine and preset variants measured on the development runs with the trials harness
@@ -1586,8 +1586,8 @@ within +/-10 ms of the fractional-area latency of the same average".
   21, and none was adopted; `ccep` stays 1.1 and no fixture changes.
 - Measured once on the test runs (2026-10-19, `ccep` 1.1, the trials harness; registry
   row / code; per-run values in the tests' xfail reasons):
-  - REQ-113, A: kappa −0.20 / −0.04 on the PT contacts, pooled 0.48 / 0.35; C: −0.04 /
-    −0.04, pooled 0.46 / 0.31, no run. In the preset's reference, C: 0.55 / 0.39,
+  - REQ-113, A: kappa -0.20 / -0.04 on the PT contacts, pooled 0.48 / 0.35; C: -0.04 /
+    -0.04, pooled 0.46 / 0.31, no run. In the preset's reference, C: 0.55 / 0.39,
     pooled 0.53 / 0.34; A: 0.36 / 0.39, pooled 0.49 / 0.37. In the recording reference,
     C: 0.38 / 0.38, pooled 0.45 / 0.44 (one run of six with the code); A: 0.01 / 0.38,
     pooled 0.40 / 0.42. Not met in any comparison.
@@ -1608,11 +1608,11 @@ within +/-10 ms of the fractional-area latency of the same average".
   (the window's peak in baseline SD units) gives 0.415 on the first set, worse; nothing
   was changed and the REQ-135 tests stand at 0.495 (not met).
 - Next to try: the N1 decision itself rather than the fit, for instance naming an N1
-  where the fitted curve has a trough in 9–50 ms beyond the threshold whichever
+  where the fitted curve has a trough in 9-50 ms beyond the threshold whichever
   components make it (it covers the largest class of misses, troughs made by positive
   components, and the curve's trough already meets REQ-114 with the code); constraining
-  the background tail so that it cannot take a deflection of 9–50 ms (`c1` bounded by
-  the baseline, or `tau` above the N1 window); the edge extension of the 9–15 ms
+  the background tail so that it cannot take a deflection of 9-50 ms (`c1` bounded by
+  the baseline, or `tau` above the N1 window); the edge extension of the 9-15 ms
   artifact tail. Any of these changes the preset's results (version bump, fixtures,
   CHANGELOG) and should be judged on the development runs against all three
   comparisons. The reference reading needs no owner decision to be tested, but it
@@ -1851,8 +1851,8 @@ expected failure whose reason gives the measured value; no criterion was weakene
   individual scores to 1e-9); the Smulders (2010) part reproduces the printed F values.
 
 - **REQ-044, Mayo protocol (2026-10-13).** "Reproduces the train structure of the Mayo
-  protocol (≈ 0.2 Hz, 10–12 pulses per site)": over all the runs of the four Mayo
-  datasets the median is 10–12 (tested); one run, ds004696 sub-07, has 13 per site in its
+  protocol (≈ 0.2 Hz, 10-12 pulses per site)": over all the runs of the four Mayo
+  datasets the median is 10-12 (tested); one run, ds004696 sub-07, has 13 per site in its
   own events.tsv (378 pulses on 27 sites). For that run the structure reproduced is the
   run's (blocks, pulse counts, 0.2 Hz), not the protocol's range, which the data do not
   follow.

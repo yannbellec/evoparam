@@ -11,28 +11,22 @@ from evoparam.models import fit as fit_models
 from evoparam.tests.tf.helpers import TIMES, ar1, burst, n1, trialset
 from evoparam.tf import tf_fit
 
-# High band (Hz) of the evoked energy; fraction of it in the footprint and in the residual.
 HIGH_FMIN = 50
 HIGH_FMAX = 250
 MIN_FOOTPRINT = 0.8
 MAX_RESIDUAL = 0.05
-# Relative frequency and time (s) tolerances of a recovered burst, and the recovery rate.
 FREQ_TOLERANCE = 0.1
 TIME_TOLERANCE = 0.02
 MIN_RECOVERED = 0.9
-# Box (Hz, s) of the narrow-band burst, and the largest fraction of runs that find it.
 BURST_FMIN = 65
 BURST_FMAX = 100
 BURST_TMIN = 0.2
 BURST_TMAX = 0.3
 MAX_FOUND = 0.1
-# Largest error rate under the null (REQ-214), and the median ratio of REQ-215.
 MAX_ERROR_RATE = 0.06
 MAX_RATIO = 0.5
 
 FREQS = (4, 250, 40)
-# A burst adding 20 % to the signal power (variance) over its 100 ms: with AR(1) noise of
-# standard deviation 10 and a Hann envelope (mean square 3/8), amplitude**2 * 3 / 16 = 20.
 BURST_AMP = np.sqrt(0.2 * 100 * 16 / 3)
 
 
@@ -139,8 +133,6 @@ def _null_rate(stats: Any, runs: Any, n_permutations: Any = 200) -> Any:
 
 
 def test_req214_fdr_type_one_error() -> None:
-    # Under the complete null the false-discovery rate is the family-wise error, which
-    # bounds the pixel-wise error from above.
     assert _null_rate("fdr", 200) <= MAX_ERROR_RATE
 
 

@@ -19,14 +19,11 @@ from evoparam.prep import baseline_correct, reference_sensitivity, threshold_det
 
 pd = pytest.importorskip("pandas")
 
-# Artifact window (s) zeroed and masked.
 ARTIFACT_START = -0.002
 ARTIFACT_END = 0.010
-# Time limit (s) of REQ-084, its schemes, and the fewest channels compared.
 MAX_SECONDS = 120
 N_SCHEMES = 3
 MIN_CHANNELS = 20
-# Latency ranges (s) of the existence and threshold detectors.
 LATENCY_MIN = 0.009
 EXISTENCE_MAX = 0.5
 THRESHOLD_MAX = 0.1

@@ -10,11 +10,9 @@ from evoparam.utils._optional import require
 
 __all__ = []
 
-# Okabe and Ito (2008), colour-blind safe.
 PALETTE = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#000000")
 DATA_COLOR, MODEL_COLOR, BG_COLOR, RESID_COLOR = "#000000", "#0072B2", "#999999", "#E69F00"
 
-# Dimensions of a stacked artifact template (templates x samples, or more).
 _STACKED_NDIM = 2
 
 
@@ -125,7 +123,7 @@ def plot_response(
     return fig
 
 
-def plot_fit(  # noqa: PLR0913  (spec signature plus shade options; DECISIONS.md §8)
+def plot_fit(  # noqa: PLR0913
     fit: "ResponseFit",
     data: "Evoked | TrialSet | None" = None,
     *,
@@ -187,7 +185,6 @@ def plot_fit(  # noqa: PLR0913  (spec signature plus shade options; DECISIONS.md
             label="model",
             zorder=5,
         )
-    # thin lines drawn over the model keep a white edge, so that they stay visible
     halo = [patheffects.withStroke(linewidth=3.0, foreground="white", alpha=0.8)]
     bg = evaluate_fit(fit, grid, components=[]) if fit.background else np.zeros(len(grid))
     if background and fit.background:
@@ -205,8 +202,6 @@ def plot_fit(  # noqa: PLR0913  (spec signature plus shade options; DECISIONS.md
         for k, comp in enumerate(fit.components):
             curve = evaluate_fit(fit, grid, components=[k], background=False)
             color = PALETTE[(k + 1) % len(PALETTE)]
-            # drawn on the background, where the component sits in the data, and only where
-            # it differs from it (elsewhere it would hide the background line)
             visible = np.abs(curve) > 0.02 * np.max(np.abs(curve), initial=0.0)
             ax.plot(
                 grid * 1e3,
@@ -225,7 +220,6 @@ def plot_fit(  # noqa: PLR0913  (spec signature plus shade options; DECISIONS.md
             ci = (comp.ci or {}).get("latency")
             if intervals and ci is not None and np.all(np.isfinite(ci)):
                 ax.axvspan(ci[0] * 1e3, ci[1] * 1e3, color=color, alpha=0.15, lw=0)
-    # the residual is drawn below the data (offset), so that it does not hide them
     lines = [line.get_ydata() for line in ax.get_lines()]
     low = min((np.nanmin(v) for v in lines if len(v)), default=0.0)
     high = max((np.nanmax(v) for v in lines if len(v)), default=1.0)
@@ -353,7 +347,7 @@ def plot_annotated_fit(
     return fig
 
 
-def plot_group(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def plot_group(  # noqa: PLR0913
     group_fit: Any,
     data: Any = None,
     *,
@@ -796,7 +790,6 @@ def plot_artifact(result: Any, raw: Any = None, *, channel: int = 0, axes: Any =
         fig = np.ravel(axes)[0].figure
     a, b = np.ravel(axes)[:2]
     times = cleaned.times * 1e3
-    # the averages are the package's own (TrialSet.average), not computed here (REQ-349)
     if raw is not None:
         a.plot(times, raw.average().data[index], color=BG_COLOR, lw=0.8, label="before")
     a.plot(times, cleaned.average().data[index], color=MODEL_COLOR, lw=1.0, label="after")

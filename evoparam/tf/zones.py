@@ -43,15 +43,13 @@ __all__ = [
 
 STABILITY_MIN = 0.8
 N_SPLITS = 20
-# Two touching zones are one when the pass between them is at least this fraction of the
 # smaller peak.
 DIP_FRACTION = 0.5
 EPS = 1e-12
-_CHECK_EVERY = 20  # iterations between two convergence checks of a factorisation
-_MIN_SPLIT_ROWS = 2  # rows needed to split a tensor into two halves
-_MAX_FAILURES = 2  # unstable ranks in a row that end the search
+_CHECK_EVERY = 20
+_MIN_SPLIT_ROWS = 2
+_MAX_FAILURES = 2
 
-# Columns of the zone table and their units.
 ZONE_COLUMNS = {
     "zone_id": "",
     "sign": "",
@@ -100,7 +98,6 @@ def nmf(
                 break
             previous = err
     err = np.linalg.norm(x - w @ h) / norm
-    # scale so that each frequency profile has unit maximum
     peak = w.max(axis=0) + EPS
     return w / peak, h * peak[:, None], err
 
@@ -267,8 +264,6 @@ def select_rank(
         if stability[rank] >= STABILITY_MIN:
             chosen, failures = rank, 0
         else:
-            # one rank can be unstable while the next is not (two parts of similar weight:
-            # a single factor picks either), so stop only after two failures in a row
             failures += 1
             if failures >= _MAX_FAILURES:
                 break
@@ -423,7 +418,6 @@ def zone_table(zones: Any, group: Any, freqs: Any, times: Any, stability: Any) -
 
 
 ###################################################################################################
-## Published fixed zones (compatibility layer)
 
 
 def load_zones() -> dict[Any, Any]:

@@ -14,7 +14,6 @@ from evoparam.stats import jackknife_f, jackknife_latency, jackknife_t, score_wa
 
 pd = pytest.importorskip("pandas")
 
-# Range of the retrieval error (s), and the t of the 10 ms delay.
 MIN_ERROR = 1e-6
 MAX_ERROR = 3e-3
 MIN_T = 2
@@ -22,8 +21,6 @@ MIN_T = 2
 ###################################################################################################
 ###################################################################################################
 
-# Smulders (2010), Table 1: hypothetical Age (between, 5 participants per group) x Sleep
-# deprivation (within) design; the retrieved latencies (ms) are the participants' own.
 SMULDERS_LATENCIES = {
     "young": [[479, 503, 659], [471, 580, 593], [490, 476, 654], [440, 434, 620], [270, 457, 374]],
     "middle": [
@@ -35,9 +32,7 @@ SMULDERS_LATENCIES = {
     ],
     "old": [[596, 578, 707], [556, 694, 694], [594, 626, 667], [603, 590, 748], [501, 662, 634]],
 }
-# Printed subaverage (jackknife) scores of the young group without sleep deprivation.
 SMULDERS_SUBAVERAGES = [417.75, 419.75, 415.0, 427.5, 470.0]
-# Printed F statistics (identical for the retrieved scores and the corrected subaverages).
 SMULDERS_F = {"age": 9.2, "sleep": 9.8, "interaction": 4.9}
 CONDITIONS = ["none", "mild", "heavy"]
 
@@ -104,13 +99,6 @@ def test_req231_smulders_worked_example() -> None:
         assert f_retrieved[key] == pytest.approx(f_jack[key], rel=1e-9)
 
 
-# Kiesel, Miller, Jolicoeur & Brisson (2008), read in full on 2026-10-13 (25 pages, authors'
-# copy archived by the Wayback Machine on 2024-06-01; the university URL now answers 404).
-# It prints the corrections only as Equation 1 (p. 252) and reports no t or F value:
-# Tables 1-8 are Monte Carlo means, SDs, power and Type I error rates over data sets A and B,
-# whose participant data are not published. Its one worked number is the linear
-# interpolation of a criterion crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms,
-# criterion -1.0, "64.46 ms".
 KIESEL_INTERPOLATION = {
     "times_ms": (62.50, 66.41),
     "values": (-0.98, -1.02),
@@ -136,7 +124,7 @@ def test_req231_kiesel_worked_example() -> None:
     )
     wide = table.pivot(index="subject", columns="channel")
     jack, own = wide["jackknife"][CONDITIONS].to_numpy(), wide["retrieved"][CONDITIONS].to_numpy()
-    order = [int(name[1:]) for name in wide.index]  # pivot sorts the subject names
+    order = [int(name[1:]) for name in wide.index]
     assert np.allclose(own, rows[order], rtol=0, atol=1e-12)
     n = len(rows)
     t_jack = sps.ttest_rel(jack[:, 2], jack[:, 0]).statistic
@@ -216,8 +204,6 @@ def test_req231_noise_free_retrieval() -> None:
     ]
     table = jackknife_latency(normalised, scorer=centroid)
     assert np.allclose(table["retrieved"], direct, rtol=0, atol=1e-9)
-    # the default scorer (50 % fractional area latency) is not linear across participants:
-    # retrieval is then close, not exact
     table = jackknife_latency(evokeds, window=(0.0, 0.3))
     own = [
         score_waveforms(ev.times, ev.data[0], "fractional_area_latency", window=(0.0, 0.3))
@@ -257,7 +243,7 @@ def test_corrected_statistics_on_retrieved_scores() -> None:
     assert summary["jackknife_se"].iloc[0] == pytest.approx(
         np.sqrt(11 / 12 * np.sum((j - j.mean()) ** 2))
     )
-    assert t_retrieved > MIN_T  # the 10 ms delay is detected
+    assert t_retrieved > MIN_T
     assert ja.attrs["units"]["retrieved"] == "s"
     assert ja.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.jackknife_latency"
 

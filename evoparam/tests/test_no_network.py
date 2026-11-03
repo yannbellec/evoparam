@@ -27,7 +27,6 @@ import pytest
 
 import evoparam
 
-# Fewest modules imported.
 MIN_MODULES = 60
 
 pytestmark = pytest.mark.core
@@ -55,7 +54,7 @@ NETWORK_MODULES = {
 ALLOWED = {
     "evoparam/io/_fetch.py": {"urllib.request", "http.client"},
     "evoparam/io/nwb.py": {"remfile"},
-}  # read_nwb of an http(s) address only
+}
 
 
 def _network_imports(path: Any) -> Any:
@@ -98,7 +97,6 @@ def test_req016_remote_reads_are_opt_in() -> None:
 
     from evoparam.io import read_bids
 
-    # remote reading of a BIDS dataset is an explicit option, off by default
     assert inspect.signature(read_bids).parameters["remote"].default is False
 
 

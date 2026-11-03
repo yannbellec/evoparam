@@ -24,7 +24,6 @@ from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 
-# Fewest participants for the jackknife corrections
 _MIN_N = 2
 
 

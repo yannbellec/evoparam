@@ -174,7 +174,6 @@ def rule_definition(rule_id, **overrides):
 
 
 ###################################################################################################
-## The comparisons of each file
 
 
 def n1_comparisons(n1, layer4):

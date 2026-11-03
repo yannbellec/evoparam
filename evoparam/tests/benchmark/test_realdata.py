@@ -18,7 +18,6 @@ from evoparam.io.registry import dataset_info
 
 from .helpers import NETWORK, ROOT
 
-# Largest size (bytes) of the real-data entries, and the rules that must agree on a truth.
 MAX_BYTES = 200_000
 MIN_AGREE = 2
 

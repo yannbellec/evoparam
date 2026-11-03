@@ -14,24 +14,19 @@ from evoparam.tf import tf_compare, tf_fit, tf_zones
 
 pd = pytest.importorskip("pandas")
 
-# Box (Hz, s) of the simulated gamma burst, and the fraction of it found significant.
 BURST_FMIN = 65
 BURST_FMAX = 100
 BURST_TMIN = 0.2
 BURST_TMAX = 0.3
 MIN_SIGNIFICANT = 0.3
-# Rows (channel x condition) of the conditions test, the t of the zone, and the alpha.
 N_ROWS = 4
 MIN_T = 3
 ALPHA = 0.05
-# Zones (two bursts), and the largest log2 error of their frequency centroids.
 N_BURSTS = 2
 MAX_LOG2_ERROR = 0.3
-# Lowest frequency (Hz) of the footprint check; bounds of the footprint and residual t.
 HIGH_FREQ = 50
 MIN_FOOTPRINT = 3
 MAX_RESIDUAL_T = 6
-# Rank of two blobs, the stability required, and the split values (20 trial halves).
 TRUE_RANK = 2
 MIN_STABILITY = 0.8
 N_SPLITS = 20
@@ -237,7 +232,6 @@ def test_cp_rank_is_chosen_on_split_halves() -> None:
     values = cp_split_values(tensor, None, 2, np.random.default_rng(2))
     assert len(values) == N_SPLITS
     assert np.mean(values) >= MIN_STABILITY
-    # trial halves of every row (the default when the TFFit holds them)
     noisy = [tensor * rng.uniform(0.8, 1.2, tensor.shape) for _ in range(40)]
     row_halves = np.stack(noisy).reshape(20, 2, *tensor.shape)
     rank_t, stability_t = select_rank(
@@ -255,7 +249,6 @@ def test_cp_rank_is_chosen_on_split_halves() -> None:
         cp_stability="restarts",
     )
     assert rank_r >= 1
-    # a single row carrying the map: halves of the trials, else restarts
     single = np.zeros_like(tensor)
     single[..., 0] = a + b
     assert cp_split_values(single, None, 2, rng) is None

@@ -16,7 +16,6 @@ from evoparam import reports
 
 pd = pytest.importorskip("pandas")
 
-# Largest size (bytes) of the big HTML report, and channels per site page.
 MAX_HTML_BYTES = 20e6
 PER_PAGE = 4
 
@@ -42,7 +41,6 @@ def test_methods_text_follows_the_processing_steps(results: Any) -> None:
     assert "4 to 250 ms" in text
     assert "Settings changed from the preset (times in s): min_fwhm = 0.004" in text
     assert reports.citation() in text
-    # deterministic, and the same from the saved result
     assert reports.methods_text(group) == text
 
 
@@ -169,12 +167,10 @@ def test_pdf_has_one_page_per_stimulation_site(tmp_path: Any) -> None:
         assert all(len(members) == PER_PAGE for _, members in pages)
         path = reports.pdf(group, tmp_path / "sites.pdf", data=ts, max_channels=0)
         assert _pages(path) == 1 + len(sites)
-        # a test split by site (the default of test_response): one page per site too
         test = test_response(ts, n_permutations=50, random_state=0)
         assert test.settings["groups"] == sites
         path = reports.pdf(test, tmp_path / "test.pdf")
         assert _pages(path) == 1 + len(sites)
-        # the fits of one site, fitted on all its trials: one page named after the site
         one = ts.select(trials=[i for i in range(ts.n_trials) if i % 3 == 0])
         group = fit(one, "ccep")
         assert [site for site, _ in reports._documents.site_pages(group, one)] == ["A01-A02"]
@@ -287,7 +283,6 @@ def _recorded_steps() -> Any:
     for path in root.rglob("*.py"):
         if "tests" not in path.relative_to(root).parts:
             names |= set(pattern.findall(path.read_text("utf-8")))
-    # the filters record f"evoparam.prep.{name}"
     return names | {"evoparam.prep.highpass", "evoparam.prep.lowpass", "evoparam.prep.notch"}
 
 
@@ -316,7 +311,6 @@ def test_methods_text_events_and_stats_paragraphs(results: Any) -> None:
     from evoparam.events import detect_pulses
     from evoparam.io import epoch
 
-    # events: the detection step travels from the event table into the trials
     rng = np.random.default_rng(0)
     sfreq = 2048.0
     raw = rng.normal(0, 1, (4, int(sfreq * 20)))
@@ -335,13 +329,11 @@ def test_methods_text_events_and_stats_paragraphs(results: Any) -> None:
     assert "exceeded 20" in text
     assert "expected rate of 0.5 Hz" in text
     assert "grouped into trains" in text
-    # stats: a table of evoparam.stats carries its step
     table = stats.bootstrap(
         results["ts"], "peak_amplitude", n_boot=50, by=(), window=(0.01, 0.1), random_state=0
     )
     text = reports.methods_text(table)
     assert "were obtained by bootstrap over trials (50 resamples" in text
-    # and the other statistics have their own sentence (no generic "processed with")
     steps = {
         "evoparam.stats.compare_conditions": {
             "parameter": "latency",

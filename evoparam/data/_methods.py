@@ -26,7 +26,6 @@ from evoparam.data._citation import citation_text, read_citation
 
 __all__ = ["methods_text", "step_sentence", "SILENT_PREFIXES"]
 
-# Steps that bring data in or reshape them without changing any number.
 SILENT_PREFIXES = (
     "evoparam.io.",
     "evoparam.sim.",
@@ -42,7 +41,6 @@ SILENT_PREFIXES = (
 )
 
 _FIT_STEPS = ("evoparam.models.ResponseModel.fit_group", "evoparam.models.fit_waveform")
-# a latency window is (start, stop[, sign]); a window label "P1/N1" names its two signs
 _SIGN_ENTRY = 2
 _N_SIGN_NAMES = 2
 
@@ -93,7 +91,6 @@ _UNCERTAINTIES = {
     "posterior": "posterior credible intervals",
 }
 
-# Methods with a published reference, cited in the closing sentence.
 _REFERENCES = {
     "fdr_bh": "Benjamini and Hochberg (1995) for the false-discovery-rate correction",
     "fdr_by": "Benjamini and Yekutieli (2001) for the false-discovery-rate correction",
@@ -183,7 +180,6 @@ def _join(items: Iterable[Any]) -> str:
 
 
 ###################################################################################################
-## One sentence per step
 
 
 def _artifact(settings: Any) -> str:
@@ -242,7 +238,6 @@ def _template_details(settings: Any) -> list[str]:
 def _subspace_details(settings: Any) -> list[str]:
     """Return the details of the subspace method: the directions and the samples projected."""
     rule = settings.get("n_components")
-    # results saved before the option existed projected every sample
     extent = settings.get("subspace_extent", "all")
     if rule == "energy":
         directions = "directions holding 95 % of the whitened window energy, at most 6"
@@ -288,7 +283,6 @@ def _reference(settings: Any) -> str:
     scheme = settings.get("scheme", "?")
     used = settings.get("used") or scheme
     if scheme == "car_adaptive" and used == "car":
-        # Too few channels without a response: rereference fell back to the plain average.
         return (
             "Channels were re-referenced to the common average (an adjusted common "
             "average excluding channels with a response was requested, but too few "
@@ -434,7 +428,6 @@ def _fit(settings: Any) -> str:
                 and sign == "either polarity"
                 and sorted(p[:1] for p in parts) == ["N", "P"]
             ):
-                # "P1/N1 by depth" (rodent and primate presets): named by its sign
                 positive, negative = sorted(parts, key=lambda p: p[:1] != "P")
                 sign = (
                     f"named {positive} when positive and {negative} when negative, the "
@@ -872,8 +865,6 @@ def _fit_settings(steps: Sequence[dict[str, Any]], settings: Any) -> dict[str, A
 
 def _overrides_sentence(fit_settings: dict[str, Any]) -> str:
     """Return the sentence on the settings changed from the preset ("" when none)."""
-    # the keys whose value differs from the preset (REQ-008); results written before
-    # REQ-331 held them in ``_overrides``
     overrides = fit_settings.get("_changed_from_preset")
     if overrides is None:
         overrides = fit_settings.get("_overrides") or []
@@ -921,8 +912,6 @@ def _step_sentences(steps: Sequence[dict[str, Any]]) -> tuple[list[str], list[st
     references: list[str] = []
     for step in steps:
         sentence = step_sentence(step)
-        # the same step recorded twice (for example the average done inside a group fit
-        # and recorded again) is described once
         if sentence is None or sentence in sentences:
             continue
         sentences.append(sentence)

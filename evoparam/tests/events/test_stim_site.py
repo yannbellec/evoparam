@@ -12,7 +12,6 @@ from .helpers import add_pulse, make_noise
 
 pd = pytest.importorskip("pandas")
 
-# Confidence of a site guess counted as sure, and of a guess with lead and hold windows.
 CONFIDENT = 0.5
 HIGH_CONFIDENCE = 0.9
 
@@ -37,7 +36,7 @@ def bipolar_recording(
     for onset in onsets:
         add_pulse(data, onset, 500.0, gains * signs)
         if marker:
-            data[-1, onset : onset + 3] += 5000.0  # trigger channel: largest of all
+            data[-1, onset : onset + 3] += 5000.0
     return data, onsets
 
 
@@ -56,7 +55,7 @@ def test_identifies_pair_with_confidence() -> None:
 
 def test_shaft_check_halves_confidence() -> None:
 
-    data, onsets = bipolar_recording((7, 8))  # A08 and B01: different electrodes
+    data, onsets = bipolar_recording((7, 8))
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES)
     assert (located["stim_site_guess"] == "A08-B01").all()
     assert (located["site_confidence"] <= CONFIDENT).all()
@@ -79,7 +78,6 @@ def test_channel_types_exclude_non_neural() -> None:
 
 def test_unrecorded_contacts_give_low_confidence() -> None:
 
-    # The stimulating contacts are not in the recording: every channel sees the same copy
     rng = np.random.default_rng(3)
     data = make_noise(16, 6.0, 2048.0, seed=4, dtype=np.float64)
     onsets = np.round((np.arange(5) + 0.5) * 2048.0).astype(int)
@@ -170,7 +168,6 @@ def test_held_and_leading_contacts_win_over_larger_artifacts() -> None:
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=names)
     assert (located["stim_site_guess"] == "A03-A04").all()
     assert (located["polarity_check"]).all()
-    # Pair: held and leading; third: the saturated neighbour, held only
     assert np.allclose(located["site_confidence"], 0.5)
 
     events = detect_pulses(data, 2048.0, ch_names=names)
@@ -187,7 +184,6 @@ def test_held_or_leading_contacts_alone(hold: Any, lead: Any) -> None:
     assert (located["stim_site_guess"] == "A03-A04").all()
     assert (located["site_confidence"] > HIGH_CONFIDENCE).all()
 
-    # The plain largest-artifact rule picks other contacts: no lead and no hold window
     plain = identify_stim_site(
         data, 2048.0, table(onsets), ch_names=NAMES[:16], lead=0.001, hold=(0.005, 0.005)
     )
@@ -196,8 +192,6 @@ def test_held_or_leading_contacts_alone(hold: Any, lead: Any) -> None:
 
 def test_saturated_neighbour_and_dead_channel_are_not_chosen() -> None:
 
-    # Without lead, the pair (held) and the saturated neighbour (held) tie on evidence;
-    # the neighbour's larger artifact wins, but at low confidence.
     data, onsets = held_recording(lead=False, rail_neighbour=4)
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert located["stim_site_guess"].str.contains("A05").all()
@@ -249,12 +243,11 @@ def test_reviewed_spec_rule_is_available(pair: Any) -> None:
 
     data, onsets = bipolar_recording(pair, marker=False)
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES, method="spec")
-    index = np.arange(len(NAMES) - 1)  # MKR1+ is excluded by name
+    index = np.arange(len(NAMES) - 1)
     for row, onset in enumerate(onsets):
         expected, confidence = _reviewed_rule(data, onset, 2048.0, index)
         assert located["stim_site_guess"].iloc[row] == f"{NAMES[expected[0]]}-{NAMES[expected[1]]}"
         assert located["site_confidence"].iloc[row] == pytest.approx(confidence, rel=1e-12)
-    # the names do not stand for ch_info.group in the reviewed rule: no halving by shaft
     assert (located["site_confidence"] > CONFIDENT).all()
     groups = pd.DataFrame({"name": NAMES, "group": [n[0] for n in NAMES]})
     located = identify_stim_site(
@@ -279,8 +272,6 @@ def test_unknown_site_method_raises() -> None:
 
 def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch: Any) -> None:
 
-    # Mayo recordings: the stimulating pair reaches the amplifier's range (clipped), while
-    # two very quiet contacts have the largest artifact relative to their noise.
     rng = np.random.default_rng(5)
     data = make_noise(16, 6.0, 2048.0, seed=6, dtype=np.float64)
     data[8:10] *= 0.3
@@ -297,15 +288,13 @@ def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch: Any) 
 
     from evoparam.events import site
 
-    monkeypatch.setattr(site, "RAIL_TOLERANCE", -1.0)  # never at the range
+    monkeypatch.setattr(site, "RAIL_TOLERANCE", -1.0)
     plain = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert (plain["stim_site_guess"] == "B01-B02").all()
 
 
 def test_silent_pair_switched_to_the_stimulator() -> None:
 
-    # ds004977: the stimulating contacts are disconnected from the amplifier (almost no
-    # noise, no artifact); the largest artifact is on the contacts next to them.
     rng = np.random.default_rng(7)
     data = make_noise(16, 6.0, 2048.0, seed=8, dtype=np.float64)
     onsets = np.round((np.arange(5) + 0.5) * 2048.0).astype(int)
@@ -318,7 +307,6 @@ def test_silent_pair_switched_to_the_stimulator() -> None:
     assert (located["stim_site_guess"] == "A03-A04").all()
     assert (located["site_confidence"] >= CONFIDENT).all()
 
-    # A quiet pair elsewhere (not next to the largest artifact) is not a site
     data[2:4] = make_noise(2, 6.0, 2048.0, seed=9, dtype=np.float64)
     for onset in onsets:
         add_pulse(data[2:4], onset, 500.0, gains[2:4])

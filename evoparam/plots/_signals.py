@@ -133,7 +133,7 @@ def plot_signals_shading(
     return fig
 
 
-def plot_signals_yshade(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def plot_signals_yshade(  # noqa: PLR0913
     times: FloatArray,
     signals: FloatArray,
     *,
@@ -248,7 +248,6 @@ def plot_scatter_2(
     """
     data_0 = np.asarray(data_0, dtype=float)
     data_1 = np.asarray(data_1, dtype=float)
-    # one stream for both strips (the second continues the first), as with one Generator
     both = strip_jitter(data_0.size + data_1.size, random_state=random_state)
     fig, ax = _figure_ax(ax, figsize=(4.0, 3.5))
     other = ax.twinx()

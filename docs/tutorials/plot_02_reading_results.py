@@ -4,7 +4,7 @@
 =======================
 
 Get the numbers out of a fit, one by one or all in a table.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -17,7 +17,6 @@ Get the numbers out of a fit, one by one or all in a table.
 
 ###################################################################################################
 
-# Import what we need
 import numpy as np
 
 from evoparam import fit_response, gen_response
@@ -34,10 +33,8 @@ from evoparam import fit_response, gen_response
 
 ###################################################################################################
 
-# Make the example curve
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
-# Fit the model, without drawing
 fit = fit_response(times, signal, preset="ccep")
 
 ###################################################################################################
@@ -67,19 +64,15 @@ print(fit)
 
 ###################################################################################################
 
-# 20 trials of the same response, each with a lot of noise (a new noise at every trial)
 trials = [
     gen_response([[25, -150, 10], [150, -80, 80]], noise=60, seed=trial)[1] for trial in range(20)
 ]
 
-# One trial alone
 fit_one = fit_response(times, trials[0], preset="ccep")
 
-# The average of the 20 trials, sample by sample
 average = np.mean(trials, axis=0)
 fit_average = fit_response(times, average, preset="ccep")
 
-# How many bumps each fit found
 print("one trial:", len(fit_one.components), "bump(s)")
 print("average of 20:", len(fit_average.components), "bump(s)")
 
@@ -114,7 +107,6 @@ print("average of 20:", len(fit_average.components), "bump(s)")
 
 ###################################################################################################
 
-# Go through the bumps, one line each
 for bump in fit.components:
     print(bump.label, round(bump.latency_ms, 1), "ms,", round(bump.amplitude, 1), "µV")
 
@@ -124,7 +116,6 @@ for bump in fit.components:
 
 ###################################################################################################
 
-# The first bump, and its latency in ms
 n1 = fit.components[0]
 print(round(n1.latency_ms, 1))
 
@@ -140,7 +131,6 @@ print(round(n1.latency_ms, 1))
 
 ###################################################################################################
 
-# When the first bump starts and ends, in ms
 print(round(n1.onset_ms, 1), round(n1.offset_ms, 1))
 
 ###################################################################################################
@@ -153,7 +143,6 @@ print(round(n1.onset_ms, 1), round(n1.offset_ms, 1))
 
 ###################################################################################################
 
-# The time constant of the background, in ms
 print(round(fit.background_ms["tau"], 1))
 
 ###################################################################################################
@@ -189,7 +178,6 @@ print(round(fit.gof.r2, 2), round(fit.gof.rmse, 1))
 
 ###################################################################################################
 
-# One row per bump; show a few columns
 table = fit.to_dataframe()
 table[["label", "latency", "amplitude", "fwhm", "area"]]
 
@@ -213,7 +201,6 @@ table[["label", "latency", "amplitude", "fwhm", "area"]]
 
 ###################################################################################################
 
-# Describe only 9 to 100 ms after the stimulus
 early = fit_response(times, signal, preset="ccep", window=(0.009, 0.1))
 print(early)
 

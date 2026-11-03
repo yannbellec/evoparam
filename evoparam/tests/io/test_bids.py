@@ -5,7 +5,6 @@ from typing import Any
 
 from evoparam.io.bids import read_bids_events, select_stimulation_events
 
-# Rows of the events.tsv written, onset (s) of the first, and stimulation rows.
 N_EVENTS = 3
 FIRST_ONSET = 1.5
 N_STIMULATIONS = 2

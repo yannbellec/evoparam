@@ -26,7 +26,6 @@ from evoparam.tests.test_dependencies import GPL_TEXT, _mentions_isolation
 
 from .helpers import ADAPTERS, ROOT, inputs
 
-# Latency range (s) of the stand-in detector's responses.
 LATENCY_MIN = 0.009
 LATENCY_MAX = 0.1
 
@@ -88,8 +87,8 @@ def test_req354_adapter_runs_the_tool_in_a_separate_process(fake: Any, tmp_path:
     stim = set(ti.descriptor["stim_channels"])
     assert [r["channel"] for r in rows] == [c for c in ti.descriptor["ch_names"] if c not in stim]
     with open(output + ".pid", encoding="utf-8") as fobj:
-        assert int(fobj.read()) != os.getpid()  # another process ran the tool
-    assert "fake_detector" not in sys.modules  # nothing of the tool was imported
+        assert int(fobj.read()) != os.getpid()
+    assert "fake_detector" not in sys.modules
 
 
 def test_req354_placeholders_and_appended_paths(fake: Any, tmp_path: Any) -> None:
@@ -226,9 +225,8 @@ def test_req354_erdetect_adapter_without_the_tool(tmp_path: Any) -> None:
 ###################################################################################################
 ## Licence scan
 
-# The notice the adapters carry, outside the package tree (this line is not a notice).
-SPDX_GPL = "SPDX-License-Identifier: GPL-3.0-or-later"  # of the adapters outside the package
-GNU_GPL = "GNU General Public License"  # the adapters' licence, outside the package
+SPDX_GPL = "SPDX-License-Identifier: GPL-3.0-or-later"  # outside the package
+GNU_GPL = "GNU General Public License"  # outside the package
 
 
 def test_req354_gpl_adapters_live_outside_the_package() -> None:
@@ -247,11 +245,9 @@ def test_req354_gpl_adapters_live_outside_the_package() -> None:
     for path in code:
         head = path.read_text(encoding="utf-8").splitlines()[:2]
         assert any(SPDX_GPL in line for line in head), path
-    # nothing of the adapters is inside the package tree
     names = {p.stem for p in code}
     inside = [p for p in (ROOT / "evoparam").rglob("*") if p.stem in names]
     assert not inside, inside
-    # the adapters are not shipped with the package
     manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
     assert re.search(r"^prune adapters\s*$", manifest, re.MULTILINE)
     assert not (ADAPTERS / "__init__.py").exists()
@@ -289,7 +285,7 @@ def test_req354_package_has_no_gpl_notice_and_imports_no_adapter() -> None:
 
 
 def test_req354_licence_scan_finds_a_mutation() -> None:
-    text = "# SPDX-License-Identifier: GPL-3.0-only\nimport numpy\n"  # not imported: a probe
+    text = "# SPDX-License-Identifier: GPL-3.0-only\nimport numpy\n"  # not imported
     assert [
         m.group(0) for m in GPL_TEXT.finditer(text) if not _mentions_isolation(text, m.start())
     ]

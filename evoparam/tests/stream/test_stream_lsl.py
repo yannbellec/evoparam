@@ -21,7 +21,7 @@ try:
     import pylsl
 
     pylsl.local_clock()
-except Exception as exc:  # noqa: BLE001  (missing package or missing library)
+except Exception as exc:  # noqa: BLE001
     pylsl = None
     REASON = f"pylsl unavailable: {exc}"
 
@@ -73,7 +73,7 @@ def test_req325_inlet_fitter_and_outlet_metadata() -> None:
 
     def send():
         start = pylsl.local_clock()
-        for first in range(0, len(data), 256):  # 8 times faster than real time
+        for first in range(0, len(data), 256):
             chunk = data[first : first + 256]
             stamps = start + (first + np.arange(len(chunk))) / SFREQ
             outlet.push_chunk(chunk.tolist(), stamps.tolist())
@@ -86,13 +86,11 @@ def test_req325_inlet_fitter_and_outlet_metadata() -> None:
     inlet.close()
     pulse_times = sorted({e.pulse_time for e in estimates})
     assert len(pulse_times) == N_PULSES
-    # onsets on the stream clock: one second apart, as sent
     assert np.allclose(np.diff(pulse_times), 1.0, atol=1.5 / SFREQ)
     n1 = [e for e in estimates if e.channel in ("c0", "c1")]
     assert np.allclose([e.latency for e in n1], N1[1], atol=0.002)
     assert np.allclose([e.amplitude for e in n1], N1[0], rtol=0.25)
 
-    # Outlet of the estimates: metadata and rows
     out = LSLOutlet(fitter, name="evoparam-test-pulses")
     found = pylsl.resolve_byprop("name", "evoparam-test-pulses", 1, 5.0)
     assert found

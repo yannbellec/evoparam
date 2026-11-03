@@ -11,26 +11,20 @@ from evoparam import sim
 from evoparam.errors import SettingsError
 from evoparam.tests.sim._helpers import SMALL, measured_noise_sd, measured_snr, real_baselines
 
-# Band (Hz) of the spectral slope, and the slope tolerance.
 FMIN = 2
 FMAX = 100
 SLOPE_TOLERANCE = 0.1
-# Tolerances of the noise SD (white and pink, AR(1)) and of the lag-1 autocorrelation.
 SD_TOLERANCE = 0.05
 AR1_SD_TOLERANCE = 0.1
 LAG1_TOLERANCE = 0.02
 WHITE_LAG1 = 0.03
-# Tolerance (uV) of the line amplitude.
 LINE_TOLERANCE = 0.01
-# Segments of real noise drawn and their length (samples).
 N_SEGMENTS = 5
 N_SAMPLES = 400
-# Relative tolerance of the measured SNR, and the SNR given for P3.
 SNR_TOLERANCE = 0.05
 P3_SNR = 3.0
 
 ###################################################################################################
-## REQ-251: noise models
 
 
 @pytest.mark.parametrize("chi", [0.0, 0.5, 1.0, 1.5, 2.0])
@@ -120,7 +114,7 @@ def test_real_noise_segments_come_from_the_source() -> None:
         start, stop = segment["epoch_samples"]
         piece = real.data[segment["source_trial"], :, start:stop]
         assert stop - start == N_SAMPLES
-        assert real.times[stop - 1] < 0  # pre-stimulus window by default
+        assert real.times[stop - 1] < 0
         np.testing.assert_allclose(
             noise[index], piece - piece.mean(axis=-1, keepdims=True), atol=1e-10
         )
@@ -183,7 +177,6 @@ def test_snr_forms() -> None:
         components=[{"label": "P3", "channels": ("Pz",)}],
     )
     assert [c["snr"] for c in truth.components] == [4.0]
-    # The SNR is reached on the channel of largest weight and scaled by the weight elsewhere.
     ts, truth = sim.simulate_erp(
         seed=1,
         n_trials=10,

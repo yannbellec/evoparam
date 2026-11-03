@@ -37,10 +37,8 @@ from evoparam.shapes._base import (
     window_info,
 )
 
-# Fewest samples of a waveform for a periodogram, and of a template
 _MIN_PERIODOGRAM_SAMPLES = 4
 _MIN_TEMPLATE_SAMPLES = 4
-# Largest skewness array whose mode is cached by value
 _MODE_CACHE_MAX_SIZE = 8
 
 
@@ -87,8 +85,6 @@ def _bisect(
     return cast("FloatArray", 0.5 * (low + high))
 
 
-# exp(-z^2 / 2) is exactly 0 in double precision for |z| > 38.61 (below the smallest
-# subnormal number): beyond this bound the Gaussian factors are not computed
 SUPPORT_Z = 38.7
 
 
@@ -111,7 +107,6 @@ def gaussian_factor(z: FloatArray, value: Callable[[FloatArray], FloatArray]) ->
 
 
 ###################################################################################################
-## Shapes with width settings
 
 
 @dataclass(frozen=True)
@@ -272,7 +267,7 @@ class Gaussian(_WidthShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
@@ -302,8 +297,6 @@ def _skew_root(a: ArrayLike) -> FloatArray:
     """
     a = np.asarray(a, dtype=np.float64)
     if a.size == 1:
-        # one skewness (the usual case inside a fit): the same iteration on Python floats,
-        # about ten times faster than on one-element arrays
         return np.full(a.shape, _skew_root_scalar(float(a.reshape(-1)[0])))
     return _skew_root_array(a)
 
@@ -337,7 +330,7 @@ def _skew_root_scalar(a: float) -> float:
     z = min(max(0.6 * a / math.sqrt(1.0 + a * a), 0.0), 2.0)
     eps = 4.0 * np.finfo(np.float64).eps
     for _ in range(60):
-        az = a * z  # its square overflows to inf (g = 0) instead of raising OverflowError
+        az = a * z
         g = math.exp(-0.5 * (az * az))
         e = math.erfc(-a * z / _SQRT2)
         f = z * e - _SQRT_2_OVER_PI * a * g
@@ -358,7 +351,6 @@ def _skew_root_scalar(a: float) -> float:
 
 _MODE_CACHE: dict[tuple[Any, ...], FloatArray] = {}
 _MODE_CACHE_SIZE = 256
-# complete results for one signed skewness (z*, c, dc/dalpha), the usual case inside a fit
 _MODE_SCALARS: dict[bytes, tuple[Any, Any, Any]] = {}
 
 
@@ -373,8 +365,6 @@ def skew_mode(alpha: ArrayLike) -> tuple[FloatArray, FloatArray, FloatArray]:
     key: tuple[tuple[int, ...], bytes] | None
     alpha = np.asarray(alpha, dtype=np.float64)
     if alpha.size == 1:
-        # one skewness (the usual case inside a fit): the same operations on scalars, which
-        # give the same values as on one-element arrays without their overhead
         shape = alpha.shape
         value = alpha.reshape(-1)[0]
         signed_key = value.tobytes()
@@ -399,8 +389,6 @@ def skew_mode(alpha: ArrayLike) -> tuple[FloatArray, FloatArray, FloatArray]:
         z_signed, c, dc = scalars
         return (np.full(shape, z_signed), np.full(shape, c), np.full(shape, dc))
     a = np.abs(alpha)
-    # The same alpha is evaluated many times during one optimisation (model, Jacobian,
-    # features): small arrays are cached by value
     key = (a.shape, a.tobytes()) if a.size <= _MODE_CACHE_MAX_SIZE else None
     z = _MODE_CACHE.get(key) if key is not None else None
     if z is None:
@@ -487,7 +475,7 @@ class SkewedGaussian(_WidthShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
@@ -531,7 +519,6 @@ def exgauss_mode(lam: ArrayLike) -> tuple[FloatArray, FloatArray]:
     """
     lam = np.asarray(lam, dtype=np.float64)
     target = _SQRT_2_OVER_PI / lam
-    # erfcx(x) < 1/(x √π) for x > 0 and erfcx(x) > exp(x²) for x < 0 bracket the root.
     high = 1.0 / (target * np.sqrt(np.pi))
     low = -np.sqrt(np.maximum(np.log(target), 0.0)) - 0.5
     x_mode = _bisect(lambda mid: erfcx(mid) <= target, low, high)
@@ -586,7 +573,7 @@ class ExGaussian(_WidthShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, sfreq, low, high = self._window(times)
@@ -681,7 +668,7 @@ class Gamma(_WidthShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
@@ -756,7 +743,6 @@ class Biexponential(_WidthShape):
     def jacobian(self, times: ArrayLike, params: ArrayLike) -> FloatArray:
         """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         u, after, tau_r, tau_d, decay, rise, numerator, delay, peak = self._parts(times, params)
-        # Envelope theorem: the peak value moves with the partial derivatives at the peak.
         d_peak_r = -np.exp(-delay / tau_r) * delay / tau_r**2
         d_peak_d = np.exp(-delay / tau_d) * delay / tau_d**2
         d_t0 = np.where(after, decay / tau_d - rise / tau_r, 0.0)
@@ -780,7 +766,7 @@ class Biexponential(_WidthShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
@@ -861,7 +847,6 @@ class DampedOscillation(_OscillationShape):
         omega = _TWO_PI * freq
         sine = envelope * np.sin(angle)
         d_raw = [raw / tau + omega * sine, raw * u / tau**2, -sine * _TWO_PI * u, -sine]
-        # Envelope theorem on the normaliser, at the delay of the largest extremum.
         delay, peak = damped_peak(tau, freq, phase)
         peak_angle = omega * delay + phase
         e_peak = np.exp(-delay / tau)
@@ -889,7 +874,7 @@ class DampedOscillation(_OscillationShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
@@ -900,9 +885,6 @@ class DampedOscillation(_OscillationShape):
 
     def initial_guess(self, times: ArrayLike, waveform: ArrayLike, peak_index: int) -> FloatArray:
         """Return the starting parameters for a candidate extremum of ``waveform``."""
-        # Frequency from the periodogram of the window (a fixed mid-range start left the
-        # fit in a wrong local minimum at a few samples per cycle); onset a quarter period
-        # before the candidate peak, phase -pi/2 so that the first extremum is at the peak.
         peak, sigma = self._center_width(times, waveform, peak_index)
         lower, upper = self.default_bounds(times)
         freq = self._freq_guess(times, waveform, lower[2], upper[2])
@@ -992,7 +974,6 @@ class Gabor(_OscillationShape):
             -sine * _TWO_PI * u,
             -sine,
         ]
-        # Envelope theorem on the normaliser, at the offset of the largest extremum.
         offset, peak = gabor_peak(sigma, freq, phase)
         e_peak = np.exp(-0.5 * (offset / sigma) ** 2)
         peak_angle = omega * offset + phase
@@ -1020,7 +1001,7 @@ class Gabor(_OscillationShape):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, low, high = self._window(times)
@@ -1153,7 +1134,7 @@ class Template(ShapeBase):
     def default_bounds(
         self,
         times: ArrayLike,
-        data_range: Any = None,  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        data_range: Any = None,  # noqa: ARG002
     ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
         _, _, length, _ = window_info(times)

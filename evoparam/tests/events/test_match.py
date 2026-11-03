@@ -5,10 +5,8 @@ import numpy as np
 
 from evoparam.events import estimate_delay, match_onsets
 
-# Hits of the first match, and misses with no detection.
 N_HITS = 2
 N_MISSES = 2
-# Tolerance (s) of the estimated delay and of its spread.
 DELAY_TOLERANCE = 5e-5
 
 ###################################################################################################

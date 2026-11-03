@@ -13,8 +13,6 @@ from evoparam.tests.tf.helpers import TIMES, ar1, burst, trialset
 from evoparam.tf import tf_fit
 from evoparam.tf.stats import bh_adjusted, fdr_significant, row_levels
 
-# Channels of the correction test, the error bound over 30 runs, the most channels
-# selected, the responsive channel, and alpha.
 N_CHANNELS = 2
 MAX_FAMILY_ERROR = 0.1
 MAX_SELECTED = 2
@@ -41,9 +39,7 @@ def test_row_levels() -> None:
     p = np.array([0.001, 0.02, 0.035, 0.3, np.nan])
     assert np.allclose(row_levels(p, 0.05, "none"), [0.05] * 4 + [0])
     assert np.allclose(row_levels(p, 0.05, "bonferroni"), [0.0125] * 4 + [0])
-    # Holm: 0.001 <= 0.05 / 4, 0.02 > 0.05 / 3: stop
     assert np.allclose(row_levels(p, 0.05, "holm"), [0.0125, 0, 0, 0, 0])
-    # BH over the four rows: 0.035 <= 3 * 0.05 / 4 -> three rows selected, at 3 * 0.05 / 4
     assert np.allclose(row_levels(p, 0.05, "fdr_bh"), [0.0375] * 3 + [0, 0])
     assert np.allclose(row_levels([0.2, 0.3], 0.05, "fdr_bh"), [0, 0])
 
@@ -101,7 +97,6 @@ def test_fdr_bh_keeps_a_responsive_channel_among_null_ones() -> None:
     assert responsive.sum() <= MAX_SELECTED
     p = np.array(tf.settings["row_p_value"], float)
     assert np.nanargmin(p) == RESPONSIVE
-    # the pixels of the selected row are those of Benjamini-Hochberg at its level
     level = tf.settings["row_alpha"][2]
     assert level == pytest.approx(responsive.sum() * 0.05 / 8)
     assert "Benjamini and Bogomolov" in tf.methods_text()
@@ -115,5 +110,4 @@ def test_one_row_is_tested_at_alpha() -> None:
     tf = tf_fit(ts, freqs=FREQS, zones="none", random_state=0)
     assert np.isfinite(tf.settings["row_p_value"][0])
     assert tf.settings["row_p_value"][0] <= ALPHA
-    # one row: fdr_bh across channels is Benjamini-Hochberg over the row's pixels at alpha
     assert tf.settings["row_alpha"] == [0.05]

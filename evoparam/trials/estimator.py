@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from evoparam.data.containers import TrialSet
     from evoparam.data.results import GroupFit
 
-# A two-dimensional X is a single channel: [n_trials, n_times]
 _SINGLE_CHANNEL_NDIM = 2
 
 
@@ -99,7 +98,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             ch_names=[f"ch{i}" for i in range(data.shape[1])],
         )
 
-    def fit(self, X: Any, y: Any = None) -> "TrialFitter":  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "TrialFitter":  # noqa: N803, ARG002
         """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored.
 
         Without ``fit_window`` and preset the window is the data range.
@@ -119,7 +118,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         self.ch_names_: list[str] = list(trials.ch_names)
         return self
 
-    def transform(self, X: Any) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any) -> NDArray[Any]:  # noqa: N803
         """(n_trials, n_channels * n_components * 3).
 
         Shift, scale and latency of each component slot of each channel; NaN where a channel has
@@ -152,7 +151,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
                     out[int(row["trial"]), ch, k] = (row["shift"], row["scale"], row["latency"])
         return out.reshape(trials.n_trials, -1)
 
-    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002  (scikit-learn API)
+    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002
         """Return the names of the output features."""
         return np.array(
             [

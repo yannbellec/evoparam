@@ -35,7 +35,6 @@ from evoparam.version import __version__
 
 from .helpers import ROOT, inputs, perfect_t1, perfect_t2, suite
 
-# Hex digits of a SHA-256, and the AUC of tied scores.
 SHA256_HEX = 64
 CHANCE = 0.5
 
@@ -93,7 +92,7 @@ def test_req352_signed_json_is_byte_identical_across_two_runs(tmp_path: Any) -> 
     assert first == second
     document = json.loads(first)
     assert verify_result(document)
-    assert str(tmp_path) not in first.decode("utf-8")  # no machine path in the result
+    assert str(tmp_path) not in first.decode("utf-8")
 
 
 def test_req352_in_process_scoring_matches_the_command_line(tmp_path: Any) -> None:

@@ -12,7 +12,6 @@ __all__ = ["EXPECTED", "FORBIDDEN", "expected_failed_checks"]
 
 EXPECTED: dict[str, str] = {}
 
-# checks that must never be excused (REQ-321)
 FORBIDDEN = (
     "check_get_params_invariance",
     "check_set_params",
@@ -26,5 +25,5 @@ FORBIDDEN = (
 )
 
 
-def expected_failed_checks(estimator: object) -> dict[str, str]:  # noqa: ARG001  (scikit-learn API: callback signature)
+def expected_failed_checks(estimator: object) -> dict[str, str]:  # noqa: ARG001
     return dict(EXPECTED)

@@ -58,22 +58,17 @@ RATES = (1024.0, 512.0)
 TRIAL_COUNTS = (5, 7, 10)
 N_DRAWS = 5
 PRESET_FACTORS = (0.5, 1.5)
-# Fewest trials of the stimulation pair chosen in a run.
 MIN_PAIR_TRIALS = 10
-# Baseline windows (s): end of both, start of the one of the average.
 BASELINE_END = -0.1
 AVERAGE_BASELINE_START = -2
-# N1 window (s) of the published rule, and the latency agreement reported (ms).
 N1_START = 0.009
 N1_END = 0.05
 AGREEMENT_MS = 2.0
 PRESET_SEEDS = 20
-# fields compared with their own unperturbed case (the artifact simulation; label recall)
 OWN_BASE = ("artifact_window", "component_labels")
-# criteria of §7.4
-SAMPLING_RECALL_POINTS = 5.0  # N1 recall within 5 points down to 1024 Hz
-PRESET_RECALL_REL = 0.10  # > 10 % change in recall
-PRESET_LATENCY_MS = 2.0  # > 2 ms change of the median latency
+SAMPLING_RECALL_POINTS = 5.0
+PRESET_RECALL_REL = 0.10
+PRESET_LATENCY_MS = 2.0
 EXAMPLE = ("ccepAgeUMCU01", "021448", "PT01-PT02")
 DS004977 = [
     ("1", "01", "ROC11-ROC12"),
@@ -82,12 +77,6 @@ DS004977 = [
     ("4", "02", "RO3-RO4"),
 ]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
-# each reading's SD baseline, time shift in samples and peak operator (as the layer-3 tests
-# read them, ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on
-# the data's axis with the baseline the registry names (-1 to -0.1 s) and its "negative
-# peak" read as a peak (the deepest strict local minimum of the window); the published
-# code with its own baseline and its time axis, one sample later (the stimulation sample
-# is t = 1/sfreq)
 FRAMES = {"paper": ((-1.0, -0.1), 0, {"peak": "strict"}), "code": ((-2.0, -0.1), 1, {})}
 
 
@@ -201,7 +190,6 @@ def available(kind):
 
 
 ###################################################################################################
-## The ccep pipeline and the published rule (as the layer-3 tests run them)
 
 
 def published_rule(ts, reading):
@@ -290,7 +278,6 @@ def n1_metrics(rule, rule_lat, model, model_lat):
 
 
 ###################################################################################################
-## Per-run work (one process per run)
 
 
 def _existence(ts, random_state=0):
@@ -366,7 +353,6 @@ def run_ds004080(subject, run, pair, analyses):
         out["sampling"] = {}
         for rate in RATES:
             if not decimates(ts.sfreq, rate):
-                # §7.4 decimates: a run recorded at or below the rate is kept as recorded
                 out["sampling"][str(int(rate))] = dict(out["native"], resampled=False)
                 continue
             with warnings.catch_warnings():
@@ -436,9 +422,8 @@ def run_ds004977(subject, run, site):
 
 
 ###################################################################################################
-## Preset sensitivity (simulations)
 
-SIM = {  # preset -> (sampling rate, epoch) of its simulation (layer 2 for the shared ones)
+SIM = {
     "erp": (500.0, (-0.2, 0.8)),
     "ccep": (2048.0, (-0.5, 0.6)),
     "ccep_seeg": (2048.0, (-0.5, 0.6)),
@@ -540,7 +525,7 @@ def preset_case(name, field, factor, seeds=PRESET_SEEDS):
                 sim_epoch = SIM[name][1]
                 if field == "epoch":
                     epoch = tuple(q.epoch)
-                else:  # the simulated epoch holds the (perturbed) fit window
+                else:
                     epoch = (sim_epoch[0], max(sim_epoch[1], q.fit_window[1] * 1.05))
                 ts, truth = simulate_preset(name, seed, epoch=epoch)
                 with warnings.catch_warnings():
@@ -549,7 +534,7 @@ def preset_case(name, field, factor, seeds=PRESET_SEEDS):
                 recall, error = _score(truth, group)
                 if field == "component_labels":
                     recall = _label_recall(truth, group, value)
-        except Exception as err:  # noqa: BLE001  (a failed fit is a result of the analysis)
+        except Exception as err:  # noqa: BLE001
             failures += 1
             errors_seen.append(f"{type(err).__name__}: {err}")
             recalls.append(0.0)
@@ -642,7 +627,7 @@ def preset_sensitivity(jobs=1, presets_=None, seeds=PRESET_SEEDS):
         if not p.choices:
             continue
         cases.append((name, None, 1.0))
-        for field in OWN_BASE:  # their own base (artifact simulation, label recall)
+        for field in OWN_BASE:
             if field in p.choices:
                 cases.append((name, field, 1.0))
         for field in p.choices:

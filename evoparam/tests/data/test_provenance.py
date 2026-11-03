@@ -13,9 +13,7 @@ from evoparam import __version__
 from evoparam.data import Provenance, capture_environment, compute_data_hash
 from evoparam.tests.data.factories import make_trialset
 
-# SOURCE_DATE_EPOCH of the reproducible-build test (2026-01-01T00:00:00Z).
 EPOCH = 1767225600
-# A recorded step duration and an elapsed time, in seconds.
 DURATION_S = 3.2
 ELAPSED_S = 5.0
 

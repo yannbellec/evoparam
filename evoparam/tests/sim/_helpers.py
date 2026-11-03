@@ -8,7 +8,6 @@ import numpy as np
 from evoparam.data import Provenance, TrialSet
 from evoparam.shapes import get_shape
 
-# Small configurations of every generator, fast enough for the test suite.
 SMALL = {
     "erp": {"n_trials": 12, "n_channels": 3},
     "ccep": {"n_trials": 6, "n_channels": 14, "p_response": 0.6, "tmax": 0.5},

@@ -16,20 +16,14 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = ["estimate_period", "period_lags", "period_filter"]
 
-# Largest search half-width, as a fraction of the guessed period.
 _MAX_SEARCH = 0.5
 
-# Shortest period, in samples, that can be estimated (two samples per cycle).
 _MIN_PERIOD_SAMPLES = 2
 
-# Candidates per stage of the period search.
 N_CANDIDATES = 401
 
-# Half-width of the phase neighbourhood used to predict a sample, as a fraction of the
-# number of samples (at least 2 neighbours on each side).
 NEIGHBOUR_FRACTION = 0.002
 
-# Fewest samples averaged into each estimate when n_bins is chosen automatically.
 MIN_BIN_SAMPLES = 50
 
 
@@ -160,9 +154,9 @@ def period_filter(data: ArrayLike, lags: IntArray, causal: bool = False) -> tupl
     n_times = data.shape[-1]
     reach = int(np.max(lags))
     kernel = np.zeros(2 * reach + 1)
-    kernel[reach + lags] = 1.0  # past samples x[t - L] (convolution flips)
+    kernel[reach + lags] = 1.0
     if not causal:
-        kernel[reach - lags] = 1.0  # future samples x[t + L]
+        kernel[reach - lags] = 1.0
     flat = data.reshape(-1, n_times)
     sums = fftconvolve(flat, kernel[None], mode="same", axes=-1)
     counts = fftconvolve(np.ones((1, n_times)), kernel[None], mode="same", axes=-1)

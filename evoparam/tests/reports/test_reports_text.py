@@ -22,7 +22,6 @@ import pytest
 
 from evoparam import __version__, reports
 
-# Fewest trials of the example run.
 MIN_TRIALS = 100
 
 FOLDER = resources.files("evoparam.tests.reports").joinpath("methods")
@@ -45,7 +44,6 @@ def test_req340_reference_pipelines_match_frozen_text(name: Any) -> None:
     text = _text(result)
     frozen = _frozen(name)
     if text != frozen:
-        # Name the first differing sentence, so that a failure is easy to read.
         new, old = text.split(". "), frozen.split(". ")
         first = next(
             i for i, (a, b) in enumerate(zip(new + [""], old + [""], strict=False)) if a != b
@@ -62,11 +60,10 @@ def test_req340_frozen_text_has_no_run_specific_content() -> None:
 
     for name in reports.REFERENCE_PIPELINES:
         raw = FOLDER.joinpath(name + ".txt").read_text("utf-8")
-        # The version appears only as a placeholder (the citation names the cited release).
         assert "{version}" in raw
         assert __version__ not in raw.split("Software:")[0]
         assert not re.search(r"\d{4}-\d{2}-\d{2}", raw)  # no date
-        assert not re.search(r"\d+\.\d{5,}", raw)  # no long float
+        assert not re.search(r"\d+\.\d{5,}", raw)
         assert "duration" not in raw
         assert "/home/" not in raw
         assert "/tmp/" not in raw
@@ -89,7 +86,6 @@ def test_req340_every_changed_setting_is_in_the_text(erp_run: Any) -> None:
     for key, value in changed.items():
         expected = f"({value[0]:g}, {value[1]:g})" if isinstance(value, tuple) else f"{value}"
         assert f"{key} = {expected}" in sentence, (key, sentence)
-    # The settings of the preset run are not listed, and the run without changes has none.
     assert "Settings changed" not in reports.methods_text(erp_run)
     assert set(result.group.settings["_overrides"]) == set(changed)
 
@@ -141,14 +137,9 @@ def test_req340_ds004080_real_recording_gives_the_frozen_text() -> None:
 
 
 ###################################################################################################
-## ERP CORE P3 (Kappenman et al. 2021, OSF DOI 10.18115/D5JW4R, CC-BY-4.0)
 
-# OSF node of the P3 component; its folder "P3 All Data and Scripts" holds one folder per
-# participant with the epochs after the published pipeline (ICA, interpolation, flags)
 ERPCORE_P3_NODE = "etdkz"
 ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
-# SHA-256 of participant 1's files, recorded on 2026-10-08 (also checked against the hash
-# OSF publishes for every file)
 ERPCORE_P3_SHA256 = {
     "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": (
         "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431"

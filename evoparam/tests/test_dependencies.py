@@ -28,11 +28,10 @@ PACKAGE = ROOT / "evoparam"
 DENY = ("erdetect", "ieegprep", "teppy", "ultranest")
 NOT_IN_ALL = {"gpu", "bayes", "docs", "all"}
 
-# import name -> distribution, for the packages the tests skip without
 DISTRIBUTIONS = {
     "mypy": "mypy",
-    "sphinx": "sphinx",  # the documentation build (REQ-302), extra `docs`
-    "coverage": "pytest-cov",  # pytest-cov installs coverage
+    "sphinx": "sphinx",
+    "coverage": "pytest-cov",
     "sklearn": "scikit-learn",
     "mpmath": "mpmath",
     "pandas": "pandas",
@@ -216,7 +215,7 @@ def _skipped_imports() -> Any:
     for path in sorted((PACKAGE / "tests").rglob("*.py")):
         for match in pattern.finditer(path.read_text(encoding="utf-8")):
             name = next(g for g in match.groups() if g).split(".")[0]
-            if name != "evoparam":  # the package's own optional modules
+            if name != "evoparam":
                 names.add(name)
     return names
 
@@ -225,7 +224,6 @@ def test_f4_nothing_skips_for_a_package_outside_the_extras() -> None:
     extras = _extras()
     in_all = {_name(r) for r in extras["all"]}
     in_bayes = {_name(r) for r in extras["bayes"]}
-    # the documentation build (REQ-302) needs the `docs` extra, as the docs job of REQ-297
     in_docs = {_name(r) for r in extras["docs"]}
     names = _skipped_imports()
     assert {"pandas", "mne", "matplotlib"} <= names
@@ -241,7 +239,6 @@ def test_f4_the_runner_installs_all_and_bayes() -> None:
 
 
 ###################################################################################################
-## REQ-292: the extras table of §9.2, lazy imports and the ImportError message
 
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 
@@ -267,9 +264,7 @@ def _spec_extras() -> Any:
         if extra in ("cli", "all"):
             continue
         main = re.split(r"\(alternative|\bor\b", cells[1])[0]
-        out[extra] = {
-            _name(r): _floor(r) for r in re.findall(r"`([^`]+)`", main) if "_" not in r
-        }  # `check_estimator` is not a package
+        out[extra] = {_name(r): _floor(r) for r in re.findall(r"`([^`]+)`", main) if "_" not in r}
     return out
 
 
@@ -348,7 +343,6 @@ def test_req292_every_optional_package_in_exactly_one_extra() -> None:
     assert {_name(r) for r in _toml()["project"]["dependencies"]} == {"numpy", "scipy"}
 
 
-# (module hidden, code that reaches a function needing it, extra named in the message)
 ENTRY_POINTS = [
     ("pandas", "import evoparam; evoparam.prep.reference_sensitivity(None)", "data"),
     ("edfio", "import evoparam; evoparam.io.read_edf('x.edf')", "edf"),
@@ -474,7 +468,6 @@ def test_req292_optional_packages_only_through_require() -> None:
 
 
 ###################################################################################################
-## REQ-395: no GPL, LGPL or AGPL package in any extra (licence scan of the resolved tree)
 
 
 def _scan_tool() -> Any:
@@ -515,7 +508,6 @@ def test_req395_the_scan_finds_a_copyleft_licence() -> None:
     assert not tool.COPYLEFT.search("Apache-2.0")
     assert not tool.COPYLEFT.search("BSD-3-Clause")
     assert not tool.COPYLEFT.search("MPL-2.0")
-    # only the distributions named in FILE_SCOPED can be accepted, and only without the files
     assert not tool.file_scoped_ok("numpy")
 
 

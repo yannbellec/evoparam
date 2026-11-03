@@ -40,7 +40,7 @@ def has_pandas() -> bool:
     """Return True when pandas can be imported (the extra ``data``)."""
     try:
         return importlib.util.find_spec("pandas") is not None
-    except (ImportError, ValueError):  # an import hook that hides it, or a broken spec
+    except (ImportError, ValueError):
         return False
 
 
@@ -93,7 +93,7 @@ def row_labels(table: Any, columns: Sequence[str]) -> NDArray[Any]:
     )
 
 
-class Column(np.ndarray[Any, Any]):  # a NumPy array subclass
+class Column(np.ndarray[Any, Any]):
     """One column of a :class:`Table`: a 1-D NumPy array with ``to_numpy`` and ``iloc``.
 
     Examples
@@ -143,8 +143,7 @@ def _as_column(values: Any, n_rows: int | None) -> NDArray[Any]:
         array = np.full(n_rows, values, dtype=None if not isinstance(values, str) else object)
     else:
         array = np.asarray(values)
-        if array.dtype.kind == "U":  # text as Python strings, as pandas holds it
-            # from the values themselves: NumPy would turn a NaN or None among text into "nan"
+        if array.dtype.kind == "U":
             array = np.empty(len(array), dtype=object)
             array[:] = list(values)
         if array.ndim != 1:

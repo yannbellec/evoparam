@@ -41,13 +41,9 @@ __all__ = ["GROUPS", "LazyRegistry", "load_group", "loaded", "used", "enabled", 
 
 GROUPS = ("evoparam.shapes", "evoparam.presets", "evoparam.readers")
 
-# "group:name" -> "dist==version" of every plugin object handed out by a registry
 USED: dict[str, str] = {}
-# group -> {name: "dist==version"} of the loaded plugins
 _LOADED: dict[str, dict[str, str]] = {}
 
-# returned by a registry's check for an object that belongs to another registry of the same
-# group (a background in the group evoparam.shapes)
 SKIP = object()
 
 
@@ -102,7 +98,7 @@ def load_group(
             )
         try:
             obj = entry.load()
-        except Exception as err:  # a broken plugin is named, never silently skipped
+        except Exception as err:
             raise SettingsError(
                 f"plugin {name!r} of {origin} ({group}) cannot be loaded: "
                 f"{type(err).__name__}: {err}"
@@ -149,7 +145,7 @@ class LazyRegistry(dict[str, Any]):
 
     def _load(self) -> None:
         if self._plugins is None:
-            self._plugins = {}  # set first: a check may read the registry
+            self._plugins = {}
             found = load_group(self._group, self._builtin, self._check)
             for name, (obj, origin) in found.items():
                 super().__setitem__(name, obj)

@@ -8,8 +8,8 @@ import pytest
 
 pytest.importorskip("matplotlib")
 
-from evoparam import plots  # noqa: E402  (after pytest.importorskip)
-from evoparam.data import ShapeBasis  # noqa: E402  (after pytest.importorskip)
+from evoparam import plots  # noqa: E402
+from evoparam.data import ShapeBasis  # noqa: E402
 
 
 def _is_figure(fig: Any) -> Any:
@@ -121,12 +121,11 @@ def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results
     assert len(panels) == len(channels)
     for c, a in enumerate(panels):
         curve = np.asarray(test.curve)[c]
-        curve = curve[0] if curve.ndim > 1 else curve  # the first group (site)
+        curve = curve[0] if curve.ndim > 1 else curve
         drawn = [line for line in a.lines if len(line.get_xdata()) == curve.size]
         assert any(np.allclose(line.get_ydata(), curve, equal_nan=True) for line in drawn)
         assert np.allclose(drawn[0].get_xdata(), test.curve_times * 1e3)
         assert any(isinstance(item, PolyCollection) for item in a.collections)  # the band
-    # one axes: every channel on it; a test without a time course: one bar per channel
     import matplotlib.pyplot as plt
 
     _, ax = plt.subplots()

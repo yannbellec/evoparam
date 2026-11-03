@@ -24,14 +24,12 @@ import pytest
 import evoparam
 from evoparam import presets
 
-# Lines of the ten-line example, and the fewest glossary terms.
 MAX_EXAMPLE_LINES = 10
 MIN_TERMS = 150
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 TUTORIALS = os.path.join(ROOT, "docs", "tutorials")
 INTEGRATIONS = ("mne", "bids", "nwb", "neo", "sklearn", "cli", "streaming")
-# tutorials that come with a later build step (the online mode, S18, is merged: none left)
 LATER = {}
 NETWORK = {"preset_ccep", "preset_ccep_seeg", "preset_erp", "integration_bids"}
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
@@ -83,9 +81,7 @@ def test_tutorial_structure(name: Any) -> None:
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
     called = {getattr(c.func, "attr", getattr(c.func, "id", None)) for c in calls}
     assert "methods_text" in called, name
-    # the last cell prints the methods paragraph
     assert "methods_text" in source.rsplit("# %%", 1)[1], name
-    # downloads only through fetch_* (no urllib, requests or curl)
     assert not re.search(r"\b(urllib|requests|httpx|wget|curl)\b", source), name
 
 
@@ -97,7 +93,6 @@ def test_datasets_named_are_in_the_registry_with_checksums() -> None:
         if name in LATER:
             continue
         source = _source(name)
-        # the datasets a tutorial reads: DATASET = "..." or the first argument of a reader
         named = set(re.findall(r'DATASET = "(ds\d{6})"', source)) | set(
             re.findall(r'(?:read_bids|fetch_openneuro_file)\("(ds\d{6})"', source)
         )
@@ -108,7 +103,6 @@ def test_datasets_named_are_in_the_registry_with_checksums() -> None:
             assert registry[dataset].get("files"), (name, dataset, "no sha256 recorded")
             for path, digest in registry[dataset]["files"].items():
                 assert re.fullmatch(r"[0-9a-f]{64}", digest), (dataset, path)
-        # every file a tutorial fetches from OpenNeuro is in the registry
         for _stem, suffix in re.findall(
             r'fetch_openneuro_file\(DATASET, (STEM) \+ "([^"]+)"', source
         ):
@@ -159,7 +153,6 @@ def test_streaming_tutorial_runs(capsys: Any) -> None:
 
 
 # ---------------------------------------------------------------------------------------
-# REQ-302, REQ-303: documentation pages (S20)
 # ---------------------------------------------------------------------------------------
 
 DOCS = os.path.join(ROOT, "docs")
@@ -254,7 +247,7 @@ def test_req303_faq_has_the_seven_questions() -> None:
     medical = text.split("Is this a medical device?", 1)[1]
     assert "Section 13" in medical
     assert "research use only" in medical
-    for name in presets.PRESETS.builtin:  # the preset question covers them all
+    for name in presets.PRESETS.builtin:
         assert f"``{name}``" in text.split("Why is polarity", 1)[0], name
 
 

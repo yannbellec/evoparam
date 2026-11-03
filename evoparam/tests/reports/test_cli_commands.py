@@ -21,7 +21,6 @@ import pytest
 import evoparam
 from evoparam import __version__, presets, reports
 
-# Events detected in the recording, and the exit code of a usage error.
 N_EVENTS = 8
 EXIT_USAGE = 2
 
@@ -265,8 +264,7 @@ def test_req345_information_commands() -> None:
     assert {row["name"] for row in listing["result"]["presets"]} == set(presets.PRESETS)
     shown = run("presets", "show", "ccep")
     assert shown["result"]["preset"]["name"] == "ccep"
-    assert run_text("benchmark")[0] == EXIT_USAGE  # an action is required
-    # the repository is not a BIDS dataset: input error (REQ-314, tests/io/test_bids_validator.py)
+    assert run_text("benchmark")[0] == EXIT_USAGE
     assert run("validate-bids", ROOT, code=5)["status"] == "error"
     code, stdout = run_text("--version")
     assert code == 0

@@ -31,9 +31,7 @@ from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._numeric import divide, sqrt
 
-# Fewest observations with a sample standard deviation (t statistic, z score)
 _MIN_N = 2
-# Values of the sequential tests: (n_observations, n_channels)
 _MATRIX_NDIM = 2
 
 
@@ -231,9 +229,6 @@ class SequentialSignFlip:
         room = _allowed(spent, n_traj) - self._crossed
         cols = np.flatnonzero(room > 0)
         if len(cols):
-            # A trajectory crosses when fewer than room + 1 live ones are at least as large,
-            # i.e. when it exceeds the (room + 1)-th largest live statistic (crossed
-            # trajectories count as -inf, below every live one)
             live = np.where(self._alive[:, cols], stat[:, cols], -np.inf)
             ordered = np.sort(live, axis=0)
             rank = np.clip(n_traj - 1 - room[cols], 0, n_traj - 1)
@@ -310,7 +305,6 @@ class OnlineExistence:
         projection = np.asarray(projection, float)
         base = np.asarray(baseline_projection, float)
         seen = np.isfinite(base)
-        # Welford update of the baseline mean and variance
         self._count += seen
         delta = np.where(seen, base - self._mean, 0.0)
         self._mean += delta / np.maximum(self._count, 1)

@@ -29,19 +29,14 @@ from evoparam.trials import FixedShapeModel, fit_trials
 
 from .helpers import N1, SFREQ, TIMES, channel_fits, gauss, no_pulses, simulate
 
-# Relative amplitude tolerance of the online estimates, and the components of the fit.
 AMPLITUDE_RTOL = 0.01
 N_COMPONENTS = 2
-# Median z of the responsive channels, and the fraction of pulses where they are present.
 MIN_Z = 3
 MIN_PRESENT = 0.8
-# Sequential test: level, looks, and the error rate of the naive repeated test.
 ALPHA = 0.05
 N_LOOKS = 50
 MIN_NAIVE_RATE = 0.15
 ALPHA_START = 1e-6
-# Channels significant online (of 40), pulses of the latency test and of REQ-347, and the
-# latency budget (ms).
 N_CHANNELS = 40
 N_PULSES = 12
 N_BUDGET_PULSES = 1000
@@ -95,7 +90,6 @@ def _table(estimates: Any, channel: Any) -> Any:
 
 
 ###################################################################################################
-## REQ-324 / REQ-347: agreement with fit_trials(mode="shift_scale")
 
 
 def test_req347_agreement_with_fit_trials(pulses: Any) -> None:
@@ -200,7 +194,6 @@ def _assert_chunk_sizes_identical(ts: Any, group: Any, n_estimates: int) -> None
         )
     assert len(runs[0]) == n_estimates
     for other in runs[1:]:
-        # bit for bit (NaN compared as equal: the first pulse has no baseline yet)
         assert len(other) == len(runs[0])
         for a, b in zip(runs[0], other, strict=False):
             assert all(
@@ -233,7 +226,6 @@ def test_req347_running_existence_matches_offline_sign_flip(mixed: Any) -> None:
     )
     replay(ts, fitter, chunk_size=32)
     online = fitter.existence(final=True)
-    # Offline: the same per-pulse values from the epochs, tested at once
     model = FixedShapeModel(template, sfreq=SFREQ, ch_names=ts.ch_names)
     res = model.fit_trialset(ts)
     values = res["projection"] - res["baseline_projection"]
@@ -241,7 +233,6 @@ def test_req347_running_existence_matches_offline_sign_flip(mixed: Any) -> None:
     offline = sign_flip_test(values, alpha=0.05, n_permutations=1000, random_state=3)
     assert np.array_equal(online["significant"], offline["significant"])
     assert np.allclose(online["p_value"], offline["p_value"])
-    # the decisions are not trivial: responses found, silent channels not
     assert online["significant"][:4].all()
     assert not online["significant"][4:].any()
 
@@ -255,7 +246,6 @@ def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed:
     assert result["channels"] == ts.ch_names
     assert result["significant"][:4].all()
     assert result["alpha_spent"].max() <= ALPHA + 1e-12
-    # per-pulse score: high on responsive channels, centred on silent ones
     z = {
         c: np.array([e.existence_z for e in estimates if e.channel == c])[2:] for c in ts.ch_names
     }
@@ -266,7 +256,6 @@ def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed:
 
 
 ###################################################################################################
-## REQ-348: false-positive rate of the sequential test over 50 looks
 
 
 def test_req348_sequential_fpr_on_null_values() -> None:
@@ -279,7 +268,7 @@ def test_req348_sequential_fpr_on_null_values() -> None:
         )
         crossed_naive = np.zeros(200, bool)
         for _ in range(N_LOOKS):
-            test.update(rng.standard_t(3, size=200))  # heavy tails, symmetric
+            test.update(rng.standard_t(3, size=200))
             out = test.look()
             crossed_naive |= np.nan_to_num(out["p_value"], nan=1.0) <= ALPHA
         hits += out["significant"].sum()
@@ -287,7 +276,6 @@ def test_req348_sequential_fpr_on_null_values() -> None:
         total += 200
     assert test.n_looks == N_LOOKS
     assert hits / total <= ALPHA + 0.01, hits / total
-    # the same looks without the spending rule inflate the error several times
     assert naive / total > MIN_NAIVE_RATE
 
 
@@ -327,7 +315,6 @@ def test_alpha_spending_and_single_look() -> None:
     assert np.all(np.diff(spent) >= 0)
     assert spent[-1] == ALPHA
     assert spent[0] < ALPHA_START
-    # one look at full information is the fixed-sample test
     rng = np.random.default_rng(0)
     values = rng.normal(0.3, 1, (25, 40))
     test = SequentialSignFlip(40, max_n=25, n_permutations=999, random_state=2)
@@ -340,7 +327,6 @@ def test_alpha_spending_and_single_look() -> None:
 
 
 ###################################################################################################
-## REQ-324 / REQ-347: latency
 
 
 def test_latency_stats() -> None:
@@ -376,7 +362,6 @@ def test_req347_latency_budget(n_components: Any) -> None:
 
 
 ###################################################################################################
-## Detector, triggers, statuses, errors
 
 
 def _continuous(n_pulses: Any = 6, seed: Any = 0) -> Any:
@@ -428,7 +413,7 @@ def test_push_pulse_and_timestamps(mixed: Any) -> None:
     data = ts.data[:3, :, :].transpose(0, 2, 1).reshape(-1, ts.n_channels)
     stamps = t0 + np.arange(len(data)) / SFREQ
     fitter.push(data[:500], stamps[:500])
-    fitter.push_pulse(stamps[1024])  # onset of the first epoch
+    fitter.push_pulse(stamps[1024])
     out = fitter.push(data[500:], stamps[500:])
     assert {e.pulse_time for e in out} == {stamps[1024]}
     assert all(isinstance(e, PulseEstimate) for e in out)
@@ -444,8 +429,8 @@ def test_statuses(mixed: Any) -> None:
 
     ts, template = mixed
     data = ts.data[:3].copy()
-    data[1, 2, 1100] = np.nan  # inside pulse 1's window, channel 2
-    data[2, 5, 1200] = 5000.0  # saturated sample, pulse 2
+    data[1, 2, 1100] = np.nan
+    data[2, 5, 1200] = 5000.0
     stream = data.transpose(0, 2, 1).reshape(-1, ts.n_channels)
     fitter = _fitter(template, ts, saturation=4000.0)
     for k in range(3):
@@ -464,7 +449,7 @@ def test_artifact_window_is_interpolated(mixed: Any) -> None:
     ts, template = mixed
     clean = ts.data[:20].copy()
     spiked = clean.copy()
-    spiked[:, :, 1024:1035] += 5000.0  # 0 to 5 ms: inside the artifact window
+    spiked[:, :, 1024:1035] += 5000.0
     results = []
     for data in (clean, spiked):
         fitter = StreamFitter(
@@ -505,7 +490,6 @@ def test_errors(mixed: Any) -> None:
 
 
 ###################################################################################################
-## REQ-325 / REQ-015: intended use
 
 
 def test_intended_use_statements(capsys: Any) -> None:
@@ -524,6 +508,5 @@ def test_intended_use_statements(capsys: Any) -> None:
 
 def test_simulation_helpers_are_consistent() -> None:
 
-    # the epochs have a sample at t = 0 and the response where the template expects it
     assert TIMES[1024] == 0.0
     assert np.argmax(np.abs(N1[0] * gauss(TIMES, N1[1], N1[2]))) == 1024 + round(N1[1] * SFREQ)

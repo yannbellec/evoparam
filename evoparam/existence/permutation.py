@@ -19,10 +19,8 @@ from evoparam.errors import warn as _warn
 from evoparam.utils._numeric import divide, log10
 from evoparam.utils._parallel import n_workers, parallel_map
 
-# Smallest null distribution, and fewest exceedances, to fit the tail
 TAIL_MIN_NULL = 50
 TAIL_MIN_FIT = 10
-# Fewest baseline samples of shuffle_test (a mean and a standard deviation)
 _MIN_BASELINE_SAMPLES = 2
 
 
@@ -40,13 +38,9 @@ __all__ = [
 
 MIN_TRIALS = 5
 
-# Sign-flip patterns processed at once (bounds memory: chunk x channels x times).
 _CHUNK = 64
-# Bytes of the t series of the null computed at once (a block of channels of one chunk).
 _NULL_BLOCK_BYTES = 4 * 2**20
 
-# Tail approximation: used when fewer than this many null values reach the observed one,
-# fitted on the exceedances over this quantile of the null.
 TAIL_MIN_EXCEED = 10
 TAIL_QUANTILE = 0.9
 
@@ -112,8 +106,6 @@ def tail_p_value(null: Any, observed: Any) -> float:
     try:
         shape, _, scale = genpareto.fit(excess, floc=0.0)
     except (RuntimeError, ValueError, ArithmeticError) as err:
-        # the fit did not converge (scipy's FitError is a RuntimeError): the plain
-        # estimate is kept, and the failure is logged (REQ-307: never without a trace)
         logger.debug(
             "tail_p_value: the generalised Pareto fit failed (%s: %s); the plain "
             "permutation p-value %.4g is kept.",
@@ -207,8 +199,6 @@ def _channel_block(block: tuple[Any, ...]) -> tuple[FloatArray, FloatArray, Floa
     p = np.array([tail_p_value(null[:, c], observed[c]) for c in range(len(observed))])
     onsets = np.full((len(picks), len(observed)), np.nan)
     offsets = np.full((len(picks), len(observed)), np.nan)
-    # the resampled t series of a few channels at a time (each value is computed per channel
-    # and sample, so the blocks change no result; the memory of P3, spec §9.1)
     step = max(1, _NULL_BLOCK_BYTES // max(1, 8 * x.shape[0] * x.shape[2]))
     tb = np.empty(x.shape[1:])
     for b, pick in enumerate(picks):
@@ -287,7 +277,6 @@ def permutation_test(
         )
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
-    # the samples of the window (a copy, cleaned in place), 0 where masked
     x = np.nan_to_num(data[:, :, win], copy=False)
     usable = np.ones(x.shape[1:], bool)
     if masks is not None:
@@ -309,10 +298,6 @@ def permutation_test(
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
 
-    # Duration interval: bootstrap over trials with the same critical value (the same
-    # resamples give the intervals of the onset and the offset, REQ-006). The resamples
-    # are drawn here, in the order of the serial loop, so that the result does not depend
-    # on n_jobs; the p-values and the bootstrap run per block of channels.
     picks = [rng.integers(0, n, n) for _ in range(n_boot)]
     common = (picks, statistic, threshold, polarity, times[win], n)
     workers = n_workers(n_jobs, n_ch)
@@ -350,9 +335,6 @@ def permutation_test(
     snr = 10 * log10(divide(np.mean(avg[:, win] ** 2, axis=1), noise))
     all_masked = ~usable.any(axis=1)
     p = np.where(all_masked, np.nan, p)
-    # The statistic over time and its null band (spec §5.13, plot_existence): the pointwise t
-    # of the trials and the level it must cross, the family-wise critical value of the
-    # null maximum |t| (max_t) or the cluster-forming threshold (cluster)
     level = critical if statistic == "max_t" else np.full(n_ch, threshold)
     return {
         "statistic": observed,
@@ -513,7 +495,7 @@ def shuffle_test(
         z[:, win], zb, critical, polarity, times[win], n_boot, rng
     )
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # a channel never above the level
+        warnings.simplefilter("ignore", RuntimeWarning)
 
         def interval(v: Any) -> Any:
             return (

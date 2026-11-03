@@ -19,7 +19,7 @@ pytestmark = pytest.mark.core
 def test_windows_are_a_read_only_mapping() -> None:
     windows = ComponentWindows({"N1": (0.009, 0.05, -1), "N2": [0.05, 0.3]})
     assert windows["N1"] == (0.009, 0.05, -1)
-    assert windows["N2"] == (0.05, 0.3, 0)  # polarity 0: either sign
+    assert windows["N2"] == (0.05, 0.3, 0)
     assert len(windows) == len(windows.labels)
     assert list(windows) == windows.labels == ["N1", "N2"]
     assert windows.definitions == [(0.009, 0.05, -1), (0.05, 0.3, 0)]

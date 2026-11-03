@@ -13,7 +13,7 @@ trial, which of two currents was used.
 Data: simulated CCEPs at 2 and 6 mA; the N1 is three times larger at 6 mA (an amplitude
 growing with the current, as the input-output curves of CCEPs do), with a 30 % trial-to-trial
 variability of the amplitude.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Two currents
@@ -47,7 +47,7 @@ high, _ = sim.simulate_ccep(
     n1=n1_high,
     amplitude_cv=0.3,
 )
-X = np.concatenate([low.data, high.data])  # (trials, channels, times), µV
+X = np.concatenate([low.data, high.data])
 y = np.r_[np.zeros(len(low.data)), np.ones(len(high.data))]
 sfreq, tmin = low.sfreq, float(low.times[0])
 print(X.shape)
@@ -56,11 +56,11 @@ print(X.shape)
 # A pipeline
 # ----------
 
-from sklearn.impute import SimpleImputer  # noqa: E402  (sphinx-gallery section)
-from sklearn.linear_model import LogisticRegression  # noqa: E402  (sphinx-gallery section)
-from sklearn.model_selection import cross_val_score  # noqa: E402  (sphinx-gallery section)
-from sklearn.pipeline import make_pipeline  # noqa: E402  (sphinx-gallery section)
-from sklearn.preprocessing import StandardScaler  # noqa: E402  (sphinx-gallery section)
+from sklearn.impute import SimpleImputer  # noqa: E402
+from sklearn.linear_model import LogisticRegression  # noqa: E402
+from sklearn.model_selection import cross_val_score  # noqa: E402
+from sklearn.pipeline import make_pipeline  # noqa: E402
+from sklearn.preprocessing import StandardScaler  # noqa: E402
 
 pipe = make_pipeline(
     ArtifactRemover("template", sfreq=sfreq, tmin=tmin, window=(-0.002, 0.008)),
@@ -70,7 +70,7 @@ pipe = make_pipeline(
     LogisticRegression(),
 )
 print(pipe)
-pipe.set_params(trialfitter__max_components=2)  # nested parameters, as in scikit-learn
+pipe.set_params(trialfitter__max_components=2)
 
 # %%
 # Cross-validated decoding

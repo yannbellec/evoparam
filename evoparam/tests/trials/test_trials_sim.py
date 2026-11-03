@@ -15,24 +15,16 @@ from .helpers import SFREQ, TIMES, channel_fit, gauss, simulate
 
 pd = pytest.importorskip("pandas")
 
-# REQ-150: mean relative amplitude error, and relative error of the excess jitter.
 MAX_AMPLITUDE_ERROR = 0.15
 MAX_JITTER_ERROR = 0.2
-# REQ-151: jitter_sd_null against jitter_sd (bound of the ratio, and the fraction of runs
-# that must meet it), and the fraction of runs whose realignment is refused.
 MIN_NULL_RATIO = 0.8
 MIN_RUN_FRACTION = 0.9
 MIN_REFUSED = 0.95
-# Runs of REQ-151 (no jitter) and of REQ-153 (regularized against free shifts).
 N_RUNS = 20
 N_RUNS_153 = 10
-# REQ-152: relative error of the jitter-corrected amplitude.
 MAX_CORRECTED_ERROR = 0.10
-# REQ-154: relative errors of the Hill i50 and slope h.
 MAX_I50_ERROR = 0.15
 MAX_H_ERROR = 0.30
-# REQ-155: runs per block (the channels of one TrialSet), the test level, the largest
-# type-I error accepted, and the power required.
 N_BLOCK_RUNS = 100
 ALPHA = 0.05
 MAX_TYPE_ONE = 0.06
@@ -56,7 +48,7 @@ def test_req150_latency_amplitude_and_jitter(sd: Any) -> None:
 
     ratios, lat, amp = [], [], []
     for seed in range(6):
-        ts, shifts, scales = simulate(jitter=sd, seed=seed)  # per-trial SNR 3
+        ts, shifts, scales = simulate(jitter=sd, seed=seed)
         tf = _run(ts, max_shift=0.015, r2_min=0.0)
         fit = tf.fits[0]
         lat.append(np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean()))) * SFREQ)
@@ -67,9 +59,6 @@ def test_req150_latency_amplitude_and_jitter(sd: Any) -> None:
     assert abs(np.median(ratios) - 1) <= MAX_JITTER_ERROR
 
 
-# REQ-150 as written: per-trial SNR 2 (the lowest SNR the REQ covers), jitter_sd 1, 2 and 5 ms,
-# amplitudes with CV 30 %, every run. The width is the one that balances the two Cramer-Rao
-# limits below (FWHM 11 samples; 1 kHz as the other tests).
 FWHM_150 = 0.011
 AS_WRITTEN_150 = (
     "REQ-150 at SNR 2 is out of reach: no width makes the latency MAE <= 1 sample and the "
@@ -85,7 +74,7 @@ def test_req150_as_written(sd: Any) -> None:
     for seed in range(6):
         ts, shifts, scales = simulate(
             jitter=sd, amp=-20.0, noise=10.0, fwhm=FWHM_150, seed=5000 + seed
-        )  # per-trial SNR 2
+        )
         tf = _run(ts, max_shift=max(0.015, 3 * sd), r2_min=0.0)
         fit = tf.fits[0]
         lat = np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean()))) * SFREQ
@@ -122,7 +111,6 @@ def test_req150_cramer_rao_bound() -> None:
     for fwhm in np.arange(2.0, 60.0, 0.05):  # samples
         lat_sd, amp_sd = _cramer_rao(fwhm)
         worst.append(max(factor * lat_sd / 1.0, factor * amp_sd / 0.15))
-    # the best width misses one of the limits by 1.6 % (FWHM 11.35 samples)
     assert min(worst) > 1.0
     assert np.argmin(worst) == pytest.approx((11.35 - 2.0) / 0.05, abs=2)
 
@@ -141,8 +129,6 @@ def test_req151_no_invented_jitter_and_realign_refused() -> None:
         fit = tf.fits[0]
         ratios.append(fit.jitter_sd_null[0] / fit.jitter_sd[0])
         refused += fit.realigned is None and any("refused" in str(w.message) for w in caught)
-    # jitter_sd_null >= 0.8 jitter_sd: the SD of 40 shifts varies by about 11 % from run to
-    # run, so the bound holds in 90 % of runs or more, and in the median
     assert np.median(ratios) >= MIN_NULL_RATIO
     assert np.mean(np.array(ratios) >= MIN_NULL_RATIO - 1e-9) >= MIN_RUN_FRACTION
     assert refused / N_RUNS >= MIN_REFUSED
@@ -187,9 +173,6 @@ def test_req151_as_written(null_rule: Any) -> None:
     assert refused >= MIN_REFUSED
 
 
-# REQ-151 as changed on 21/10/2026: at most 5 % of jitter-free runs report a jitter, and the
-# smallest detectable jitter is reported. A slow P3-like component (FWHM 200 ms, 500 Hz,
-# preset erp, 40 trials, per-trial SNR 2 and 0.5) and the fast N1-like one of the other tests.
 MAX_FALSE_JITTER = 0.05
 SFREQ_P3 = 500.0
 TIMES_P3 = np.arange(-0.5, 1.0, 1 / SFREQ_P3)
@@ -320,7 +303,6 @@ def _phase_trials(modulation: Any, seed: Any, n: Any = 100) -> Any:
     data = rng.normal(0, 1.0, (n, 1, len(TIMES)))
     pre = TIMES < 0
     for i, phi in enumerate(phases):
-        # 10 Hz oscillation whose phase at t = -0.01 s is phi
         data[i, 0, pre] += 5 * np.cos(2 * np.pi * 10 * (TIMES[pre] + 0.01) + phi)
         gain = 1 + modulation * np.cos(phi)
         data[i, 0] += -40 * gain * gauss(0.08, 0.03)

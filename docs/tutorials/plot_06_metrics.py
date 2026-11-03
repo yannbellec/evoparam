@@ -4,7 +4,7 @@
 ================================
 
 Judge a fit: how well it follows the curve, how sure its numbers are, and what it warns.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -21,7 +21,6 @@ Judge a fit: how well it follows the curve, how sure its numbers are, and what i
 
 ###################################################################################################
 
-# Import what we need
 from evoparam import fit_response, gen_response
 
 ###################################################################################################
@@ -43,7 +42,6 @@ from evoparam import fit_response, gen_response
 
 ###################################################################################################
 
-# The curve of tutorial 01, and its fit
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 fit = fit_response(times, signal, preset="ccep", random_state=0)
 

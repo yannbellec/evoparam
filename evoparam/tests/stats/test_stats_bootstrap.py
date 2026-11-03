@@ -18,7 +18,6 @@ from .helpers import N1, WINDOW, replicates
 
 pd = pytest.importorskip("pandas")
 
-# Coverage range of a 95 % interval over the replicates, and the resamples recorded.
 MIN_COVERAGE = 0.93
 MAX_COVERAGE = 0.97
 N_BOOT = 20
@@ -49,7 +48,6 @@ def test_req230_coverage(method: Any, distribution: Any) -> None:
     covered = (table["ci_low"] <= true) & (true <= table["ci_high"])
     assert MIN_COVERAGE <= covered.mean() <= MAX_COVERAGE, covered.mean()
     assert set(table["method"]) == {method}
-    # the textbook interval (no small-sample expansion) is narrower
     plain = bootstrap(
         ts,
         "mean_amplitude",
@@ -136,7 +134,7 @@ def test_bca_matches_scipy() -> None:
     ref = sps.bootstrap((x,), np.mean, n_resamples=40000, method="BCa", random_state=1)
     assert ours["ci_low"].iloc[0] == pytest.approx(ref.confidence_interval.low, rel=0.01)
     assert ours["ci_high"].iloc[0] == pytest.approx(ref.confidence_interval.high, rel=0.01)
-    assert ours["acceleration"].iloc[0] > 0  # right-skewed: positive acceleration
+    assert ours["acceleration"].iloc[0] > 0
 
 
 def test_strata_keep_their_size() -> None:
@@ -155,7 +153,7 @@ def test_strata_keep_their_size() -> None:
         return value
 
     table = bootstrap(ts, share, n_boot=50, method="percentile", random_state=0)
-    assert set(seen[1:51]) == {0.25}  # 6 of 24 in every resample
+    assert set(seen[1:51]) == {0.25}
     table = bootstrap(ts, share, n_boot=50, method="percentile", by=(), random_state=0)
     assert len(set(seen)) > 1
     assert table.attrs["settings"]["n_strata"] == 1

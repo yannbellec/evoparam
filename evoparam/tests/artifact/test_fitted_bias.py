@@ -35,8 +35,6 @@ from evoparam.models import ResponseModel
 
 from .helpers import make_overlay
 
-# Median latency error (samples) and relative amplitude error after cleaning (REQ-061), and
-# the amplitude bias that plain blanking is required to show.
 MAX_LATENCY_ERROR = 0.5
 MAX_AMPLITUDE_ERROR = 0.05
 MIN_BLANKING_BIAS = 0.20
@@ -96,7 +94,6 @@ def _errors(onset: Any, fit_window: Any, **kwargs: Any) -> Any:
         found = np.isfinite(ref[:, 0])
         lat += list((got[found, 0] - ref[found, 0]) * 1000)
         amp += list(got[found, 1] / ref[found, 1] - 1)
-    # A component found without the artifact but lost after cleaning counts as the worst error.
     lat, amp = np.abs(np.array(lat)), np.abs(np.array(amp))
     return np.where(np.isfinite(lat), lat, np.inf), np.where(np.isfinite(amp), amp, np.inf)
 

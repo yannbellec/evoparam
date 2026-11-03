@@ -125,7 +125,6 @@ _NUMBERS = (int, float, np.integer, np.floating)
 _BOOLS = (bool, np.bool_)
 _SEQUENCES = (list, tuple)
 
-# (applies to the pair, comparison), tried in this order after the identity and None checks
 _RULES: tuple[tuple[Callable[[object, object], bool], Callable[[Any, Any], bool]], ...] = (
     (lambda a, _b: is_dataclass(a) and not isinstance(a, type), _dataclass_equal),
     (lambda a, b: isinstance(a, np.ndarray) or isinstance(b, np.ndarray), _array_equal),
@@ -159,4 +158,4 @@ class DeepEqualMixin:
             return NotImplemented
         return deep_equal(self, other)
 
-    __hash__: ClassVar[None] = None  # type: ignore[assignment]  # unhashable: equality compares the contents
+    __hash__: ClassVar[None] = None  # type: ignore[assignment]

@@ -52,7 +52,7 @@ Modules
       Module ``evoparam.existence``. May import: ``data``, ``models``, ``utils``. Must not import: ``trials``, ``hierarchical``.
 
    evoparam.hierarchical
-      Module ``evoparam.hierarchical``. May import: ``data``, ``models``, ``trials``, ``stats``. Must not import: —.
+      Module ``evoparam.hierarchical``. May import: ``data``, ``models``, ``trials``, ``stats``. Must not import: none.
 
    evoparam.io
       Module ``evoparam.io``. May import: ``data``, ``utils``. Must not import: ``models`` and anything below it.
@@ -299,7 +299,7 @@ Fields
       ``float``; s, latency → offset
 
    Component.symmetry
-      ``float``; (decay_time − rise_time) / (decay_time + rise_time); 0 for a symmetric shape
+      ``float``; (decay_time - rise_time) / (decay_time + rise_time); 0 for a symmetric shape
 
    Component.sharpness
       ``float``; \|s''(latency)\| · fwhm², dimensionless curvature of the unit-amplitude shape at the peak (§5.5.1)
@@ -317,7 +317,7 @@ Fields
       ``dict | None``, default ``None``; hierarchical fits only: mean, sd, hdi, ess, r_hat per parameter
 
    GoodnessOfFit.r2
-      ``float``; 1 − SS_res / SS_tot on the fit window (coefficient of determination, not Pearson²)
+      ``float``; 1 - SS_res / SS_tot on the fit window (coefficient of determination, not Pearson²)
 
    GoodnessOfFit.adj_r2
       ``float``
@@ -329,7 +329,7 @@ Fields
       ``float``
 
    GoodnessOfFit.nrmse
-      ``float``; rmse / (max y − min y) on the fit window (dimensionless)
+      ``float``; rmse / (max y - min y) on the fit window (dimensionless)
 
    GoodnessOfFit.aic
       ``float``
@@ -458,7 +458,7 @@ Fields
       ``pd.DataFrame | None``; built-in covariates ("trend", "dose", "prestim") when requested (§5.7)
 
    TrialFit.realigned
-      ``"TrialSet | None"``; trials shifted by −shift (optional)
+      ``"TrialSet | None"``; trials shifted by -shift (optional)
 
    TrialFit.settings
       ``dict``
@@ -557,7 +557,7 @@ Fields
       ``np.ndarray | None``; (n_channels, n_window_samples) when a template was estimated
 
    ArtifactResult.quality
-      ``np.ndarray``; (n_trials,) 0–1 score; also written to cleaned.metadata["quality"]
+      ``np.ndarray``; (n_trials,) 0-1 score; also written to cleaned.metadata["quality"]
 
    ArtifactResult.quality_components
       ``pd.DataFrame``; (n_trials rows) residual_ratio, edge_discontinuity, saturation_fraction, template_fit_r2
@@ -584,7 +584,7 @@ Fields
       ``np.ndarray``; (n_groups,) variance explained per group
 
    ShapeBasis.assignment
-      ``pd.DataFrame``; one row per group (stimulation site or channel): shape_id (int, −1 = none), weight, r2
+      ``pd.DataFrame``; one row per group (stimulation site or channel): shape_id (int, -1 = none), weight, r2
 
    ShapeBasis.stability
       ``np.ndarray``; (n_shapes,) reproducibility across restarts
@@ -748,7 +748,7 @@ Trial metadata columns (Table 4.1)
       int64; block or run segment
 
    quality
-      float64; 0–1 artifact-quality score (set by ``evoparam.artifact``)
+      float64; 0-1 artifact-quality score (set by ``evoparam.artifact``)
 
    rejected
       bool; trial excluded by ``evoparam.prep.reject_trials``
@@ -821,7 +821,7 @@ Names that replace inherited ones
       Name chosen in place of an inherited one (spec §4.4): ``min_amplitude`` (data units).
 
    detection_threshold
-      Name chosen in place of an inherited one (spec §4.4): ``detection_threshold`` (in baseline-SD units) — used only for initial guesses, never as the final acceptance rule (§5.5.3).
+      Name chosen in place of an inherited one (spec §4.4): ``detection_threshold`` (in baseline-SD units) - used only for initial guesses, never as the final acceptance rule (§5.5.3).
 
    shapes
       Name chosen in place of an inherited one (spec §4.4): ``shapes`` (tuple of allowed shape names). Reason: several shapes may compete under model selection.

@@ -14,11 +14,8 @@ from evoparam.shapes import get_shape
 
 from .helpers import BASELINE, WINDOW, erp_waveform, match
 
-# Gamma deflections of the REQ-106 design at 12 and 25 samples (where the least-squares mode
-# is furthest from the truth's), SNR 10 and 20, on development seeds (not the REQ's).
 SEED = 900_000
 N_WAVEFORMS = 16
-# latency MAE of REQ-106 (samples); measured 0.40 penalised, 0.87 with "hqc"
 MAX_MAE_SAMPLES = 0.5
 
 ###################################################################################################
@@ -34,7 +31,7 @@ def _latency_mae(shape_choice: str) -> float:
         fit = ResponseModel(
             fit_window=WINDOW, baseline=BASELINE, shape_choice=shape_choice
         ).fit_waveform(times, y)
-        errors += [abs(v) * 1000 for v in match(fit, truth)[3]]  # samples at 1 kHz
+        errors += [abs(v) * 1000 for v in match(fit, truth)[3]]
     return float(np.mean(errors))
 
 

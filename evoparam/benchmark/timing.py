@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Performance workloads P1–P6 of the specification (§9.1, REQ-290, REQ-299).
+"""Performance workloads P1-P6 of the specification (§9.1, REQ-290, REQ-299).
 
 ``run_suite("perf")`` runs the six workloads at the sizes of the specification and is the
 release measurement on the reference machine (``benchmarks/README.md``); ``run_suite("ci")``
@@ -72,7 +72,6 @@ TARGETS = {
     "P6": "median < 0.300 s",
 }
 SFREQ = 2048.0
-# the targets of TARGETS as numbers; P2 is judged at its full size (channels, trials)
 _P1_TARGET_S = 0.050
 _P2_TARGET_S = 60.0
 _P2_FULL_SIZE = (100, 50)
@@ -195,7 +194,6 @@ def environment() -> dict[str, Any]:
 
 
 ###################################################################################################
-## Fixtures (evoparam.sim, random_state=0)
 
 
 def _ccep(
@@ -221,7 +219,6 @@ def _ccep(
 
 
 ###################################################################################################
-## The six workloads
 
 
 def p1(repeats: int = 20) -> dict[str, Any]:
@@ -248,7 +245,7 @@ def p1(repeats: int = 20) -> dict[str, Any]:
 
 def p2(n_channels: int = 100, n_trials: int = 50, n_jobs: int = 4) -> dict[str, Any]:
     """Trial-by-trial fits with the channel template as warm start."""
-    from evoparam import existence  # not the package root (import graph, §4.2)
+    from evoparam import existence
     from evoparam.trials import fit_trials
 
     trials = _ccep(n_trials, n_channels)
@@ -289,7 +286,7 @@ def p3(
     """Peak memory of ``evoparam.fit`` on a large TrialSet, in memory and memory-mapped."""
     import inspect
 
-    from evoparam import existence  # not the package root (import graph, §4.2)
+    from evoparam import existence
     from evoparam.data import TrialSet
     from evoparam.models import fit as models_fit
 
@@ -329,7 +326,7 @@ def p3(
     if mmap:
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "p3.npy")
-            mapped = np.lib.format.open_memmap(  # type: ignore[no-untyped-call, unused-ignore]  # untyped in NumPy's stubs
+            mapped = np.lib.format.open_memmap(  # type: ignore[no-untyped-call, unused-ignore]
                 path, mode="w+", dtype=np.float64, shape=(n_trials, n_channels, n_times)
             )
             _p3_data(n_trials, n_channels, n_times, out=mapped)
@@ -388,7 +385,7 @@ def p4() -> dict[str, Any]:
 
 def p5(n_channels: int = 256) -> dict[str, Any]:
     """``evoparam.reproduce`` of a saved GroupFit against the time of the original fit."""
-    from evoparam import existence, reports  # not the package root (import graph, §4.2)
+    from evoparam import existence, reports
 
     trials = _ccep(10, n_channels)
     with warnings.catch_warnings():
@@ -424,7 +421,7 @@ def p6(repeats: int = 10) -> dict[str, Any]:
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [root, env.get("PYTHONPATH")]))
     durations, wall = [], []
-    for _ in range(repeats + 1):  # the first one fills the caches
+    for _ in range(repeats + 1):
         start = time.perf_counter()
         done = subprocess.run(
             [sys.executable, "-X", "importtime", "-c", "import evoparam"],
@@ -441,7 +438,7 @@ def p6(repeats: int = 10) -> dict[str, Any]:
         ]
         durations.append(found[-1] / 1e6 if found else np.nan)
     durations, wall = durations[1:], wall[1:]
-    if not np.isfinite(durations).any():  # no importtime line: the wall time
+    if not np.isfinite(durations).any():
         durations = wall
     median = float(np.nanmedian(durations))
     loaded = subprocess.run(
@@ -480,7 +477,6 @@ WORKLOADS: dict[str, Callable[..., Any]] = {
 
 
 ###################################################################################################
-## Suite, comparison, files
 
 
 def run_suite(

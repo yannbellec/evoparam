@@ -15,7 +15,6 @@ import evoparam
 from evoparam import reports
 from evoparam.errors import EvoparamVersionError
 
-# Relative tolerance of a reproduced result.
 RTOL = 1e-9
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))

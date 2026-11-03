@@ -13,14 +13,12 @@ import pytest
 
 from evoparam.cli import main
 
-# Exit codes of the command line (spec §10.4).
 EXIT_PARTIAL = 3
 EXIT_USAGE = 2
 EXIT_MISSING_DEPENDENCY = 4
 EXIT_INPUT = 5
 EXIT_MISMATCH = 6
 EXIT_INTERRUPTED = 130
-# Units of the BIDS run, and the fewest presets listed.
 N_UNITS = 5
 MIN_PRESETS = 11
 
@@ -160,12 +158,12 @@ def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys:
 
     _, out = fitted
     assert main(["fit"]) == EXIT_USAGE  # usage
-    spec = tmp_path / "missing_tool.json"  # runtime: the external
+    spec = tmp_path / "missing_tool.json"
     spec.write_text(
         json.dumps(
             {
                 "name": "missing",
-                "tasks": ["T7"],  # tool cannot be found
+                "tasks": ["T7"],
                 "command": [str(tmp_path / "no-such-tool")],
             }
         )
@@ -193,7 +191,7 @@ def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys:
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert summary["exit_code"] == 1
     assert summary["status"] == "error"
-    assert main(["benchmark", "--json"]) == EXIT_USAGE  # usage: no action
+    assert main(["benchmark", "--json"]) == EXIT_USAGE
     capsys.readouterr()
     bad = tmp_path / "bad.evoparam"
     bad.mkdir()
@@ -206,12 +204,10 @@ def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys:
         == EXIT_MISSING_DEPENDENCY
     )
     monkeypatch.delitem(sys.modules, "matplotlib")
-    # a changed setting in the saved provenance: reproduction differs (exit 6)
     import shutil
 
     copy = tmp_path / "changed.evoparam"
     shutil.copytree(container, copy)
-    # the result's provenance lives in structure.json (provenance.json is a readable copy)
     structure = (copy / "structure.json").read_text()
     assert '"max_components": 6' in structure
     (copy / "structure.json").write_text(
@@ -310,10 +306,8 @@ def test_req322_single_file_default_preset_and_toml(
     group = read_bids_derivatives(str(tmp_path / "evoparam"), subject="01", task="ccep")
     from evoparam import presets
 
-    # the preset is recorded as {"name", "version"} (REQ-331)
     assert group.settings["preset"] == {"name": "ccep", "version": presets.get("ccep").version}
 
-    # .npz recording: data [trials, channels, times], sfreq, tmin
     import numpy as np
 
     from evoparam import sim

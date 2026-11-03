@@ -21,14 +21,9 @@ if TYPE_CHECKING:
 
 __all__ = ["reference_sensitivity", "threshold_detector", "register_detector", "DETECTORS"]
 
-# Detections [n_channels, n_groups] of a detector run per group; a detector returns
-# (detected, latency) and, per group, the group names as a third item.
 _PER_GROUP_NDIM = 2
 _N_DETECTOR_OUTPUTS = 2
 
-# Detectors by name. "existence" (the existence test of spec §5.6, the default) is registered
-# by the package root when evoparam is imported: the existence test is built on the fitting
-# engine, which itself uses this module, so prep cannot import it (spec §4.2).
 DETECTORS: dict[str, Callable[..., Any]] = {}
 
 
@@ -193,7 +188,6 @@ def reference_sensitivity(
     table.attrs["channels"] = channels
     table.attrs["detector"] = detector_name
     table.attrs["duration_s"] = _time.perf_counter() - start
-    # the step, for the methods text of a pipeline that attaches this report (spec §6.2)
     table.attrs["provenance"] = ts.provenance.with_step(
         "evoparam.prep.reference_sensitivity",
         {

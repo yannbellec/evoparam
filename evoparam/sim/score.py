@@ -24,7 +24,6 @@ from ._truth import GroundTruth
 
 __all__ = ["match_components", "score_fits", "MATCH_COLUMNS", "SCORE_COLUMNS"]
 
-# Columns of match_components() and score_fits(), with their units.
 MATCH_COLUMNS = {
     "channel": "",
     "condition": "",
@@ -72,9 +71,7 @@ SCORE_COLUMNS = {
     "false_rate_empty": "",
 }
 _COVERED = ("latency", "amplitude", "fwhm")
-# Cost of a forbidden pair: larger than any sum of allowed latency differences (s).
 _FORBIDDEN = 1e9
-# rounding slack on the latency tolerance of a match (s)
 _TOLERANCE_SLACK = 1e-12
 
 
@@ -350,7 +347,7 @@ def _match_waveform(
     return group_rows
 
 
-def match_components(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def match_components(  # noqa: PLR0913
     truth: Any,
     fit: Any,
     tolerance: str | float | None = "fwhm/2",

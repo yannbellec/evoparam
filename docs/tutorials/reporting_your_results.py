@@ -14,7 +14,7 @@ artifact method and the montage. evoparam writes all of it from the result's pro
 - ``evoparam.reports.citation()``: how to cite evoparam (``CITATION.cff``).
 
 Data: simulated CCEPs through the ``ccep`` preset chain.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # A result
@@ -40,10 +40,10 @@ print(reports.methods_text(result.results))
 # The tidy table, with units
 # --------------------------
 
-table = result.group.to_dataframe()  # one row per component
+table = result.group.to_dataframe()
 print(table[["channel", "label", "latency", "amplitude", "fwhm", "existence_p"]].round(4).head())
 print({k: v for k, v in table.attrs["units"].items() if k in ("latency", "amplitude")})
-fits = result.group.to_dataframe("fit")  # one row per channel: goodness of fit
+fits = result.group.to_dataframe("fit")
 print(fits[["channel", "status", "n_components", "r2", "bic"]].round(3))
 
 # %%

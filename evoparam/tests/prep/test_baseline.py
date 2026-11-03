@@ -12,7 +12,6 @@ from evoparam.prep import baseline_correct
 
 from .helpers import epochs
 
-# Baseline window (s) of the trials, and the largest slope left by the linear mode.
 BASELINE_START = -0.5
 BASELINE_END = -0.05
 MAX_SLOPE = 5
@@ -46,7 +45,6 @@ def test_req080_one_hertz_design_warns_and_suggests() -> None:
     with pytest.warns(UserWarning, match="Suggested: baseline_source='first_pulse'") as rec:
         baseline_correct(ts, baseline=(-0.5, -0.05))
     assert "shortest interval between pulses 1.000 s" in str(rec[0].message)
-    # The suggested alternative is valid: no warning
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         out = baseline_correct(ts, baseline=(-0.5, -0.05), baseline_source="first_pulse")

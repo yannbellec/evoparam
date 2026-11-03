@@ -59,15 +59,10 @@ from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url, quote, unquote
 from evoparam.io.brainvision import _pick, _sample
 
-# Shortest range a CRC is computed on (the CRC field itself is 4 bytes)
 _CRC_MIN_BYTES = 4
-# RED range decoder: the last symbol of the 256-symbol alphabet, and the symbol that flags a
-# keysample (a full 4-byte value follows), as RED_decode of meflib
 _LAST_SYMBOL = 255
 _KEYSAMPLE_FLAG = 0x80
-# Major version read by this module
 _MEF_VERSION = 3
-# RED range decoder: renormalisation threshold (2**23) and 32-bit mask
 _RED_BOTTOM = 1 << 23
 _MASK32 = 0xFFFFFFFF
 
@@ -86,10 +81,9 @@ RED_NEGATIVE_INFINITY = -(1 << 31) + 1
 RED_POSITIVE_INFINITY = (1 << 31) - 1
 UUTC_NO_ENTRY = -(1 << 63)
 
-DISCONTINUITY = 1  # bit 0 of the block flags
-ENCRYPTION = 2 | 4  # bits 1 and 2: level 1 or level 2 encryption
+DISCONTINUITY = 1
+ENCRYPTION = 2 | 4
 
-# One entry of the .tidx file (56 bytes, little endian)
 INDEX_DTYPE = np.dtype(
     [
         ("file_offset", "<i8"),
@@ -106,7 +100,6 @@ INDEX_DTYPE = np.dtype(
     ]
 )
 
-# Header of a RED block (304 bytes)
 BLOCK_DTYPE = np.dtype(
     [
         ("crc", "<u4"),
@@ -124,7 +117,6 @@ BLOCK_DTYPE = np.dtype(
     ]
 )
 
-# Units description -> factor to µV. Descriptions are free text: "microvolts" (Mayo), "uV", ...
 _TO_UV = {
     "µv": 1.0,
     "μv": 1.0,
@@ -142,14 +134,11 @@ _TO_UV = {
     "nanovolts": 1e-3,
 }
 
-# Remote reads: bytes per cached chunk of a .tdat file (the bytes read beyond the blocks
-# are less than two chunks per file), and parallel HTTP reads.
 _CHUNK = 1 << 12
 _WORKERS = 16
 
 
 ###################################################################################################
-## CRC (Koopman 32-bit polynomial, as meflib: initial value 0xFFFFFFFF, no final XOR)
 
 _KOOPMAN32 = 0xEB31D82E
 _CRC_SPAN = 256
@@ -269,7 +258,6 @@ def _red_tables(headers: Any, n_symbols: IntArray) -> tuple[Any, Any, Any, Any, 
     totals = cumulative[:, 256]
     if np.any((totals == 0) & (n_symbols > 0)):
         raise ReaderError("MEF: a RED block has no symbol statistics (corrupted block).")
-    # Symbol of each cumulative count, all blocks in one table
     lookup = np.repeat(np.tile(np.arange(256, dtype=np.int64), n_blocks), counts.ravel())
     base = np.cumsum(totals) - totals
     return counts, cumulative, totals, lookup, base
@@ -302,7 +290,6 @@ def _red_samples(symbol: Any, rem: Any, ky: Any, cur: Any) -> None:
 
 def _red_unlossy(values: Any, offsets: Any, n_samples: Any, headers: Any) -> None:
     """Undo the lossy steps of the blocks that have them (in place)."""
-    # unscale, then add the trend back (meflib RED_unscale, RED_retrend)
     lossy = np.flatnonzero(
         (headers["scale_factor"] > 1.0)
         | (headers["detrend_slope"] != 0)
@@ -350,7 +337,6 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
     n_samples = headers["n_samples"].astype(np.int64)
     offsets = np.cumsum(n_samples) - n_samples
     values = np.zeros(int(n_samples.sum()), dtype=np.int32)
-    # Coded symbols: difference_bytes counts the implicit first keysample flag
     n_symbols = np.where(n_samples > 0, headers["difference_bytes"].astype(np.int64) - 1, 0)
     if n_blocks == 0 or n_symbols.max() <= 0:
         return values, offsets
@@ -359,7 +345,6 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
     order = np.argsort(-n_symbols, kind="stable")
     sorted_symbols = n_symbols[order]
     n_steps = int(sorted_symbols[0])
-    # active[step]: number of blocks that still have a symbol at this step
     active = n_blocks - np.searchsorted(sorted_symbols[::-1], np.arange(n_steps), side="right")
 
     pos = np.asarray(starts, dtype=np.int64)[order] + BLOCK_HEADER_BYTES
@@ -373,7 +358,7 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
     cum_flat, count_flat = cumulative.ravel(), counts.ravel()
     out_offset = offsets[order]
     written = np.zeros(n_blocks, dtype=np.int64)
-    remaining = np.full(n_blocks, 4, dtype=np.int64)  # bytes left of a keysample
+    remaining = np.full(n_blocks, 4, dtype=np.int64)
     key = np.zeros(n_blocks, dtype=np.int64)
     current = np.zeros(n_blocks, dtype=np.int64)
 
@@ -390,7 +375,6 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
         rg[:] = np.where(
             symbol == _LAST_SYMBOL, rg - below, per_count * count_flat[count_row[:k] + symbol]
         )
-        # Rebuild the samples
         cur = current[:k]
         _red_samples(symbol, remaining[:k], key[:k], cur)
         done = np.flatnonzero(remaining[:k] == 0)
@@ -720,7 +704,7 @@ def _read_channel(
             f"frequencies {sorted(sfreqs)}."
         )
     meta = parts[0][1]
-    blocks: Any  # the tables of the segments, then one structured array
+    blocks: Any
     blocks, segs = [], []
     for pos, (number, seg_meta, index) in enumerate(parts):
         segs.append(
@@ -784,7 +768,6 @@ def _read_channel(
     return channel, log.bytes_read
 
 
-# An unflagged jump of the block start times longer than this (s) is a gap too
 _UNFLAGGED_GAP = 1.0
 
 
@@ -803,7 +786,6 @@ def _positions(blocks: Any, sfreq: float, t0: Any) -> NDArray[Any]:
         return np.zeros(0, dtype=np.int64)
     period = 1e6 / sfreq
     times, samples, counts = blocks["time"], blocks["sample"], blocks["n"]
-    # Gap before each block: its start time minus the end time of the previous block
     gap = np.zeros(n)
     gap[1:] = (times[1:] - times[:-1]) / period - counts[:-1]
     heads = (blocks["flags"] & DISCONTINUITY).astype(bool) | (gap * period > _UNFLAGGED_GAP * 1e6)
@@ -1049,7 +1031,7 @@ class _Fetched:
 
     buf: Any
     block_starts: Any
-    info: list[Any]  # col, ch, block, n, bytes, constant
+    info: list[Any]
     lines: list[Any]
     network: int
 
@@ -1202,12 +1184,10 @@ def _read_grid(
     stops = starts + n_times
     out = np.full((starts.size, len(ch_index), n_times), np.nan)
 
-    # Blocks that cover a window; data runs grouped per file
     pieces, files = _grid_blocks(header, ch_index, (starts, stops), check_crc)
     jobs, contents = _fetch_files(session, files)
     fetched = _join_blocks(header, jobs, contents)
     pieces += _decoded_pieces(header, fetched, check_crc)
-    # Place the samples on the windows
     _place(out, header, pieces, starts)
 
     meta_lines = []
@@ -1278,7 +1258,7 @@ def _read_with_source(
     if picks is not None:
         items = [picks] if isinstance(picks, str) else list(picks)
         if items and all(isinstance(item, str) for item in items):
-            names = items  # read the metadata of these channels only
+            names = items
     header = read_mef_header(path, channels=names, remote=remote, check_crc=check_crc, log=log)
     ch_index, sfreq = _pick_mef(header, picks)
     _warn_units(header, ch_index)

@@ -26,15 +26,11 @@ from .noise import make_noise, parse_kind
 
 __all__ = []
 
-# Independent random streams of a simulation, spawned from one seed, so that changing
-# the noise model does not change the components and the reverse.
 STREAMS = ("design", "trial", "noise", "artifact")
 
 JITTER_DISTRIBUTIONS = ("normal", "exgaussian")
 
-# fewest samples of an epoch and of a baseline
 _MIN_SAMPLES = 2
-# a sample at t > -1e-12 s is at or after the onset (rounding of k / sfreq)
 _ONSET_TOLERANCE_S = -1e-12
 
 
@@ -67,7 +63,6 @@ class Source:
 
 
 ###################################################################################################
-## Seeds and settings
 
 
 def seed_streams(seed: Any) -> tuple[int, dict[str, np.random.Generator]]:
@@ -80,7 +75,7 @@ def seed_streams(seed: Any) -> tuple[int, dict[str, np.random.Generator]]:
     if isinstance(seed, np.random.Generator):
         entropy = int(seed.integers(0, 2**63 - 1))
     elif seed is None:
-        entropy = int(cast(int, np.random.SeedSequence().entropy))  # an int when drawn
+        entropy = int(cast(int, np.random.SeedSequence().entropy))
     elif isinstance(seed, (int, np.integer)) and not isinstance(seed, bool) and seed >= 0:
         entropy = int(seed)
     else:
@@ -150,7 +145,6 @@ def table(columns: Any, n_rows: Any) -> Any:
 
 
 ###################################################################################################
-## Amplitudes from signal-to-noise ratios
 
 
 def _check_snr_value(value: Any, what: Any) -> float:

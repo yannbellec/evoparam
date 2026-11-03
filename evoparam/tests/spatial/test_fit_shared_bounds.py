@@ -74,8 +74,6 @@ def _ecap(seed: Any) -> Any:
     evoked = ts.average()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # per-channel fits without the rule and without reseeding: they hold cancelling
-        # pairs (seeds 0 and 3)
         independent = ResponseModel(
             "ecap_ci", reject_cancelling=False, reseed=False, latency_order="sorted"
         ).fit_group(evoked, picks=channels)
@@ -96,7 +94,7 @@ def test_no_cancelling_pair_in_the_shared_fit(seed: Any) -> None:
             group_fit=independent,
             reject_cancelling=False,
         )
-    assert _pairs(reproduced)  # the defect without the rule
+    assert _pairs(reproduced)
     assert not _pairs(group)
     dropped = group.settings["fit_shared"]["dropped"]
     assert dropped
@@ -120,7 +118,6 @@ def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency: An
     bipolar = rereference(ts, "bipolar", groups=dict.fromkeys(ts.ch_names, "ROC"))
     bipolar = baseline_correct(bipolar, (-0.2, -0.02), check=False)
     average = bipolar.average()
-    # the channels that are not the stimulated pair and not censored (zeros)
     channels = [
         n
         for i, n in enumerate(bipolar.ch_names)

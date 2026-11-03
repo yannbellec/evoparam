@@ -197,11 +197,11 @@ beyond the 1e-9 of the fixtures, so a faster QR needs a new algorithm version.
 
 ### N1 case: the rule's N1 detections (REQ-113, REQ-114, REQ-273)
 
-REQ-113 names an N1 "a negative component with latency in 9–50 ms" and asks it on every
-channel where the published rule, read over 9–100 ms, "detects one". The rule's detections
+REQ-113 names an N1 "a negative component with latency in 9-50 ms" and asks it on every
+channel where the published rule, read over 9-100 ms, "detects one". The rule's detections
 whose peak is after 50 ms are not N1s by that definition. Both readings are now asked
-(DECISIONS §5.11): the rule's detections over 9–100 ms (A, the tests until now) and its N1
-detections, the peaks it finds in 9–50 ms (C: the rule unchanged, its window ending at
+(DECISIONS §5.11): the rule's detections over 9-100 ms (A, the tests until now) and its N1
+detections, the peaks it finds in 9-50 ms (C: the rule unchanged, its window ending at
 50 ms). Settings were examined on development runs only: UMCU07, 08, 10, 11, 19, 28, 40
 and 49; six runs of UMCU01 other than the example; UMCU12 to 17. The test runs (the
 example and the REQ-371 runs) were measured once, at the end. No default of the package
@@ -255,7 +255,7 @@ in DECISIONS §4.
    the masked fraction of its support `[onset, offset]`, and its standard errors by the
    same factor; `diagnostics["masked_support"]` and the warning `masked_onset:<i>` record
    it. Point estimates unchanged. Measured on the test waveform (Gaussian at 100 ms, FWHM
-   40 ms, 55–75 ms masked): `f` = 0.130, latency SE 0.517 ms without mask, 0.536 ms with
+   40 ms, 55-75 ms masked): `f` = 0.130, latency SE 0.517 ms without mask, 0.536 ms with
    the mask (zero weights), 0.606 ms widened. Test:
    `tests/models/test_varpro.py::test_masked_onset_widens_the_intervals` (widths exactly
    `1 + f` times those of the same fit without the widening, centres kept; an unmasked
@@ -273,8 +273,8 @@ in DECISIONS §4.
    against 0.60 s at full resolution. Tests: `tests/models/test_long_window.py`.
 3. **The `erp` preset's MMN, N2pc, LRP and ERN windows (D6, REQ-274).** Added with ERP
    CORE's published measurement windows [LIT-erpmeas-39] (the source §6.2 names; the same
-   windows as `validation/erpcore.py` and benchmark task T6): MMN 125–225 ms, N2pc
-   200–275 ms, LRP −100–0 ms, ERN 0–100 ms, all negative, after the six labels of the
+   windows as `validation/erpcore.py` and benchmark task T6): MMN 125-225 ms, N2pc
+   200-275 ms, LRP -100-0 ms, ERN 0-100 ms, all negative, after the six labels of the
    table, which keep their precedence. `erp` 1.1 → 1.2 (labels only: fits are unchanged,
    their names can change; results made with `erp` 1.1 are refused by
    `evoparam.reproduce`, REQ-333). The table comparison of REQ-270 lists the four as a
@@ -291,13 +291,13 @@ in DECISIONS §4.
    the other levels). The draws are matched to the components through the engine's order
    (`ResponseFit` sorts by latency; the profile intervals use the same matching). On the
    test waveform (20 trials, 60 resamples, all successful; first component, Gaussian
-   at 120 ms) the 95 % intervals are, bootstrap against Wald: `mu` 0.11960–0.12178 s
-   against 0.11965–0.12154 s, `sigma` 0.0165–0.0178 s against 0.0162–0.0182 s, `A`
-   −8.03 to −7.43 against −8.07 to −7.33. Cost on that waveform: 0.66 s against 0.43 s. BCa is
+   at 120 ms) the 95 % intervals are, bootstrap against Wald: `mu` 0.11960-0.12178 s
+   against 0.11965-0.12154 s, `sigma` 0.0165-0.0178 s against 0.0162-0.0182 s, `A`
+   -8.03 to -7.43 against -8.07 to -7.33. Cost on that waveform: 0.66 s against 0.43 s. BCa is
    still not implemented for a fit (DECISIONS §3). Test:
    `tests/models/test_status_api.py::test_bootstrap_returns_the_distribution_and_intervals_on_every_parameter`.
 5. **REQ-133 for the `ftract` rule.** The test of the registry left `ftract` out: its
-   statistic is taken after the 1–45 Hz band-pass, so the one-sample waveform of the
+   statistic is taken after the 1-45 Hz band-pass, so the one-sample waveform of the
    other rules does not lie at the threshold. A waveform built at the threshold after
    the filter (scale of a 10 Hz burst solved to 1e-9) flips the decision at `k ± 1e-6`
    for `k` = 3, 5 and 7 (the row gives "Z between 3 and 7", DECISIONS §4), passed
@@ -1127,7 +1127,7 @@ against 2.60, 2.70, 2.93 s.
 ### N1 case: the registry row read as a negative peak (REQ-113, REQ-114, REQ-135, REQ-273)
 
 - The reading. The §5.6 row is "`|x| > 3.4·SD_baseline` with a negative peak, ≥ 1
-  sample" in 9–100 ms. A peak is a local extremum. The window's most negative sample on
+  sample" in 9-100 ms. A peak is a local extremum. The window's most negative sample on
   a monotone slope (its first sample on the recovery tail, its last on a drift) is not
   one. The new option `peak="strict"` of the registry rules implements the word: the
   deepest strict local minimum of the window, lower than both neighbours (read outside
@@ -1156,7 +1156,7 @@ against 2.60, 2.70, 2.93 s.
   contacts. It does not bring the rule closer to the preset's N1.
 - The remaining disagreements, classified:
   - Example run, PT contacts:
-    - 10 of the 11 rule N1s peak after 50 ms, outside the N1 window (9–50 ms) that
+    - 10 of the 11 rule N1s peak after 50 ms, outside the N1 window (9-50 ms) that
       REQ-113 names for the preset; the preset misses 9 of them.
     - The preset's 6 N1s the rule does not find: 3 are peaks beyond 3.4 SD on the
       preset's own input (the adjusted common average) but not on the monopolar average
@@ -1165,14 +1165,14 @@ against 2.60, 2.70, 2.93 s.
     - 24 peak after 50 ms;
     - 30 peak in the N1 window: 11 of them are peaks the preset's input does not have
       (the reference), and 19 are peaks it has where the fit names no N1 component. Of
-      the 30, the fitted curve has a trough in 9–50 ms on 13.
+      the 30, the fitted curve has a trough in 9-50 ms on 13.
   - REQ-371 runs, 33 preset N1s the rule does not find: 9 are peaks beyond 3.4 SD of the
     preset's input and 24 are not. On the monopolar average the rule reads, 11 of the 33
-    have a peak of 2–3.4 SD, 12 a peak below 2 SD and 10 no negative peak at all.
+    have a peak of 2-3.4 SD, 12 a peak below 2 SD and 10 no negative peak at all.
   - Development runs: of the rule N1s missed, 21 are late, 2 are the reference and 8
     have no N1 named. Of the 34 preset N1s the rule does not find, 6 are peaks of the
     preset's input and 28 are not.
-  - The trough oracle (an N1 wherever the rule's own average has a 9–50 ms trough below
+  - The trough oracle (an N1 wherever the rule's own average has a 9-50 ms trough below
     -3.4 SD) reaches 0.132 on the example's PT contacts. On the REQ-371 runs it reaches
     1.000, 0.971, 0.865, 0.839, 0.789 and 0.458 (0.816 pooled; development runs 0.776).
     It meets both conditions of REQ-113 on two runs only, so no N1 detector can meet
@@ -1189,7 +1189,7 @@ against 2.60, 2.70, 2.93 s.
 - D8 bounds with this reading: 0.378 on the PT contacts; 0.738, 0.387, 0.478, 0.783,
   0.752 and 0.557 on the REQ-371 runs; 0.655 pooled. The two readings agree at kappa
   0.13 on the PT contacts and 0.385 pooled.
-- Channels the rule detects whose average has no 9–50 ms trough: 9 of 11 on the
+- Channels the rule detects whose average has no 9-50 ms trough: 9 of 11 on the
   example's PT contacts; 0, 1, 1, 2, 5 and 12 on the REQ-371 runs; 6, 0, 0, 8 and 2 on
   the development runs.
 - REQ-114 (negative peak; window's most negative sample in brackets; code unchanged at
@@ -1204,7 +1204,7 @@ against 2.60, 2.70, 2.93 s.
   | the same in the rule's reference | 82 % (93 %) | 84 % (89 %) |
 
   The rule's-reference reading is no longer met with the registry row; it stays met with
-  the code. 7 of its 10 misses on the REQ runs are rule peaks at 87–100 ms. These are
+  the code. 7 of its 10 misses on the REQ runs are rule peaks at 87-100 ms. These are
   small local minima of the noisy average on a slope, where the smooth fitted curve has
   no local minimum. The word "peak" read on noisy data still counts such wiggles. A
   selectivity would remove them, but the code's 20 uV belongs to the code and the row
@@ -1269,11 +1269,11 @@ What changed is which comparator and which model decision the test uses.
 - Judged against the spec text:
   - The 50 uV SD floor and the local minimum (with the 20 uV selectivity, the first
     sample excluded, and the 3000 uV saturation) belong to the published code. The
-    §5.6 row reads `|x| > 3.4·SD_baseline` with a negative peak, ≥ 1 sample, 9–100 ms.
+    §5.6 row reads `|x| > 3.4·SD_baseline` with a negative peak, ≥ 1 sample, 9-100 ms.
     It has no floor (3.4 x 50 uV = 170 uV is the smallest N1 the code accepts) and no
     peak selectivity. F65 made the registry rule faithful to that text.
   - REQ-113 asks that "the default `ccep` preset (§6) detects an N1 (negative component
-    with latency in 9–50 ms)". The 2026-10-08 decision was something else: the trough
+    with latency in 9-50 ms)". The 2026-10-08 decision was something else: the trough
     of the fitted curve, kept when it was deeper than the rule's own amplitude criterion
     computed on the rule's own average. The detection borrowed the comparator's
     threshold and its input. F1 made the decision the preset's own.
@@ -2744,7 +2744,7 @@ The criterion and the reference rule are unchanged.
 | code | 1024 | 0.765 (26/34) | 0.794 (27/34) | 0.258 | 0.407 | 127 | 85 |
 | code | 512 | 0.853 (29/34) | 0.824 (28/34) | 0.329 | 0.315 | 116 | 116 |
 
-The recall drop at 1024 Hz is now +4.97 points for the paper reading (met; it was −0.6
+The recall drop at 1024 Hz is now +4.97 points for the paper reading (met; it was -0.6
 because the upsampled run's spurious N1s also hit rule channels) and +8.82 points for the
 code reading (not met; it was +11.8). The test stays a strict expected failure, and its
 reason now gives both values with two decimals. On unchanged inputs, 5 decisions of the
@@ -2759,7 +2759,7 @@ sub-ccepAgeUMCU06 run 030854, and they are recovered at 512 Hz:
   early negative component peaks at 14.8 ms natively and at 1.3 ms at 1024 Hz, before the
   N1 window.
 - channels 6 and 10: the rule's N1 is at 93.7 ms and 94.7 ms, outside the model's N1 window
-  (9–50 ms). The native "hits" are small unrelated components at 47.5 ms and 20.1 ms.
+  (9-50 ms). The native "hits" are small unrelated components at 47.5 ms and 20.1 ms.
 
 No parameter of the `ccep` path was found to be in samples where it should be in time. The
 candidate smoothing, the edge rule, the widths, the windows, the priors and the artifact
@@ -2771,7 +2771,7 @@ not the cause. Other checks:
 - perturbing the native trials by 1e-15 and by 1e-6 relative changes 1 and 4 of the 615
   decisions, and none of the 34 code-rule channels;
 - the other decimation phase at 1024 Hz (odd samples) gives 25 of 34: five rule channels
-  flip between the two phases, while the total stays at 25–26.
+  flip between the two phases, while the total stays at 25-26.
 
 The loss is therefore systematic at 1024 Hz. It is not rounding noise. It comes from how the
 engine decomposes the early deflection at the edge of the fit window. The engine's
@@ -2963,7 +2963,7 @@ test is a strict expected failure with that reason. Readings of the spec are in
 - Typing (REQ-301): annotated `evoparam.selftest`, `evoparam.cite`, the logging functions
   and `ArtifactResult.cleaned`.
 - CLI:
-  - `evoparam benchmark run --suite perf|ci` runs the performance workloads P1–P6;
+  - `evoparam benchmark run --suite perf|ci` runs the performance workloads P1-P6;
     `--task` selects workloads, for example `--task P1,P6`;
   - `--task` and `--method` are aliases of `--tasks` and `--methods`, so
     `evoparam benchmark run --suite core --task T1 --method vanblooijs2023` reproduces one
@@ -3013,7 +3013,7 @@ test is a strict expected failure with that reason. Readings of the spec are in
   (77.8 min, 2 processes), with the ds004080 and ds004977 epochs already cached; nothing was
   downloaded.
   1. Montage: 7 ds004080 runs and 4 ds004977 sites, existence test under three references.
-     Median Cohen's κ: bipolar–CAR 0.23, bipolar–adjusted CAR 0.38, CAR–adjusted CAR 0.76.
+     Median Cohen's κ: bipolar-CAR 0.23, bipolar-adjusted CAR 0.38, CAR-adjusted CAR 0.76.
      The lowest κ is 0.00, 0.00 and 0.04. The median latency differences are 0.00, 0.21
      and 0.00 ms.
   2. Preset: each *(choice)* field ×0.5 and ×1.5, 20 seeds. There are 4 sensitivities, all
@@ -3024,9 +3024,9 @@ test is a strict expected failure with that reason. Readings of the spec are in
      - `component_labels` ×0.5: label recall → 0.000.
 
      `ccep`, `ccep_seeg`, `erna`, `erp` and `sep` show none: the largest latency change is
-     0.17 ms, and the largest recall change −0.015.
+     0.17 ms, and the largest recall change -0.015.
   3. Sampling rate, N1 recall against the published rule at the native rate:
-     - paper reading: 0.460 native, 0.466 at 1024 Hz (−0.6 points), 0.466 at 512 Hz. Met.
+     - paper reading: 0.460 native, 0.466 at 1024 Hz (-0.6 points), 0.466 at 512 Hz. Met.
      - code reading: 0.882 native, 0.765 at 1024 Hz (+11.8 points), 0.853 at 512 Hz. Not
        met: the criterion is at most 5 points, so the test is a strict expected failure
        with these values.
@@ -3047,8 +3047,8 @@ test is a strict expected failure with that reason. Readings of the spec are in
   | code | 0.398 | 0.882 | 3.47 ms | 0.367 |
 
 - `tools/layer3_gate.py` is the release gate of REQ-376. It reads the pre-registered
-  tolerances in `validation/layer3/tolerances.json`: κ −0.05, median latency +1 ms, recall
-  −3 points. It compares 42 metrics (the N1 file and the ERP CORE files) with the latest
+  tolerances in `validation/layer3/tolerances.json`: κ -0.05, median latency +1 ms, recall
+  -3 points. It compares 42 metrics (the N1 file and the ERP CORE files) with the latest
   `v*` tag, or with `HEAD` when there is no tag. A regression blocks the release unless the
   `## Unreleased` section has a line `Layer-3 regression explained: <metric>: <reason>`.
   On this branch: 0 regressions.
@@ -3056,14 +3056,14 @@ test is a strict expected failure with that reason. Readings of the spec are in
 #### Release engineering (REQ-297 to REQ-300, REQ-305, REQ-308, REQ-309)
 
 - Workflows (written, checked statically by `tests/test_ci_workflows.py`; none was run):
-  - `ci` (lint, format, typecheck, tests matrix 3.10–3.13 × three systems, core-only,
+  - `ci` (lint, format, typecheck, tests matrix 3.10-3.13 × three systems, core-only,
     lowest floors, doctests, import graph, build, `benchmark-results`);
   - `docs`, `perf`, `nightly`, `smoke`;
   - `release`, which starts with `tools/release_gate.py`. The PyPI upload job is kept
     outside `.github/workflows` (`ci/release-publish-job.yml`) until the HIIE decision.
 - Lock files `ci/locks/py3.10.lock` to `py3.13.lock`, with hashes.
 - `GOVERNANCE.md`, holding the HIIE decision block.
-- `RELEASING.md`: 12 steps, plus checks 6–9 (provenance map, traceability, algorithm-version
+- `RELEASING.md`: 12 steps, plus checks 6-9 (provenance map, traceability, algorithm-version
   bump, review of TRADEMARK.md at a major release).
 - `.pre-commit-config.yaml` and a pull-request template.
 - Sphinx configuration: bibtex with 1 095 entries generated from the spec's references,
@@ -3499,7 +3499,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   these numbers, and the REQ-275 criterion itself (both labelled for 80 % with ICA)
   stays an xfail (8 of 20).
 
-### Reports, shared shapes and preset behaviours (audit F44, F56–F58)
+### Reports, shared shapes and preset behaviours (audit F44, F56-F58)
 
 - ERP CORE P3 methods text on the real recording (F44, REQ-340). The network test
   `test_req340_erpcore_p3_real_recording_gives_the_frozen_text`
@@ -3538,7 +3538,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   - projection: the profile, with no band.
 
   `plot_existence` draws one panel per channel: the curve, the shaded band and the
-  onset–offset span. It falls back to bars for old objects.
+  onset-offset span. It falls back to bars for old objects.
 - Methods-text paragraphs for every recorded step (F57, REQ-340). New templates cover:
   - pulse detection (`detect_pulses` now records a step on the event table, which
     `epoch` carries);
@@ -3577,7 +3577,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
     which is the same set as before.
 - BIDS derivatives: `_preset` accepts the `{"name", "version"}` preset form of REQ-294.
 
-### Trials: speed, REQ-150/151/155/156/158 as written, spec options (audit F10, F17, F36–F38, Q6, Q8, Q9)
+### Trials: speed, REQ-150/151/155/156/158 as written, spec options (audit F10, F17, F36-F38, Q6, Q8, Q9)
 
 - Speed (F10, REQ-156). In `shift_scale` mode (and `template` mode), the trials of a channel
   are now solved together. The solver is a projected Levenberg-Marquardt iteration
@@ -3606,7 +3606,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
 
   The reason for the change is on real data. With `"all"`, the channel fits of ds004080 often
   split an N1 into overlapping parts (`N1`, `N1_b`, …). The neighbour rule then clips the
-  N1 `max_shift` to 0.1–2 ms, and trials sit at that bound. The choice of default was made
+  N1 `max_shift` to 0.1-2 ms, and trials sit at that bound. The choice of default was made
   on four held-out ds004080 subjects (UMCU07, 08, 10 and 11; the first pair with 10 trials,
   same pipeline), not on the six REQ-156 subjects. Median trusted fraction on the
   significant N1 channels:
@@ -3626,11 +3626,11 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
 
   `"selected"` is much worse on the same runs: 0.532 ms and 24.3 % at 2 ms.
 
-  On REQ-153 (50 two-component channels, seeds 400–449), the regularized latency MAE is
+  On REQ-153 (50 two-component channels, seeds 400-449), the regularized latency MAE is
   1.828 ms (all), 1.858 ms (anchored) and 1.902 ms (selected); regularized beats free on
   100 % of channels in all three.
 
-  On REQ-150 at SNR 3 with an N2 added (20 runs, seeds 500–519), all and anchored give the
+  On REQ-150 at SNR 3 with an N2 added (20 runs, seeds 500-519), all and anchored give the
   same numbers. Against selected:
 
   | Jitter | Latency MAE, all and anchored / selected | Amplitude MAE, all and anchored / selected |
@@ -3638,10 +3638,10 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   | 2 ms | 0.88 / 0.87 sample | 7.5 / 12.1 % |
   | 5 ms | 0.96 / 0.95 sample | 8.8 / 8.5 % |
 
-  `"anchored"` is also 30–45 % faster than `"all"`. It also makes the trials and
+  `"anchored"` is also 30-45 % faster than `"all"`. It also makes the trials and
   `jitter_sd_null` use the same procedure, as §5.7 asks: the null fit already held the other
   components at their channel values. This default is a trade-off (robustness
-  and speed on real data against about 1–3 % of simulated MAE), so it is flagged for the
+  and speed on real data against about 1-3 % of simulated MAE), so it is flagged for the
   owner. `"all"` and `"selected"` stay available.
 - REQ-156 as written (F10). The six D14 subjects run with the ccep preset pipeline of
   REQ-113 (template artifact removal, adjusted CAR, baseline, `evoparam.fit` with existence
@@ -3656,24 +3656,24 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   | UMCU05 | 0.72 s | 0.9 |
   | UMCU06 | 1.25 s | 0.9 |
 
-  The pooled median is 0.9. With `"all"` the times are 1.07–2.28 s and the pooled median is
+  The pooled median is 0.9. With `"all"` the times are 1.07-2.28 s and the pooled median is
   0.7. The test is `test_trials_ccep.py` (network).
 - Spec options (Q6, Q9). `fit_trials` gains `ridge_cv` and `null_rule`. The spec's procedure
   is available for each, and the default is the one measured as better.
   - `ridge_cv` (Q6). `"loto"` (spec §5.7, leave-one-trial-out) is now the default. The
     centre of the penalty is the channel model refitted on the other trials, and the trial
     is scored on samples its fit did not see. `"split"` (the previous default) stays
-    available. On REQ-153 with 50 single-component channels (seeds 300–349), regularized
+    available. On REQ-153 with 50 single-component channels (seeds 300-349), regularized
     beats free on 100 % (loto) vs 98 % (split) of channels; mean latency MAE is 1.851 vs
     1.852 ms. On 50 two-component channels: 100 % for both, 1.828 ms for both. `split` is
-    6–10 % faster, which is not a gain worth a divergence.
+    6-10 % faster, which is not a gain worth a divergence.
   - `null_rule` (Q9). `"segments"` (default) uses five baseline segments per trial and
     refuses realignment above max(1.2, F-quantile). `"spec"` uses one segment and the 1.2 x
-    rule. On REQ-151 with 200 jitter-free runs of 40 trials (seeds 100–299):
+    rule. On REQ-151 with 200 jitter-free runs of 40 trials (seeds 100-299):
     - ratio `jitter_sd_null / jitter_sd` below 0.8 in 7 runs (segments) vs 15 runs (spec);
     - realignment refused in 99.0 % vs 86.5 % of runs (REQ-151 asks for at least 95 %).
 
-    With 200 trials per run (100 runs, seeds 1000–1099), both rules pass in every run: no
+    With 200 trials per run (100 runs, seeds 1000-1099), both rules pass in every run: no
     ratio below 0.8, and 100 % refused. `"segments"` is kept as the default.
 - REQ-150 as written (F36). At per-trial SNR 2 the REQ is out of reach for every width.
   - Even an efficient unbiased estimator cannot have latency MAE <= 1 sample and amplitude
@@ -3704,7 +3704,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   (seed 104: 0.768; 7 of 200 runs below 0.8, smallest 0.756), because the SD of 40 shifts
   varies by about 11 % from run to run. This is the strict xfail
   `test_req151_as_written_40_trials`. With 200 trials per run it holds in every run under
-  both null rules (`test_req151_as_written`, 20 runs, seeds 2000–2019, not used for any
+  both null rules (`test_req151_as_written`, 20 runs, seeds 2000-2019, not used for any
   choice).
 - REQ-155 type-I error (F38). Tested as written: <= 0.06 with no added tolerance, on 1000
   runs of 100 trials (binomial SD 0.007). Measured rate: 0.051. The runs are the channels
@@ -3714,7 +3714,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   - The `trend` covariate now reports a t-test p-value of the slope and the number of
     trials.
   - `test_req158_direction_on_simulated_1hz_trains` uses simulated 1 Hz trains of 30 pulses
-    with a declining N1 (`simulate_ccep`, gain 1 - 0.01 x index, seeds 10–12). The test
+    with a declining N1 (`simulate_ccep`, gain 1 - 0.01 x index, seeds 10-12). The test
     asserts that the slope is negative at >= 80 % of the significant sites (at least 10);
     it passes.
   - REQ-158 as written cannot be run: spec §7 has no dataset of repeated single pulses at
@@ -3732,7 +3732,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   - `test_req158_as_written` is a strict xfail (not run). An owner decision is needed: a
     1 Hz dataset with an N1 and a published direction.
 
-### Architecture, packaging and test infrastructure (audit F3, F4, F43, F45–F49, F60–F63, F66, F67)
+### Architecture, packaging and test infrastructure (audit F3, F4, F43, F45-F49, F60-F63, F66, F67)
 
 - Inherited code removed (§4.4, §4.5, §12 rule 1). The old engine and its modules are
   deleted: `objs`, `param`, `plts`, `analysis`, `core`, `bands`, `utils/{data, params, io,
@@ -3743,10 +3743,10 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   `evoparam.models.windows`. LICENSE and NOTICE keep the attribution. `import evoparam`
   loads only numpy and scipy: before this change, scikit-learn and pandas were loaded
   through `NotFittedError`, which is now built lazily.
-- Import graph (REQ-296, decisions D3–D5). The test checks the resolved table of
+- Import graph (REQ-296, decisions D3-D5). The test checks the resolved table of
   `docs/spec/DECISIONS.md` with no transitional edges. It finds cycles and top-level
   optional imports, runs a mutation check, and checks that the light core does not pull
-  in the removed modules. `docs/spec/DECISIONS.md` records the D1–D16 resolutions and
+  in the removed modules. `docs/spec/DECISIONS.md` records the D1-D16 resolutions and
   the import table.
 - Stimulation site (F60, F61). The reviewed rule of §5.2 method 5 is available as
   `identify_stim_site(..., method="spec")` (and `detect_pulses(site_method="spec")`).
@@ -4509,7 +4509,7 @@ Found while writing the tutorials (the first is addressed below):
 ### N1 case (REQ-113, REQ-114): diagnosis on ds004080 and fixes
 
 - Diagnosis. The xfail test compared the model with a re-reading of the rule (most
-  negative sample of 9–100 ms below 3.4 x the SD of (-0.5, -0.02) s), applied after the
+  negative sample of 9-100 ms below 3.4 x the SD of (-0.5, -0.02) s), applied after the
   model's own preprocessing (template removal, `car_adaptive`), on the 8 trials of the cached
   40 s segment and on 120 contacts, `el###` channels marked bad included. The published
   pipeline (mnl_ccepAge, van Blooijs et al. 2023: `ccep01_averageCCEPsAndDetectN1s.m`,
@@ -4524,7 +4524,7 @@ Found while writing the tutorials (the first is addressed below):
   re-reading found 8, four of them the artifact residue at the window start (9.8 ms: PT03,
   PT10, PT11, OC8) and the rest drift near 100 ms. Disagreements between the model and the
   published rule fell in four classes: (1) the old reading's artifact and drift
-  detections (the rule as read, not the model); (2) small real deflections (30–80 uV) that
+  detections (the rule as read, not the model); (2) small real deflections (30-80 uV) that
   the model finds and the 170 uV floor of the rule ignores (the rule's design: 8 of 20
   engine-only N1s on six subjects lie between 3.4 SD and the floor, 5 below 3.4 SD);
   (3) N1 latencies of the fitted component several ms from the trough, the early component
@@ -4533,7 +4533,7 @@ Found while writing the tutorials (the first is addressed below):
 - Engine, exact AR likelihood. `Whitener` takes the autocovariances of the baseline AR
   model (`ar_model(..., return_acov=True)`) and whitens the first `p` samples of the window
   by the Cholesky factor of their stationary covariance instead of dropping them. Near a
-  unit root (sum of the AR coefficients 0.98–0.995 in intracranial averages at 2 kHz) the
+  unit root (sum of the AR coefficients 0.98-0.995 in intracranial averages at 2 kHz) the
   AR filter is almost a difference, and the conditional likelihood was blind to a misfit of
   the slow part of the waveform: the curve could float away from the data (class 4).
 - Engine, noise model by least squares. `ar_model` fits the AR coefficients by least
@@ -4566,7 +4566,7 @@ Found while writing the tutorials (the first is addressed below):
   here). `"local"` is not the default: REQ-135 (permutation test vs vanblooijs2023, kappa
   0.763 >= 0.7, unchanged) falls to 0.40 with it, because the permutation test, like the
   paper's text, looks at the most extreme deflection.
-- Model N1 for REQ-113/114: the trough of the fitted curve in 9–50 ms, at least as deep as
+- Model N1 for REQ-113/114: the trough of the fitted curve in 9-50 ms, at least as deep as
   the published amplitude criterion (3.4 x max(SD, 50 uV) of the published average), i.e.
   the rule's own criterion applied to the model's measurement. The engine runs the ccep
   preset pipeline (epochs (-1, 2) s, template removal (-2, 8) ms, `car_adaptive`, baseline
@@ -4589,7 +4589,7 @@ Found while writing the tutorials (the first is addressed below):
   `selective_maxima`.
 - Results against the published rule read as published (all trials, good ECoG channels;
   kappa, missed channels, latency within 2 ms). Before: the S7 engine and reading (an N1
-  component with latency in 9–50 ms). After: exact likelihood, least-squares noise model
+  component with latency in 9-50 ms). After: exact likelihood, least-squares noise model
   and the trough reading.
 
   Development subjects (the method was chosen on these):
@@ -4621,13 +4621,13 @@ Found while writing the tutorials (the first is addressed below):
   The old test's own measure (re-read rule on the 8-trial segment) was about 0.5. On the
   46 PT contacts the only disagreement is PT03, next to the stimulated pair: a monotone
   decaying tail for the rule, a 344 uV trough at 17 ms for the model. Missed channels:
-  UMCU07 sOc7 (rule 70 ms, outside the model's 9–50 ms N1 label), UMCU19 sT7 (model trough
+  UMCU07 sOc7 (rule 70 ms, outside the model's 9-50 ms N1 label), UMCU19 sT7 (model trough
   169 uV against a 170 uV floor), UMCU01 run-061233 PT11 (the rule's peak is the second
   sample of its window, 9.3 ms at 2048 Hz: artifact residue, class 1), UMCU05 OB6 (no
   trough in the fitted curve) and PB6 (trough 146 uV, under the floor). The rule's
   9.3 ms peaks also make the two latency misses of the REQ-371 runs (PT03 and FC10, model
-  trough at 17.5 and 33.3 ms); the development misses are 2.1–3.3 ms. UMCU19's low kappa
-  comes from PT03-PT05, next to the stimulated pair, whose troughs of 2.7–3.3 mV the rule
+  trough at 17.5 and 33.3 ms); the development misses are 2.1-3.3 ms. UMCU19's low kappa
+  comes from PT03-PT05, next to the stimulated pair, whose troughs of 2.7-3.3 mV the rule
   refuses (no local minimum, or above its 3000 uV saturation limit); the model's criterion
   uses the floor only. Intermediate steps on the development subjects, pooled kappa /
   latency: Yule-Walker engine with the trough reading 0.74 / 83 %; with the exact
@@ -4642,9 +4642,9 @@ Found while writing the tutorials (the first is addressed below):
   grid; the published channel set is the good ECoG channels (100). Proposed wording (the
   spec text is not changed here): "on ds004080 sub-ccepAgeUMCU01 run-021448, stimulation
   pair PT01-PT02, all trials of the pair, the published rule applied as the published code
-  applies it (monopolar average, median baselines, local minimum in 9–100 ms, 3.4 x SD with
+  applies it (monopolar average, median baselines, local minimum in 9-100 ms, 3.4 x SD with
   a 50 uV floor) on the good ECoG channels, and the model's N1 (the trough of the fitted
-  curve in 9–50 ms) judged by the same amplitude criterion: the model misses at most one
+  curve in 9-50 ms) judged by the same amplitude criterion: the model misses at most one
   of the rule's channels; on the runs of the REQ-371 subjects (first pair of >= 10
   trials), Cohen's kappa is >= 0.8 pooled and >= 0.6 (the inter-rater agreement of human
   reviewers) on each run". Measured against it: met (0 missed on the example; pooled 0.87,
@@ -5452,7 +5452,7 @@ Found while writing the tutorials (the first is addressed below):
   - the r² of a trial (and so `trusted`) is computed around the reported components (from
     one width before their onset to one after their offset), not over the whole window,
     where ongoing activity dominates; a trial is untrusted when a *reported* component's
-    shift is at its bound (a neighbour held by a tight bound no longer counts) — together
+    shift is at its bound (a neighbour held by a tight bound no longer counts) - together
     these raised the trusted fraction on ds004080 from 0.14-0.43 to 0.86;
   - `jitter_sd_null` is estimated from five segments of each trial's baseline, with the
     same trust rule as the trials, and only the reported components moving;
@@ -5618,7 +5618,7 @@ Found while writing the tutorials (the first is addressed below):
   - `simulate_ccep`: sEEG shafts (3.5 mm) or an ECoG grid (10 mm) and a stimulation pair.
     Responders carry N1 (15-40 ms, FWHM 5-15 ms), N2 (80-250 ms, FWHM 40-150 ms) and,
     optionally, delayed responses (0.1-1 s). Other features:
-    - the dipole artifact `∝ 1/r+ − 1/r−` × the rectangular pulse through a 4th-order
+    - the dipole artifact `∝ 1/r+ - 1/r-` × the rectangular pulse through a 4th-order
       Butterworth anti-aliasing filter, plus a double-exponential recovery tail;
     - saturation at the rails, with masks;
     - trains, recorded in `train_id` and `index_in_train`, with adaptation;

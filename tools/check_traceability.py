@@ -22,7 +22,6 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-# Cells of a §14.1 row (gap, ..., validation), and the column of the tests in a §14.2 row.
 MATRIX_COLUMNS = 7
 REQ_TESTS_COLUMN = 3
 
@@ -36,7 +35,7 @@ def _rows(text, start, stop=None):
     for line in body.splitlines():
         if line.startswith("|") and not re.match(r"^\|\s*-", line):
             rows.append([cell.strip() for cell in line.strip().strip("|").split("|")])
-    return rows[1:]  # without the header
+    return rows[1:]
 
 
 def gaps(root):
@@ -70,9 +69,9 @@ def matrix(root):
         rows[cells[0]] = {
             "status": cells[2],
             "reqs": set(re.findall(r"REQ-\d{3}", cells[3])),
-            "modules": [m for m in re.split(r",\s*", cells[4]) if m not in ("", "—", "-")],
+            "modules": [m for m in re.split(r",\s*", cells[4]) if m not in ("", "\u2014", "-")],
             "tests": re.findall(r"`([^`]+)`", cells[5]),
-            "validation": cells[6] if cells[6] not in ("", "—", "-") else "",
+            "validation": cells[6] if cells[6] not in ("", "\u2014", "-") else "",
         }
     reqs = {}
     for cells in _rows(text, "### 14.2 Requirement", "\n## "):

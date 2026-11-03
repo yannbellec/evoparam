@@ -13,13 +13,10 @@ from evoparam.sim import simulate_erp
 
 pd = pytest.importorskip("pandas")
 
-# Window (s) of the mean amplitude, and the size above which the unbalanced ANOVA
-# estimator replaces REML.
 WINDOW_START = 0.08
 WINDOW_END = 0.12
 LARGE_SET = 3000
 
-# A negative component at 100 ms, given in data units (snr=None).
 N1 = {"label": "N1", "latency": 0.1, "fwhm": 0.04, "amplitude": -5.0}
 WINDOW = (0.092, 0.108)
 
@@ -111,9 +108,6 @@ def independent_dependability(ts: Any, window: Any) -> Any:
     groups = [y[subjects == s] for s in labels]
     sizes = np.array([len(g) for g in groups])
     if len(y) > LARGE_SET:
-        # large unbalanced sets (real data): the ANOVA estimator of unbalanced one-way
-        # designs (Searle, Casella and McCulloch 1992, n0 = (N - sum n_i^2 / N) / (k - 1)),
-        # close to REML when the design is near balance
         k, n_obs = len(groups), len(y)
         means = np.array([g.mean() for g in groups])
         msw = sum(((g - g.mean()) ** 2).sum() for g in groups) / (n_obs - k)

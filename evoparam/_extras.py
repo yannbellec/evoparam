@@ -49,8 +49,6 @@ EXTRAS = {
     },
 }
 
-# "edfio>=0.4 (preferred) or pyedflib>=0.1.36"; "(alternative backend pymc>=5.10)";
-# "jax[cuda12]>=0.4.30 or cupy-cuda12x>=13"
 ALTERNATIVES = {
     "edf": {"pyedflib": "0.1.36"},
     "bayes": {"pymc": "5.10"},
@@ -92,8 +90,6 @@ ADDITIONS = {
     },
 }
 
-# Packages of the table that ``pyproject.toml`` does not declare, each with the reason
-# (docs/spec/DECISIONS.md, section 5.7).
 WITHHELD = {
     "bids": {
         "pybids": "REQ-395: every pybids release from 0.16 requires num2words (and from 0.19 "

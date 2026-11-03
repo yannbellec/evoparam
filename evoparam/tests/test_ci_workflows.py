@@ -21,10 +21,8 @@ import evoparam
 
 yaml = pytest.importorskip("yaml")
 
-# Time limits (min) of the test and documentation jobs.
 TEST_TIMEOUT = 25
 DOCS_TIMEOUT = 20
-# Thresholds of REQ-305: line length, complexity, arguments and statements.
 LINE_LENGTH = 99
 MAX_COMPLEXITY = 12
 MAX_ARGS = 8
@@ -41,7 +39,7 @@ def _load(name: Any) -> Any:
 
 
 def _on(doc: Any) -> Any:
-    return doc.get("on", doc.get(True))  # YAML 1.1 reads the key `on` as True
+    return doc.get("on", doc.get(True))
 
 
 def _runs(job: Any) -> Any:
@@ -136,8 +134,6 @@ def test_req298_coverage_gates() -> None:
     assert any("--fail-under=80" in s["run"] for s in gates)
     for step in gates:
         assert step["if"] == "matrix.python == '3.12' && matrix.os == 'ubuntu-latest'"
-    # the gates measure what REQ-298 names: no gated module is left out of the measurement,
-    # the 90 % report covers the core packages, the 80 % report the outer layers
     try:
         import tomllib
     except ImportError:  # Python 3.10

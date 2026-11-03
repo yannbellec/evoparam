@@ -53,7 +53,6 @@ __all__ = [
     "STANDARD_STIM_COLUMNS",
 ]
 
-# column -> (description, unit); "data" is the amplitude unit of the result
 RESPONSE_COLUMNS = {
     "channel": ("Channel name, as in channels.tsv.", ""),
     "stim_site": ("Stimulation site (contact pair) of the averaged trials.", ""),
@@ -154,7 +153,6 @@ STIM_COLUMNS = {
         "",
     ),
 }
-# source metadata column of each prefixed column
 _STIM_SOURCES = {
     "evoparam_stim_current_mA": "stim_current_mA",
     "evoparam_stim_pulse_width_us": "stim_pulse_width_us",
@@ -164,7 +162,6 @@ _STIM_SOURCES = {
     "evoparam_stim_charge_uC": "stim_charge_uC",
     "evoparam_stim_type_raw": "evoparam_stim_type_raw",
 }
-# the example columns of the BIDS iEEG specification, copied unchanged from the source
 STANDARD_STIM_COLUMNS = {
     "electrical_stimulation_site": (
         "Stimulation site, as written in the source events.tsv (BIDS iEEG example column).",
@@ -179,7 +176,6 @@ STANDARD_STIM_COLUMNS = {
         "",
     ),
 }
-# classical measures of the fit window (spec §5.5.6), prefix classical_
 CLASSICAL_COLUMNS = {
     "classical_peak_amplitude": (
         "Most extreme sample of the waveform in the fit window (classical measure).",
@@ -337,7 +333,6 @@ def _preset(settings: Any) -> Any:
     if not name:
         return None
     if isinstance(name, dict):
-        # REQ-331: the preset is recorded as {"name", "version"}
         return {"Name": name.get("name"), "Version": name.get("version")}
     note = (settings or {}).get("preset_note") or ""
     version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else None
@@ -663,7 +658,7 @@ def _write_trials(target: _Target, tset: Any, trials: Any, units: str) -> None:
             },
         ),
     )
-    target.container(tset, "trials.evoparamset")  # a folder of TrialFit containers
+    target.container(tset, "trials.evoparamset")
 
 
 def _replaced_samples(artifact: Any) -> list[dict[str, Any]]:
@@ -706,8 +701,6 @@ def _write_artifacts(target: _Target, artifacts: list[Any]) -> None:
         )
     if not records:
         return
-    # One record per run: the last artifact step (its cleaned trials were fitted), and
-    # every step in order when the preset chains several (e.g. interpolate+subspace).
     record = dict(records[-1])
     if len(records) > 1:
         record["Steps"] = [{k: v for k, v in r.items() if k != "Provenance"} for r in records]
@@ -752,7 +745,6 @@ def _write_description(out: str, pipeline_name: str, main: Any, source: Any) -> 
         "CodeURL": "https://github.com/yannbellec/evoparam",
     }
     if main is not None and getattr(main, "provenance", None) is not None:
-        # the provenance of the run written last (REQ-336); each sidecar holds its own
         generated["Provenance"] = _provenance(main)
     description = {
         "Name": pipeline_name,
@@ -836,7 +828,7 @@ def _write_readme(out: str, results: _Results) -> str:
     return path
 
 
-def write_bids_derivatives(  # noqa: PLR0913  (spec §5.1 fixes 11 parameters, plus units, source_dataset and trials; DECISIONS.md §7.2)
+def write_bids_derivatives(  # noqa: PLR0913
     results: Any,
     bids_root: str | None = None,
     *,
@@ -1113,7 +1105,7 @@ class _DerivativeReader:
         return [load_object(p, verify=self.verify) for p in paths]
 
 
-def read_bids_derivatives(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def read_bids_derivatives(  # noqa: PLR0913
     path: str,
     *,
     subject: str,

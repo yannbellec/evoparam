@@ -13,7 +13,6 @@ from .helpers import add_pulse, make_noise, make_recording, spatial_gains
 
 def test_expected_rate_sets_min_interval_for_trains() -> None:
 
-    # 50 Hz train: the default 0.5 s refractory period would merge the pulses
     sfreq = 2048.0
     data, onsets, _ = make_recording(n_channels=8, duration=2.0, interval=0.02, first=0.1, seed=21)
     merged = detect_pulses(data, sfreq)
@@ -30,7 +29,7 @@ def test_interval_flags() -> None:
     rng = np.random.default_rng(22)
     data = make_noise(8, 12.0, sfreq, seed=23)
     gains = spatial_gains(8, (2, 3), rng)
-    times = [0.5, 1.5, 2.5, 3.5, 6.5, 7.5, 7.8, 8.5]  # one long gap, one short interval
+    times = [0.5, 1.5, 2.5, 3.5, 6.5, 7.5, 7.8, 8.5]
     onsets = np.round(np.array(times) * sfreq).astype(int)
     for onset in onsets:
         add_pulse(data, onset, 300.0, gains)

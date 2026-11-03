@@ -31,14 +31,9 @@ from .api import _amplitude_of, _shape_for
 
 __all__ = ["FixedShapeModel"]
 
-# Anchor samples on each side of the artifact window (the default of remove_artifact).
 INTERP_BUFFER = 3
-# A component is evaluated where, at some shift within max_shift, it exceeds this fraction
-# of its peak (and two samples beyond); elsewhere it is below float64 resolution.
 TAIL = 1e-16
-# Fewest samples of the fitting window
 _MIN_WINDOW_SAMPLES = 4
-# Rows of one sample per channel: [n_channels, n_times]
 _ROWS_NDIM = 2
 
 
@@ -97,7 +92,7 @@ class _Channel:
             self.latencies.append(float(comp.latency))
             self.amplitudes.append(float(comp.amplitude))
         bg = fit.background or {"name": "none"}
-        background: Any = get_background(bg["name"])  # .basis: not in the protocol
+        background: Any = get_background(bg["name"])
         if getattr(background, "n_linear", 0):
             nl = np.array([bg[n] for n in getattr(background, "nonlinear_names", ())], float)
             self.basis = np.atleast_2d(background.basis(tw, nl if len(nl) else None))
@@ -160,8 +155,6 @@ def _parabolic(profile: Any, best: Any) -> FloatArray:
         left = profile[rows[inner], best[inner] - 1]
         mid = profile[rows[inner], best[inner]]
         right = profile[rows[inner], best[inner] + 1]
-        # the curvature and the vertex offset are computed only where both neighbours are
-        # finite (an infinite neighbour would give inf - inf)
         finite = np.isfinite(left) & np.isfinite(right)
         curv = np.zeros_like(mid)
         np.add(left - 2 * mid, right, out=curv, where=finite)
@@ -277,10 +270,6 @@ class FixedShapeModel:
         self.baseline_offsets: tuple[int, int] = (b0, b0 + n_w - 1)
         self.max_shift: float = float(max_shift)
         self.n_grid: int = int(np.floor(self.max_shift * self.sfreq + 1e-9))
-        # The shifts evaluated: the whole samples within max_shift, plus one guard sample on
-        # each side, which is never chosen but lets the parabolic refinement of a grid edge
-        # reach the bound itself when it is not a whole number of samples (as fit_trials,
-        # whose bound is continuous). The unshifted template is grid[centre].
         self.centre: int = self.n_grid + 1
         self.grid: FloatArray = np.arange(-self.centre, self.centre + 1) / self.sfreq
 
@@ -320,7 +309,6 @@ class FixedShapeModel:
                 raise SettingsError("artifact_window holds no sample.")
             base_end = min(i0, a0)
             if a0 <= i1 and a1 >= i0:
-                # The interpolation changes window samples: the data reach its anchors
                 self.artifact_window = (float(artifact_window[0]), float(artifact_window[1]))
                 start, stop = min(i0, a0 - INTERP_BUFFER), max(i1, a1 + INTERP_BUFFER)
         return start, stop, base_end
@@ -358,8 +346,6 @@ class FixedShapeModel:
                 "The channel fits use backgrounds with different numbers of linear terms."
             )
         k_max = max(len(labels) for labels in self.labels)
-        # Columns of the design: the whole template, or one per component (zero beyond a
-        # channel's components, whose coefficient a unit diagonal term keeps at zero)
         q = 1 if self.mode == "common" or k_max == 1 else k_max
         self.n_columns = q
         self.n_linear: Any = q + n_b
@@ -380,7 +366,7 @@ class FixedShapeModel:
         for c, ch in enumerate(self._channels):
             self._group_of[c] = groups.setdefault(ch.key, len(groups))
         self._groups = [np.flatnonzero(self._group_of == g) for g in range(len(groups))]
-        self._templates = []  # [q, n_shifts, n_times]
+        self._templates = []
         for idx in self._groups:
             ch = self._channels[idx[0]]
             cols = np.zeros((q, len(self.grid), n_w))
@@ -390,8 +376,6 @@ class FixedShapeModel:
                 for k in range(len(ch.shapes)):
                     cols[k] = ch.curves(self.tw, self.grid, component=k)
             self._templates.append(cols)
-        # Arrays that are the same for every channel (a ResponseFit template) are kept once,
-        # with a leading axis of length 1, so that a pulse reads them from the cache
         basis = np.stack([ch.basis for ch in self._channels])
         support = np.stack([ch.support for ch in self._channels])
         self._shared = bool(
@@ -407,7 +391,6 @@ class FixedShapeModel:
         self._descent = self.mode == "shift_scale" and q > 1
         if self._descent:
             self._tables = self._pair_tables(clean)
-        # Existence projection: the unshifted template, unit norm over the weighted samples
         centre = (
             np.stack(
                 [
@@ -434,13 +417,13 @@ class FixedShapeModel:
         q, diag = self.n_columns, np.arange(self.n_columns)
         out = np.empty((len(channels), len(self.grid), self.n_linear, self.n_linear))
         for i, c in enumerate(channels):
-            t = self._templates[self._group_of[c]]  # [q, n_shifts, n_times]
+            t = self._templates[self._group_of[c]]
             b = self._basis[0 if self._shared else c]  # [n_b, n_times]
             w = weights[i]
             gram = np.empty((len(self.grid), self.n_linear, self.n_linear))
             gram[:, :q, :q] = np.einsum("ajt,bjt->jab", t * w, t)
             gram[:, diag, diag] += self._pad[c]
-            cross = np.einsum("ajt,bt->jab", t * w, b)  # [n_shifts, q, n_b]
+            cross = np.einsum("ajt,bt->jab", t * w, b)
             gram[:, :q, q:] = cross
             gram[:, q:, :q] = np.swapaxes(cross, 1, 2)
             gram[:, q:, q:] = (b * w) @ b.T
@@ -513,7 +496,6 @@ class FixedShapeModel:
         if n_b:
             gram[:, n_o:, n_o:] = bb
             rhs[:, n_o:] = rb
-        # A component is evaluated again only when another one has moved since its last step
         stale = np.ones(q, bool)
         for _ in range(self.MAX_SWEEPS):
             if not stale.any():
@@ -540,7 +522,7 @@ class FixedShapeModel:
                     j[:, None, :],
                 ]
                 if n_b:
-                    tb = cross[rows, others[None], j]  # [n_ch, n_o, n_b]
+                    tb = cross[rows, others[None], j]
                     gram[:, :n_o, n_o:] = tb
                     gram[:, n_o:, :n_o] = np.swapaxes(tb, 1, 2)
                     products[..., n_o:] = cross[:, k]
@@ -554,8 +536,6 @@ class FixedShapeModel:
                 ok = den > 1e-12 * np.abs(own[:, k])
                 gain = np.where(ok, num * num / np.where(ok, den, 1.0), 0.0)
                 explained = np.einsum("ci,ci->c", rhs, u)[:, None] + gain
-                # the profile keeps the shifts beyond the bound (for the refinement); the
-                # step chooses among the allowed ones
                 profile[:, k] = explained
                 best = np.argmax(np.where(self._allowed[:, k], explained, -np.inf), axis=1)
                 stale[k] = False
@@ -720,7 +700,7 @@ class FixedShapeModel:
         target = np.empty((n_ch, self.n_linear))
         target[:, :q] = np.einsum("cat,ct->ca", cw, y)
         if self.n_linear > q:
-            cross = self._basis_dot(cw)  # [n_ch, q, n_b]
+            cross = self._basis_dot(cw)
             gram[:, :q, q:] = cross
             gram[:, q:, :q] = np.swapaxes(cross, 1, 2)
             gram[:, q:, q:] = (

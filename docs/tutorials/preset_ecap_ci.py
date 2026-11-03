@@ -9,7 +9,7 @@ removes the artifact with the forward-masking paradigm (A - B + C - D: probe alo
 masker and probe, masker alone, no pulse) and fits N1 and P2.
 
 Data: simulated cochlear implant recording, forward masking, 30 kHz.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate forward-masking ECAPs
@@ -55,10 +55,10 @@ print(scores[["recall", "precision", "latency_mae", "amplitude_rel_mae"]].round(
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_fit(result.group.fits[0], result.trials.average())
 

@@ -26,9 +26,7 @@ _R = TypeVar("_R")
 _T = TypeVar("_T")
 
 LOGGER = "evoparam"
-# the values ``verbose`` accepts (a logging level as an int is also accepted)
 VerboseLevel = None | bool | int | str
-# verbose value -> logging level (None: inherit, the logger keeps its level)
 LEVELS = {
     None: None,
     False: None,
@@ -40,7 +38,6 @@ LEVELS = {
     "progress": logging.INFO,
 }
 
-# True while a call runs with ``verbose="progress"``: :func:`progress` then shows a bar
 _PROGRESS: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "evoparam_progress", default=False
 )
@@ -74,7 +71,6 @@ class _Verbose(contextlib.ContextDecorator):
         self._saved.append(logger.level)
         if self.level is not None:
             logger.setLevel(self.level)
-        # progress bars: on with "progress", off with another explicit level, inherited
         # with None/False
         bars = isinstance(self.value, str) and self.value.lower() == "progress"
         self._tokens.append(_PROGRESS.set(bars) if self.level is not None else None)

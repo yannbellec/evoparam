@@ -16,7 +16,6 @@ from .helpers import TIMES, gaussian, noise_trials, trialset
 
 pd = pytest.importorskip("pandas")
 
-# End (s) of the masked artifact, the window (s) of the hays2021 curve, and its threshold.
 ARTIFACT_END = 0.02
 CURVE_START = 0.010
 CURVE_END = 0.050
@@ -126,8 +125,6 @@ def test_statistic_over_time_and_null_band() -> None:
     assert test.curve.shape == (4, inside.sum())
     assert test.null_band.shape == (4, inside.sum(), 2)
     assert np.allclose(test.curve_times, TIMES[inside])
-    # max_t: the pointwise t of the trials; the band is +/- the critical value of the null
-    # maximum, so a channel is significant when its curve leaves the band
     x = data[:, 0][:, inside]
     t = x.mean(axis=0) / (x.std(axis=0, ddof=1) / np.sqrt(len(x)))
     assert np.allclose(test.curve[0], t)
@@ -138,7 +135,6 @@ def test_statistic_over_time_and_null_band() -> None:
     hits = TIMES[inside][outside[0]]
     assert test.onset[0] == hits[0]
     assert test.offset[0] == hits[-1]
-    # one-sided tests look at one side only; the band of a split test follows the groups
     neg = run_test(
         trialset(data), n_permutations=200, n_boot=0, by=(), polarity="negative", random_state=0
     )
@@ -147,12 +143,10 @@ def test_statistic_over_time_and_null_band() -> None:
     meta = pd.DataFrame({"stim_site": ["A-B"] * 10 + ["C-D"] * 10})
     split = run_test(trialset(data, meta), n_permutations=200, n_boot=0, random_state=0)
     assert split.curve.shape == (4, 2, inside.sum())
-    # the attached per-channel tests keep their own curve
     group = evoparam.fit(trialset(data), "ccep", existence_kwargs={"n_permutations": 100})
     one = group.fits[0].existence
     assert one.curve.shape == (1, inside.sum())
     assert one.null_band.shape == (1, inside.sum(), 2)
-    # the other methods: the projection profile, the rule's z with its k
     proj = run_test(trialset(data), method="projection", by=(), random_state=0)
     assert proj.curve.shape == (4, inside.sum())
     assert np.isnan(proj.null_band).all()
@@ -166,11 +160,9 @@ def test_statistic_over_time_and_null_band() -> None:
     assert rule.curve.shape == (4, len(rule.curve_times))
     assert rule.curve_times[0] >= CURVE_START
     assert rule.curve_times[-1] <= CURVE_END
-    # a negative-peak rule: z below -k (here 6) in the window
     assert (rule.null_band[..., 0] == THRESHOLD).all()
     assert np.isnan(rule.null_band[..., 1]).all()
     assert rule.significant[0] == (rule.curve[0] < THRESHOLD).any()
-    # a saved test keeps them
     import tempfile
 
     from evoparam.data import ResponseTest

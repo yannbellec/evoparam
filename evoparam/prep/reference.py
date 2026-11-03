@@ -23,14 +23,10 @@ __all__ = ["rereference", "car_adaptive_select", "SCHEMES"]
 
 SCHEMES = ("monopolar", "bipolar", "car", "car_adaptive", "laplacian")
 
-# Smallest share of the channels kept in the adjusted common average.
 MIN_CA_FRACTION = 0.1
 
-# Fewest channels for the adjusted common average (below: plain common average).
 MIN_ADAPTIVE_CHANNELS = 8
 
-# Fewest trials for the noise of the plus-minus average (else the power of the one
-# trial), and for the bootstrap of the selection.
 _MIN_PLUS_MINUS_TRIALS = 2
 _MIN_BOOT_TRIALS = 3
 
@@ -55,7 +51,7 @@ def bipolar_pairs(ts: Any, groups: str = "group") -> tuple[list[Any], list[Any]]
         group_of = [g if g else contact_group(n) for g, n in zip(group_of, names, strict=False)]
     else:
         group_of = [contact_group(name) for name in names]
-    numbers: list[Any] = [contact_number(name) for name in names]  # None without a number
+    numbers: list[Any] = [contact_number(name) for name in names]
 
     pairs, gaps = [], []
     for group in dict.fromkeys(group_of):
@@ -444,8 +440,6 @@ def rereference(
         ref = _common_average(ts, members)
         if np.isnan(ref).all(axis=-1).any():
             raise DataError("common average: a trial has no usable channel.")
-        # Samples masked on every channel (for example a blanked artifact window) stay
-        # masked; their reference is set to 0
         ref = np.nan_to_num(ref, nan=0.0)
         changes = {"data": ts.data - ref[:, None]}
         info["reference"] = used

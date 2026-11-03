@@ -26,13 +26,9 @@ if TYPE_CHECKING:
 
 __all__ = []
 
-# Template window: the component's latency +/- this many FWHM.
 TEMPLATE_HALF_WIDTH = 1.5
-# Fewer channels with the component than this in a subject: the group template is used.
 MIN_TEMPLATE_CHANNELS = 3
 
-# Fewest subjects worth running in processes; the two bounds of a window; fewest unmasked
-# samples for the least-squares projection of a trial on the template.
 _MIN_PARALLEL = 2
 _WINDOW_BOUNDS = 2
 _MIN_PROJECTION_SAMPLES = 3

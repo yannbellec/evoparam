@@ -20,7 +20,6 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
-# Fewest samples of a pulse period, and of the window after the train fitted for the slow
 # transient.
 _MIN_PERIOD_SAMPLES = 2
 _MIN_POST_SAMPLES = 2
@@ -137,11 +136,10 @@ def lowrank_clean(
         raise ArtifactError("The pulse train does not fit inside the epoch.")
 
     cleaned = np.array(data, dtype=float, copy=True)
-    seg_inds = (starts[:, None] + np.arange(length)[None]).ravel()  # P x L
+    seg_inds = (starts[:, None] + np.arange(length)[None]).ravel()
     seg = cleaned[:, :, seg_inds].reshape(n_trials, n_channels, len(pulses), length)
     before = seg.copy()
 
-    # 1. Across channels: (R P L) x C
     mat: Any
     mat = seg.transpose(0, 2, 3, 1).reshape(-1, n_channels)
     mat = _leave_out_pass(
@@ -153,13 +151,11 @@ def lowrank_clean(
     )
     seg = mat.reshape(n_trials, len(pulses), length, n_channels).transpose(0, 3, 1, 2)
 
-    # 2. Across pulses, per channel: (R L) x P
     for ch in range(n_channels):
         mat = seg[:, ch].transpose(0, 2, 1).reshape(-1, len(pulses))
         mat = _leave_out_pass(mat, k_p, lambda j: {j})
         seg[:, ch] = mat.reshape(n_trials, length, len(pulses)).transpose(0, 2, 1)
 
-    # 3. Across trials, per channel: (P L) x R
     for ch in range(n_channels):
         mat = seg[:, ch].reshape(n_trials, -1).T
         seg[:, ch] = _leave_out_pass(mat, k_r, lambda j: {j}).T.reshape(
@@ -168,7 +164,6 @@ def lowrank_clean(
 
     cleaned[:, :, seg_inds] = seg.reshape(n_trials, n_channels, -1)
 
-    # 4. Slow transient after the train, across trials
     post_start = starts[-1] + length
     post_inds = np.arange(post_start, min(n_times, post_start + int(round(post_window * sfreq))))
     if len(post_inds) >= _MIN_POST_SAMPLES and k_r > 0:

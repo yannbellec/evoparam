@@ -21,9 +21,7 @@ from evoparam.models import engine as eng
 
 from .helpers import noise
 
-# Stride at which the fit judges a noise band-limited to half the Nyquist frequency.
 HALF_RATE_STRIDE = 2
-# N1 latency window (s) of the CCEP preset.
 N1_START = 0.009
 N1_END = 0.05
 
@@ -137,7 +135,6 @@ def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact: Any, ph
     assert np.array_equal(strided.into(x.copy(), np.empty_like(x)), full)
     assert np.array_equal(strided(x[:, 0]), full[:, 0])
     if exact:
-        # the innovation rows (the evidence of a component) are the same
         innovations = np.sum(low(x[phase::2])[low.p :] ** 2)
         assert np.sum(full[strided.skip :] ** 2) == pytest.approx(innovations)
 

@@ -8,7 +8,6 @@ import sys
 
 import pytest
 
-# Longest time (s) of the time-frequency benchmark.
 MAX_SECONDS = 60
 
 pytestmark = pytest.mark.skipif(

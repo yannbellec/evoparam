@@ -96,7 +96,6 @@ def _cap_per_channel(ts: Any, reasons: Any, score: Any, max_fraction: float) -> 
             drop = np.setdiff1d(rows, keep)
             reasons[drop, c] = ""
     if capped:
-        # stacklevel 3: the caller of reject_trials
         _warn(
             f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
             f"{capped}; the channel, not the trials, is probably the problem (only "
@@ -118,7 +117,7 @@ def _reason_text(reasons: Any, low_quality: Any, rejected: Any) -> list[str]:
     return reason_text
 
 
-def reject_trials(  # noqa: PLR0913  (spec §5.4 fixes 9 parameters, plus all_channels_fraction; DECISIONS.md §7.2)
+def reject_trials(  # noqa: PLR0913
     ts: Any,
     *,
     response_window: Any = (0.01, 0.5),

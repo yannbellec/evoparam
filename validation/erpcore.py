@@ -35,8 +35,6 @@ import numpy as np
 
 ROOT = os.environ.get("EVOPARAM_ERPCORE", os.path.expanduser("~/.cache/evoparam/erpcore"))
 
-# component -> (bins of the difference: (plus, minus) or "lateral", channels, measurement
-# window (s), polarity, lateral bins (left, right) and channel pair (left, right))
 DESIGNS = {
     "P3": {"plus": 1, "minus": 2, "channel": "Pz", "window": (0.300, 0.600), "polarity": 1},
     "N170": {"plus": 1, "minus": 2, "channel": "PO8", "window": (0.110, 0.150), "polarity": -1},
@@ -47,14 +45,8 @@ DESIGNS = {
     "ERN": {"plus": 1, "minus": 2, "channel": "FCz", "window": (0.000, 0.100), "polarity": -1},
 }
 TOLERANCE = 0.010
-# the targeted measurement (REQ-274, CHANGELOG "ERP CORE: the paradigm's component"): the
-# published window widened by 25 ms on each side, three components of the polarity
 MARGIN = 0.025
 N_COMPONENTS = 3
-# the reading as written (REQ-274: "`erp` ... recovers the component named by the paradigm
-# ... as a labelled component", model latency of that component): the `erp` preset with its
-# own selection, the component labelled in the measurement window widened by LABEL_MARGIN on
-# each side (the window is set for a mean amplitude; a fitted peak can lie just outside)
 LABEL_MARGIN = 0.030
 READINGS = ("as_written", "targeted")
 
@@ -125,7 +117,7 @@ def noise_reference(component, data, names, bins, wave="difference"):
     return None if minus is None else plus - minus
 
 
-def difference_wave(component, times, data, names, bins, wave="difference"):  # noqa: ARG001  (positional signature of the callers, tests/models/test_classical.py included)
+def difference_wave(component, times, data, names, bins, wave="difference"):  # noqa: ARG001
     """Return the published difference wave, or the parent wave of the component.
 
     ``wave="difference"`` gives the published difference wave; ``"parent"`` gives the
@@ -141,7 +133,6 @@ def difference_wave(component, times, data, names, bins, wave="difference"):  # 
     if "lateral" in design:
         left, right = design["lateral"]
         ch_l, ch_r = design["pair"]
-        # contralateral minus ipsilateral, averaged over the two sides
         a, n1 = mean_of(left, ch_r)
         b, _ = mean_of(left, ch_l)
         c, n2 = mean_of(right, ch_l)
@@ -180,12 +171,9 @@ def fit_component_as_written(component, times, wave, noise_ref=None):
     lo, hi = design["window"]
     base = presets.get("erp")
     if lo >= base.fit_window[0]:
-        # stimulus-locked: the preset's fit window (50 to 700 ms), which keeps the flat
-        # stretch after the baseline that pins the constant background
         fit_window = (base.fit_window[0], min(base.fit_window[1], times[-1] - 0.01))
         baseline = base.baseline
     else:
-        # response-locked (LRP, ERN): the 200 ms before the measurement window and after it
         fit_window = (max(lo - 0.2, times[0] + 0.01), min(hi + 0.2, times[-1] - 0.01))
         baseline = (times[0], fit_window[0])
     label = (lo - LABEL_MARGIN, hi + LABEL_MARGIN)
@@ -234,7 +222,6 @@ def fit_component(component, times, wave, noise_ref=None):
     )
     fit_window = (max(lo - MARGIN, times[0] + 0.01), min(hi + MARGIN, times[-1] - 0.01))
     if lo < presets.get("erp").fit_window[0]:
-        # response-locked (LRP, ERN): the baseline is the start of the epoch
         preset = presets.derive(
             preset,
             name=preset.name,
@@ -285,15 +272,13 @@ def run(components=None, participants=None, wave="difference", hashes=None, read
         for participant in participants or folders:
             try:
                 times, data, names, bins = load(component, participant)
-            except (FileNotFoundError, ValueError):  # missing or incomplete download
+            except (FileNotFoundError, ValueError):
                 continue
             if hashes is not None:
                 hashes.update(files_sha256(component, participant))
             signal, n = difference_wave(component, times, data, names, bins, wave)
             design = DESIGNS[component]
             if not np.all(np.isfinite(signal)):
-                # a bin left without trials by the published artifact rejection: the
-                # participant has no difference wave (excluded, as in the published analysis)
                 rows.append(
                     {
                         "component": component,
@@ -312,7 +297,6 @@ def run(components=None, participants=None, wave="difference", hashes=None, read
             if comp is not None:
                 from evoparam.models import evaluate_fit
 
-                # the component of the paradigm: the sum of its labelled parts
                 ks = [result.components.index(c) for c in comp]
                 biggest = max(comp, key=lambda c: abs(c.area))
                 peak = biggest.latency

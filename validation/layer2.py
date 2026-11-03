@@ -33,7 +33,7 @@ import warnings
 
 import numpy as np
 
-MODALITIES = {  # generator name -> (preset, sampling rate, epoch)
+MODALITIES = {
     "erp": ("erp", 500.0, (-0.2, 0.8)),
     "ccep": ("ccep", 2048.0, (-0.5, 0.6)),
     "tep": ("tep", 5000.0, (-0.3, 0.35)),
@@ -60,7 +60,6 @@ BASE = {
     "noise": "white",
 }
 
-# Simulation-based acceptance tests of spec §5 (files and the REQs they hold).
 REQ_TESTS = {
     "evoparam/tests/models/test_engine_sim.py": "REQ-104 to REQ-112",
     "evoparam/tests/existence/test_existence_null.py": "REQ-130, REQ-131",
@@ -166,7 +165,7 @@ def run_cell(modality, cell, replicates, seed0):
             warnings.simplefilter("ignore")
             try:
                 group = fit(ts, name)
-            except Exception as err:  # noqa: BLE001  (a failed fit is a result of the grid)
+            except Exception as err:  # noqa: BLE001
                 scores.append({"error": type(err).__name__})
                 continue
         if len(truth):

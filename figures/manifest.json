@@ -3,8 +3,8 @@
  "evoparam": "0.1.0.dev0",
  "matplotlib": "3.11.2",
  "figures": {
-  "fig_ccep_fit.svg": "5ff12ceda43415b072ed243d9997f1ec48fa8baeb820d9a515f56cd677b2e86c",
+  "fig_ccep_fit.svg": "62f37589f2a68f26f50be4fa24a23bf7571d0443b9789b5d1a3557fbda1375e8",
   "fig_n1_ds004080.svg": "a804d9213e0f5938d72c58455f36b12437c0c912ce857efefc357aebbed47161",
-  "fig_erpcore.svg": "8c58eb6d87fb2fe88f72b540f36d89f6482cdddb075041a978da3ba28e388d56"
+  "fig_erpcore.svg": "e7a46d19a362663b7f85e4322d6224afd48ab72d4964ecc51f46126de0697f73"
  }
 }

@@ -31,7 +31,6 @@ __all__ = [
     "reference_scheme",
 ]
 
-# Fewest samples of the preset's baseline for the artifact-quality score.
 _MIN_BASELINE_SAMPLES = 3
 
 
@@ -107,10 +106,6 @@ def artifact_steps(preset: Any) -> list[Any]:
         if name == "paradigm":
             kwargs["scheme"] = option
         if name == "subspace":
-            # the specification's projection of every sample, after the interpolation of
-            # the window: the two-stage logic of the TMS pipelines (§5.6, tep), where the
-            # projection is meant for the decay beyond the window (the default of
-            # remove_artifact projects the window only; not measured on TEPs)
             kwargs.update(n_components="energy", subspace_extent="all")
         steps.append(kwargs)
     return steps
@@ -142,7 +137,7 @@ def _test_window(ts: Any, window: Any) -> Any:
     return (float(later[0]), float(window[1])) if later.size else window
 
 
-def run_pipeline(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def run_pipeline(  # noqa: PLR0913
     trials: "TrialSet",
     preset: Any,
     *,
@@ -318,7 +313,6 @@ def _trial_fits(ts: Any, group: Any, p: Any, random_state: Any, n_jobs: int) -> 
     from evoparam.errors import warn
     from evoparam.trials import fit_trials
 
-    # the preset's default covariates (rodent_ep, primate_ep: metadata["state"])
     covariates = [
         c for c in p.trial_covariates if ts.metadata is not None and c in ts.metadata.columns
     ]
@@ -340,13 +334,7 @@ def _trial_fits(ts: Any, group: Any, p: Any, random_state: Any, n_jobs: int) -> 
 
 
 ###################################################################################################
-## Reference pipelines (REQ-340)
 
-# name -> preset, the published data it stands for, the stand-in used when those data are
-# not at hand, and the options of run_pipeline. The methods text depends on the settings and
-# on the noise reference the fits resolved (noise_source="auto" switches to the plus-minus
-# average when the baseline holds fewer than 30 effective samples), so each stand-in has the
-# sampling of its real recording and resolves the same reference: it gives the words of the
 # real pipeline.
 REFERENCE_PIPELINES: dict[str, dict[str, Any]] = {
     "erpcore_p3": {

@@ -40,8 +40,6 @@ from evoparam.benchmark.tasks import output_path
 
 from .helpers import DOCS, PERF, RESULTS, ROOT, SLOW, inputs, suite
 
-# Cells of the core suite per task (public, hidden), in all, and public; public cells of
-# the full suite.
 N_PUBLIC = 8
 N_HIDDEN = 2
 N_CORE = 60
@@ -229,11 +227,6 @@ def test_req353_rerun_reproduces_the_committed_results(tmp_path: Any) -> None:
                         (abs(new["metrics"][key] / value - 1), f"{name} {task} {key}")
                     )
     if other_platform:
-        # REQ-295 asks 1e-9 across platforms; on simulated inputs that differ in their last
-        # bits (another libm), the threshold rules agree to 1e-9 but the fits of the
-        # evoparam preset do not (macOS arm64 against the Linux machine of the committed
-        # results, at the commit that made them: amplitude bias 7e-5 relative). Reported,
-        # not hidden: the tolerance is not loosened (CHANGELOG, "Second network run").
         worst = max(other_platform)
         pytest.xfail(
             f"REQ-295 across platforms not met by {len(other_platform)} metric(s); "

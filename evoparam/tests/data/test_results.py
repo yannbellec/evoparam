@@ -59,7 +59,6 @@ def test_component_checks() -> None:
 def test_group_tables_are_tidy_with_units() -> None:
     group = make_group_fit()
     components = group.to_dataframe("component")
-    # The component columns, then the existence test of each channel (spec §5.6)
     assert list(components.columns) == list(COMPONENT_COLUMNS) + list(INTERVAL_COLUMNS) + list(
         EXISTENCE_COLUMNS
     )
@@ -85,8 +84,6 @@ def test_group_get() -> None:
 
 def test_equality_is_nan_aware() -> None:
     first = make_response_fit()
-    # A deep copy, not a second factory call: nested objects carry their own creation
-    # time, which can differ by a millisecond between two calls.
     second = copy.deepcopy(first)
     assert second is not first
     assert second.existence is not first.existence

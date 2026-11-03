@@ -11,7 +11,6 @@ import pytest
 from evoparam import fit, sim
 from evoparam.models import evaluate_fit
 
-# contacts where the greedy path ended in a cancelling pair (seed 0)
 REPAIRED = {"cochlear": (1, 3), "spinal": (2,)}
 
 
@@ -41,12 +40,12 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind: Any) -> None:
         w = (average.times >= fitted.window[0]) & (average.times <= fitted.window[1])
 
         def rss(f):
-            return float(np.sum((average.data[ch][w] - evaluate_fit(f, average.times)[w]) ** 2))  # noqa: B023  (called within this iteration only)
+            return float(np.sum((average.data[ch][w] - evaluate_fit(f, average.times)[w]) ** 2))  # noqa: B023
 
         noise = float(np.sum((average.data[ch][w] - signal[ch][w]) ** 2))
-        assert rss(fitted) < 2 * noise  # as good as the true curve
+        assert rss(fitted) < 2 * noise
         better += rss(fitted) < rss(plain.fits[ch]) - 1e-9
-    assert better == len(REPAIRED[kind])  # each was repaired by reseeding
+    assert better == len(REPAIRED[kind])
 
 
 def test_a_cancelling_pair_is_flagged_unresolvable() -> None:

@@ -8,13 +8,10 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
-# Fewest samples on which a tail is fitted.
 _MIN_FIT_SAMPLES = 8
 
-# Number of time constants tried between the bounds (log-spaced).
 N_TAUS = 16
 
-# The slower exponential is at least this many times slower than the faster one.
 TAU_RATIO = 3.0
 
 
@@ -71,7 +68,7 @@ def fit_tail(
     shape = series.shape[:-1]
     flat = series.reshape(-1, len(inds))
 
-    taus: Any = np.geomspace(lo, hi, N_TAUS)  # tau1, tau2: grid values, then per-series arrays
+    taus: Any = np.geomspace(lo, hi, N_TAUS)
     best_rss = np.full(len(flat), np.inf)
     best = np.zeros((len(flat), 5))
     for _i, tau1 in enumerate(taus):

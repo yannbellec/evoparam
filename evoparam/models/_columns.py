@@ -79,7 +79,7 @@ def background(
         lag = tw - bg._t_ref(tw)
         decay = np.exp(-lag / nonlinear[0:1])
         out[0] = 1.0
-        out[1] = decay  # out is whitened in place afterwards: a copy
+        out[1] = decay
         return (lag, decay)
     out[...] = np.atleast_2d(bg.basis(tw, nonlinear))
     return None

@@ -109,8 +109,6 @@ def write_bids(
         "SoftwareFilters": "n/a",
     }
     if datatype == "ieeg":
-        # iEEG requires the reference and the electrode positions (simulated contacts on a
-        # line, 5 mm apart, in an arbitrary coordinate system).
         sidecar.update(
             {
                 "iEEGReference": "n/a",

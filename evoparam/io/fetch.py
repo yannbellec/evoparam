@@ -116,8 +116,6 @@ def fetch_openneuro_file(
     return local_path
 
 
-# OSF project of ERP CORE (Kappenman et al. 2021, DOI 10.18115/D5JW4R): one node per
-# component, each with the folder "<component> All Data and Scripts" holding one folder per
 # participant
 ERPCORE_NODES = {
     "P3": "etdkz",

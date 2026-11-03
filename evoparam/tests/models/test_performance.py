@@ -22,7 +22,6 @@ import pytest
 from evoparam.data import Evoked
 from evoparam.models import ResponseModel, fit_response
 
-# Median time (s) of one fit, channels of REQ-115 and its time limit (s).
 MAX_FIT_SECONDS = 0.05
 N_CHANNELS = 100
 MAX_GROUP_SECONDS = 10.0
@@ -33,7 +32,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 SFREQ = 2048.0
-TIMES = (np.arange(2048) - 1022) / SFREQ  # 2 048 samples, to 0.5005 s
+TIMES = (np.arange(2048) - 1022) / SFREQ
 
 
 def _waveform(rng: Any) -> Any:

@@ -31,13 +31,10 @@ from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 
-# Fewest trials for the small-sample expansion, finite resamples for an interval, resamples
-# and trials for a bootstrap
 _MIN_EXPAND_N = 2
 _MIN_FINITE = 2
 _MIN_RESAMPLES = 2
 _MIN_TRIALS = 2
-# Channels named in the warning of the BCa fallbacks
 _MAX_LISTED = 5
 
 
@@ -45,10 +42,8 @@ __all__ = ["bootstrap", "bootstrap_interval", "BOOTSTRAP_COLUMNS"]
 
 METHODS = ("percentile", "bca")
 
-# Fewer distinct resample values than this: the BCa corrections are unreliable.
 MIN_UNIQUE = 20
 
-# Resamples averaged at once by the score path (bounds memory: chunk x trials).
 _CHUNK = 256
 
 BOOTSTRAP_COLUMNS = {
@@ -80,8 +75,6 @@ def _quantile_z(ci_level: Any, expand_n: Any) -> NDArray[Any]:
     n = float(expand_n)
     if n < _MIN_EXPAND_N:
         raise SettingsError("expand_n must be at least 2.")
-    # Hesterberg (2015): the percentile interval of a mean is too narrow by
-    # sqrt((n - 1) / n) and uses z instead of t; use sqrt(n / (n - 1)) * t_{n-1} instead.
     q = np.sqrt(n / (n - 1)) * student_t.ppf(1 - alpha, n - 1)
     return np.array([-q, q])
 
@@ -335,7 +328,7 @@ def _callable_path(
 ## Public function
 
 
-def bootstrap(  # noqa: PLR0913  (spec §5.11 fixes 8 parameters, plus window and expand; DECISIONS.md §7.2)
+def bootstrap(  # noqa: PLR0913
     ts: "TrialSet",
     statistic: Any,
     *,
@@ -433,7 +426,6 @@ def bootstrap(  # noqa: PLR0913  (spec §5.11 fixes 8 parameters, plus window an
     else:
         raise SettingsError("statistic must be a callable or the name of a classical score.")
 
-    # small-sample expansion: n trials, minus one degree of freedom per extra stratum
     expand_n = max(ts.n_trials - len(strata) + 1, 2) if expand else None
     ci = _intervals(estimate, boot, jack, ci_level, method, expand_n)
     finite = np.isfinite(boot)

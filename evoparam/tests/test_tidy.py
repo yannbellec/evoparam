@@ -49,7 +49,6 @@ def test_component_columns_are_the_documented_list(group: Any, tmp_path: Any) ->
     assert list(table.columns) == list(doc)
     assert table.attrs["units"] == doc
     assert set(table.attrs["units"]) == set(table.columns)
-    # the saved container: every column of every table has a unit entry in its sidecar
     path = pathlib.Path(group.save(str(tmp_path / "group")))
     sidecars = list((path / "tables").glob("*.json"))
     assert sidecars

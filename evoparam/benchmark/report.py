@@ -16,7 +16,6 @@ from .tasks import TASKS
 
 __all__ = ["load_results", "format_metric", "metric_label", "markdown", "write_report"]
 
-# Metrics in seconds shown in milliseconds.
 _MS = (
     "latency_mae",
     "latency_bias",

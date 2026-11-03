@@ -21,25 +21,18 @@ from evoparam import presets, sim
 from evoparam.data import Component, GroupFit, ResponseFit, ResponseTest
 from evoparam.data.results import FIT_STATUSES
 
-# Shortest methods text.
 MIN_TEXT = 200
 
 pytest.importorskip("pandas")
 
 NO_ARTIFACT = {"pulse_artifact": False, "decay_artifact": False, "muscle_artifact": False}
 
-# Median-nerve SEP (N20, P25, N33; as in the REQ-277 case of test_presets_sim): the P1, N1
-# and P3 of the ERP defaults lie after the 10-60 ms window of the sep preset, where a fit
-# rightly finds no response.
 SEP_COMPONENTS = (
     {"label": "N20", "latency": 0.020, "fwhm": 0.004, "amplitude": -1.0},
     {"label": "P25", "latency": 0.025, "fwhm": 0.006, "amplitude": 0.8},
     {"label": "N33", "latency": 0.033, "fwhm": 0.008, "amplitude": -0.6},
 )
 
-# One simulated waveform per modality (§5.12 generators): the epoch covers the preset's
-# window. TEP at 1 kHz: the 5 kHz default takes about 70 s per fit (measured), the same
-# waveform at 1 kHz about 2 s.
 MODALITIES = {
     "ccep": lambda: sim.simulate_ccep(
         n_trials=10, n_channels=4, p_response=1.0, layout="grid", seed=0
@@ -163,13 +156,11 @@ def test_req002_one_call(kind: Any, trials: Any, tmp_path_factory: Any) -> None:
     assert all(type(f.existence) is ResponseTest for f in group.fits)
     table = group.to_dataframe()
     assert table["existence_p"].notna().all()
-    # components with their uncertainties
     ok = table[table["status"] == "ok"]
     assert len(ok) >= 1
     for name in ("latency", "amplitude", "fwhm"):
         assert ok[f"{name}_ci_low"].notna().all()
         assert ok[f"{name}_ci_high"].notna().all()
-    # the methods paragraph
     text = group.methods_text()
     assert "evoparam" in text
     assert "ccep" in text

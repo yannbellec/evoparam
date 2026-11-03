@@ -60,7 +60,6 @@ def test_req015_pdf_report(group: Any, tmp_path: Any) -> None:
     matplotlib = pytest.importorskip("matplotlib")
     from evoparam import reports
 
-    # uncompressed content and TrueType text, so that the words can be read from the file
     with matplotlib.rc_context({"pdf.compression": 0, "pdf.fonttype": 42}):
         reports.pdf(group, tmp_path / "report.pdf")
     raw = (tmp_path / "report.pdf").read_bytes().decode("latin-1")
@@ -68,7 +67,7 @@ def test_req015_pdf_report(group: Any, tmp_path: Any) -> None:
         "".join(re.findall(r"\(((?:[^()\\]|\\.)*)\)", block))
         for block in re.findall(r"\[(.*?)\]\s*TJ", raw, re.DOTALL)
     )
-    shown = shown.replace("\x00", "")  # TrueType text is UTF-16 in the file
+    shown = shown.replace("\x00", "")
     assert carries_statement(shown) or carries_statement(raw), (
         "the statement is not in the PDF text"
     )

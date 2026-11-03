@@ -94,7 +94,6 @@ def load_bids_trials(index: Any, entry: Any, *, cache_dir: Any = None) -> Any:
         cache_dir=cache_dir,
     )
     if index.get("picks"):
-        # channel types of channels.tsv; a run need not have every type of the index
         types = {str(t).lower() for t in index["picks"]}
         info = ts.ch_info
         if info is None or "type" not in info:

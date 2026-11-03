@@ -42,7 +42,7 @@ __all__ = [
     "methods_note",
 ]
 
-_list = list  # the public function list() shadows the builtin in this module
+_list = list
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,8 +82,6 @@ class Preset:
     label_polarity: dict[str, int] = dataclasses.field(default_factory=dict)
     trial_mode: str | None = None
     selection: str = "bic"
-    # the fall of BIC a component needs (spec §5.5.4), or "calibrated": the threshold of the
-    # engine calibrated on each fit's noise model (evoparam.models._calibration)
     delta: float | str = 10.0
     uncertainty: str = "jacobian"
     choices: dict[str, str] = dataclasses.field(default_factory=dict)
@@ -94,9 +92,6 @@ class Preset:
     train_baseline: float | None = None
     parent: str | None = None
     overrides: dict[str, Any] = dataclasses.field(default_factory=dict)
-    # name -> {"window": [start, end] (s), "polarity": "negative" or "positive", "k": depth in
-    # units of the fit's noise SD}: the preset's decision that the response has this peak, read
-    # on the fitted curve (:func:`evoparam.models.curve_detection`, ccep 1.2: the N1)
     detections: dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -175,7 +170,7 @@ def get(name: "str | Preset") -> "Preset":
     return cast("Preset", PRESETS[name])
 
 
-def list() -> Any:  # noqa: A001  (the name of the spec's API)
+def list() -> Any:  # noqa: A001
     """Table of the presets: name, modality, species, citation keys, version, validation."""
     require("pandas", extra="data", caller="evoparam.presets.list")
     import pandas as pd
@@ -349,8 +344,6 @@ def fit_fields(preset: "str | Preset") -> dict[str, Any]:
         "polarity": p.polarity,
         "selection": p.selection,
         "delta": p.delta,
-        # the presets compare shapes on the quick fits of the forward search (spec §5.5.3
-        # step 4), as when they were validated
         "shape_choice": "bic",
         "resolution_check": False,
         "uncertainty": p.uncertainty,

@@ -61,13 +61,13 @@ DECAY_FACTOR = 2.0
 REFERENCE_RATIO = 0.5
 REFERENCE_CORR = 0.5
 N_SOURCE = 2
-_MIN_NOISE_SAMPLES = 3  # baseline samples for a noise variance
-_MIN_DECAY_COPIES = 3  # copies for a power-law fit of the decay with distance
+_MIN_NOISE_SAMPLES = 3
+_MIN_DECAY_COPIES = 3
 
 
 def _contacts(site: Any) -> list[Any]:
     """Return the contact names of a bipolar site name (``"A1-A2"``: ``A1`` and ``A2``)."""
-    return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
+    return [part.strip() for part in re.split(r"[-\u2013]", str(site)) if part.strip()]
 
 
 def _shaft_number(name: Any) -> Any:
@@ -225,7 +225,6 @@ def _copy_screen(
     nearest = candidates[np.argsort(distance[candidates])][:N_SOURCE]
     if not len(nearest):
         return copy_corr, decay
-    # Signs aligned on the nearest channel before averaging
     ref = wave[nearest[0]]
     source = np.mean([wave[j] * (1 if _corr(wave[j], ref) >= 0 else -1) for j in nearest], axis=0)
     norm = np.linalg.norm(source)
@@ -234,7 +233,6 @@ def _copy_screen(
     unit = source / norm
     amp = wave @ unit
     for c in np.flatnonzero(evaluated & (reliability >= MIN_RELIABILITY)):
-        # Correlation corrected for the attenuation by the channel's noise
         copy_corr[c] = min(_corr(wave[c], source) / np.sqrt(reliability[c]), 1.0)
     copies = evaluated & (np.nan_to_num(copy_corr) >= COPY_CORR) & (amp > 0) & (distance > 0)
     if decay_model != "published":

@@ -62,7 +62,7 @@ def _cell_job(args: Any) -> tuple[Any, dict[Any, Any], list[Any]]:
         start = time.perf_counter()
         try:
             outputs = baseline.run(wanted)
-        except Exception as err:  # noqa: BLE001  (a failing method is recorded, the run goes on)
+        except Exception as err:  # noqa: BLE001
             failures.append(
                 {
                     "cell": cell.id,
@@ -100,7 +100,7 @@ def _resolve(
         suite = load_suite(suite, hidden_seeds=hidden_seeds)
     elif hidden_seeds is not None:
         suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
-    suite = cast("Suite", suite)  # a Suite from here on
+    suite = cast("Suite", suite)
     tasks = list(tasks) if tasks else suite.task_ids()
     for task in tasks:
         if task not in suite.tasks:
@@ -148,7 +148,7 @@ def _run_adapters(run: _Run, adapters: list[Any], failures: list[Any]) -> float:
                 t0 = time.perf_counter()
                 try:
                     adapter.run(os.path.join(run.out, "inputs", task, f"{cell.id}.json"), folder)
-                except Exception as err:  # noqa: BLE001  (recorded; the cell is listed as missing)
+                except Exception as err:  # noqa: BLE001
                     failures.append(
                         {
                             "cell": cell.id,
@@ -193,7 +193,7 @@ def _score_all(run: _Run, methods: Any, adapters: list[Any]) -> list[str]:
     return results
 
 
-def run_suite(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def run_suite(  # noqa: PLR0913
     suite: "str | Suite" = "core",
     out: str = ".",
     *,
@@ -245,7 +245,7 @@ def run_suite(  # noqa: PLR0913  (public API outside the spec signatures; DECISI
     suite, tasks, methods = _resolve(suite, hidden_seeds, tasks, methods)
     adapters = [a if isinstance(a, Adapter) else load_adapter(a) for a in adapters]
     for adapter in adapters:
-        adapter.check()  # a missing program stops the run before any work
+        adapter.check()
     os.makedirs(out, exist_ok=True)
     run = _Run(suite, tasks, split, out, log)
     cells: dict[Any, Any]

@@ -25,12 +25,10 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-# The ds003708 example channel: sampling rate (Hz), sites, and trials.
 SFREQ = 2048.0
 N_SITES = 48
 MIN_TRIALS = 400
 MAX_TRIALS = 495
-# Basis curves of the paper, sites assigned, sites scored and their agreement.
 N_SHAPES = 3
 MIN_ASSIGNED = 24
 MIN_SCORED = 10
@@ -46,7 +44,7 @@ pytestmark = [
 
 CHANNEL = "LMS2"
 EPOCH = (-0.5, 2.05)
-WINDOW = (0.05, 2.0)  # t1 = 50 ms, t2 = 2 s, as in the paper
+WINDOW = (0.05, 2.0)
 BASELINE = (-0.5, -0.05)
 REGIONS = {
     "lh_G_temp_sup-Lateral": "STG",
@@ -187,8 +185,6 @@ def test_reads_the_example_channel() -> None:
 
 def test_req194_number_of_bases(basis: Any) -> None:
 
-    # Three basis profile curves for the example channel in the paper (the same with
-    # random_state 0 to 4)
     assert basis.n_shapes == N_SHAPES
     assert (basis.assignment["shape_id"] >= 0).sum() >= MIN_ASSIGNED
 

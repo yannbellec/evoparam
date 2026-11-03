@@ -8,7 +8,7 @@ not. The ``p300_bci`` preset fits 200 to 700 ms; trial-by-trial amplitudes of th
 serve as features for a classifier (see the scikit-learn tutorial).
 
 Data: simulated scalp EEG, targets (P3 present) and non-targets, 8 channels.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate targets and non-targets
@@ -50,10 +50,10 @@ print("channels with a P3, per condition:", p3.groupby("condition")["channel"].n
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 target = [
     group.fits[int(p)]

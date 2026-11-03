@@ -15,13 +15,13 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 pytest.importorskip("matplotlib")
 
-from matplotlib.colors import to_hex  # noqa: E402  (after pytest.importorskip)
-from matplotlib.figure import Figure  # noqa: E402  (after pytest.importorskip)
+from matplotlib.colors import to_hex  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
-from evoparam import plots  # noqa: E402  (after pytest.importorskip)
-from evoparam.errors import SettingsError  # noqa: E402  (after pytest.importorskip)
-from evoparam.plots._plots import PALETTE  # noqa: E402  (after pytest.importorskip)
-from evoparam.stats import strip_jitter, waveform_band  # noqa: E402  (after pytest.importorskip)
+from evoparam import plots  # noqa: E402
+from evoparam.errors import SettingsError  # noqa: E402
+from evoparam.plots._plots import PALETTE  # noqa: E402
+from evoparam.stats import strip_jitter, waveform_band  # noqa: E402
 
 TIMES = np.linspace(-0.1, 0.4, 51)
 SIGNALS = np.stack([np.sin(2 * np.pi * f * TIMES) for f in (2.0, 3.0, 5.0)])
@@ -58,13 +58,12 @@ def test_plot_signals_with_one_time_axis_per_waveform_and_one_colour() -> None:
     assert {to_hex(line.get_color()) for line in lines} == {"#000000"}
     with pytest.raises(SettingsError, match="one array per waveform"):
         plots.plot_signals([TIMES], signals)
-    # a 1-D waveform, on an axis given by the caller
     import matplotlib.pyplot as plt
 
     other, ax = plt.subplots()
     assert plots.plot_signals(TIMES, SIGNALS[0], ax=ax, colors=["#123456"]) is other
     assert to_hex(ax.get_lines()[0].get_color()) == "#123456"
-    assert ax.get_legend() is None  # no label, no legend
+    assert ax.get_legend() is None
     _close(fig)
     _close(other)
 
@@ -72,7 +71,7 @@ def test_plot_signals_with_one_time_axis_per_waveform_and_one_colour() -> None:
 def test_plot_signals_shading() -> None:
     fig = plots.plot_signals_shading(TIMES, SIGNALS, [0.0, 0.1], add_center=True)
     ax = fig.axes[0]
-    assert len(ax.get_lines()) == len(SIGNALS) + 1  # the waveforms and the centre line
+    assert len(ax.get_lines()) == len(SIGNALS) + 1
     assert_allclose(ax.get_lines()[-1].get_xdata(), [0.05, 0.05])
     assert len(ax.patches) == 1
     _close(fig)

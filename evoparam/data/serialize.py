@@ -58,8 +58,6 @@ MISSING = "\\N"
 _SCHEMA_RE = re.compile(r"^evoparam-result/(\d+)(?:\.(\d+))?$")
 
 
-# Result types defined outside evoparam.data (for example evoparam.sim.GroundTruth), added
-# by their module when it is imported; evoparam.data imports nothing from them (spec §4.2).
 _EXTRA_TYPES: dict[Any, Any]
 _EXTRA_TYPES = {}
 
@@ -358,7 +356,7 @@ def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
         for key, table in encoder.tables.items():
             if isinstance(table, Table) and table_format != "parquet":
                 _write_light_table(table, os.path.join(folder, "tables"), key)
-            else:  # a DataFrame; parquet needs pandas and pyarrow (extra ``data``)
+            else:
                 frame = table.to_pandas() if isinstance(table, Table) else table
                 _write_table(frame, os.path.join(folder, "tables"), key, table_format)
             files += [
@@ -372,8 +370,6 @@ def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
         fobj.write(dumps(getattr(obj, "settings", {}), indent=1))
     files += ["provenance.json", "settings.json"]
     if callable(getattr(obj, "methods_text", None)):
-        # the methods paragraph is stored with every saved result, not only produced on
-        # request (spec §11.8, REQ-390)
         with open(os.path.join(folder, "methods.txt"), "w", encoding="utf-8") as fobj:
             fobj.write(obj.methods_text() + "\n")
         files.append("methods.txt")
@@ -454,7 +450,6 @@ def save_object(
 def _read_light_table(folder: Any, key: Any, sidecar: Any) -> Table:
     """Read a CSV table without pandas (REQ-010): a :class:`Table` with the saved dtypes."""
     if sidecar["format"] == "parquet" or sidecar["index"]["kind"] != "range":
-        # parquet files and tables with an index column need pandas (extra ``data``)
         require("pandas", extra="data", caller="evoparam.data.serialize._read_table")
     csv_path = os.path.join(folder, f"{key}.csv")
     with open(csv_path, encoding="utf-8", newline="") as fobj:
@@ -473,7 +468,6 @@ def _read_light_table(folder: Any, key: Any, sidecar: Any) -> Table:
 def _light_column(values: Any, dtype: Any, column: Any, key: Any, missing: Any) -> Any:
     """One column of a CSV table as a NumPy array of its saved dtype (no pandas)."""
     if dtype in ("boolean",) or dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")):
-        # pandas nullable integers and booleans: None where the value is missing
         convert = (lambda v: v == "True") if dtype == "boolean" else int
         return np.array([None if v == MISSING else convert(v) for v in values], dtype=object)
     kind = np.dtype(dtype).kind if dtype not in ("str", "string") else "O"
@@ -499,18 +493,6 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
     import pandas as pd
 
     if sidecar["format"] == "parquet":
-        # pyarrow opens the file (a pyarrow file system), not Python. Given a local path
-        # alone, pandas hands pyarrow a Python file object; the reading threads of pyarrow
-        # then drop the last references to it and to the bytes read from it after
-        # read_parquet has returned, each time taking the GIL. When that happens while the
-        # interpreter is being finalized (a read near the end of a short process, such as
-        # an evoparam command, under CPU load), Python 3.11 and 3.12 end the pyarrow
-        # thread inside a C++ destructor and the process aborts after its work is done
-        # ("terminate called without an active exception", exit status -6); Python 3.13
-        # parks the thread and the process hangs in exit(), where pyarrow waits for it.
-        # Read through a pyarrow file system, the file lands in pyarrow's own buffers:
-        # its threads hold no Python object. pandas 2.0 already takes filesystem= (in its
-        # **kwargs, named from 2.1) and then opens no handle; the frame read is the same.
         require("pyarrow", extra="data", caller="evoparam.data.serialize._read_table")
         from pyarrow import fs
 
@@ -544,7 +526,6 @@ def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str
     import pandas as pd
 
     if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":
-        # pandas nullable integers and booleans: missing values are pd.NA
         if dtype == "boolean":
             items = [pd.NA if v == MISSING else v == "True" for v in values]
         else:
@@ -573,7 +554,6 @@ class _Decoder:
         self.arrays = arrays
         self.mmap = mmap
         self.registry = _registry()
-        # the node tags, in the order they are looked for, and the decoder of each
         self._tags: tuple[tuple[str, Callable[[Any, Any], Any]], ...] = (
             ("__float__", lambda value, _node: float(value)),
             ("__array__", lambda value, _node: np.array(self.arrays[value])),

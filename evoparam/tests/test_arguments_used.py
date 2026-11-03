@@ -55,7 +55,7 @@ def backend(request: Any, monkeypatch: Any) -> str:
     if request.param == "joblib":
         pytest.importorskip("joblib")
     else:
-        monkeypatch.setitem(sys.modules, "joblib", None)  # import joblib raises ImportError
+        monkeypatch.setitem(sys.modules, "joblib", None)
     return str(request.param)
 
 
@@ -99,7 +99,6 @@ def test_verbose_fit(caplog: Any, ccep: Any) -> None:
         lambda v: evoparam.models.fit(evoked, "ccep", random_state=0, verbose=v),
     )
     caplog.clear()
-    # evoparam.fit: the fit and the existence test, and the methods paragraph at INFO
     _check_verbose(
         caplog,
         "evoparam.existence",
@@ -150,7 +149,6 @@ def test_verbose_fit_hierarchical(caplog: Any) -> None:
         "evoparam.hierarchical",
         lambda v: fit_hierarchical(sets, components=["N1"], verbose=v),
     )
-    # spec §4.2 keeps utils out of hierarchical: its own reading of verbose, same values
     with pytest.raises(SettingsError, match="verbose must be one of"):
         fit_hierarchical(sets, components=["N1"], verbose="loud")
     assert LOGGER.level == logging.WARNING
@@ -211,12 +209,11 @@ def test_progress_is_transparent() -> None:
         assert list(progress(items, total=3, desc="x")) == items
     with verbose("progress"):
         assert list(progress(iter(items), total=3, desc="x")) == items
-        with verbose("info"):  # an explicit level of an inner call: no bar
+        with verbose("info"):
             assert list(progress(items)) == items
 
 
 ###################################################################################################
-## n_jobs: the helper
 
 
 def test_n_workers() -> None:
@@ -257,7 +254,7 @@ def test_parallel_map_order_errors_warnings_and_records(caplog: Any) -> None:
     messages = [r.getMessage() for r in caplog.records]
     for x in (1, 2, 3):
         assert f"unit {x} logs" in messages
-        assert sum(f"unit {x} warns" in m for m in messages) == 1  # one WARNING per unit
+        assert sum(f"unit {x} warns" in m for m in messages) == 1
 
 
 def _warn_above(x: int) -> int:
@@ -284,7 +281,6 @@ def test_parallel_map_warning_location(n_jobs: int) -> None:
 
 
 ###################################################################################################
-## n_jobs: identical results
 
 
 def _same_test(a: Any, b: Any) -> None:
@@ -385,7 +381,6 @@ def test_shared_shapes_n_jobs(method: Any) -> None:
 
 
 ###################################################################################################
-## Arguments that are used now
 
 
 def test_prestimulus_dependence_band(ccep: Any, group: Any) -> None:
@@ -396,10 +391,9 @@ def test_prestimulus_dependence_band(ccep: Any, group: Any) -> None:
         tf = fit_trials(ccep, group, covariates=("prestim",), prestim_band=(10.0, 20.0))
     assert tf.settings["prestim_band"] == [10.0, 20.0]
     with pytest.raises(SettingsError, match=r"prestim_band=\(10.0, 20.0\)"):
-        prestimulus_dependence(tf, n_permutations=10)  # default band (8, 13)
+        prestimulus_dependence(tf, n_permutations=10)
     table = prestimulus_dependence(tf, band=(10.0, 20.0), n_permutations=10, random_state=0)
     assert table.attrs["band"] == [10.0, 20.0]
-    # a table carries no band: it is recorded, not checked
     assert prestimulus_dependence(tf.table, n_permutations=10).attrs["band"] == [8.0, 13.0]
     with pytest.raises(SettingsError, match="band must be"):
         prestimulus_dependence(tf, band=(13.0, 8.0))
@@ -429,7 +423,6 @@ def test_artifact_quality_template_gives_the_fit_r2() -> None:
     expected = np.asarray(result.quality_components["template_fit_r2"], float)
     table = artifact_quality(cleaned, window=window, template=tpl)
     assert np.allclose(table["template_fit_r2"], expected)
-    # given fit_r2 wins; no template, no r2
     assert np.allclose(
         artifact_quality(cleaned, window=window, template=tpl, fit_r2=np.ones(12))[
             "template_fit_r2"
@@ -485,7 +478,7 @@ def test_background_without_basis_is_refused() -> None:
     from evoparam.shapes.registry import BACKGROUNDS, check_background
 
     for name in BACKGROUNDS.builtin:
-        check_background(BACKGROUNDS[name])  # the class: some need settings to build
+        check_background(BACKGROUNDS[name])
 
     class ProtocolOnly:
         name = "protocol_only"
@@ -498,10 +491,10 @@ def test_background_without_basis_is_refused() -> None:
         def jacobian(self, times: Any, params: Any) -> Any:
             return np.ones(params.shape[:-1] + (len(times), 1))
 
-        def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002  (protocol)
+        def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002
             return np.array([-1.0]), np.array([1.0])
 
-        def initial_guess(self, times: Any, waveform: Any) -> Any:  # noqa: ARG002  (protocol)
+        def initial_guess(self, times: Any, waveform: Any) -> Any:  # noqa: ARG002
             return np.zeros(1)
 
     with pytest.raises(SettingsError, match="basis"):

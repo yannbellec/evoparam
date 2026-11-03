@@ -5,7 +5,7 @@ Together with the import-graph rule (tests/test_import_graph.py), this test read
 these modules and fails on numerical code: scipy, the numerical parts of numpy (linear
 algebra, Fourier transforms, statistics, fitting, filtering), and the private numerical
 modules of the analysis packages. Every number they show must come from the result or from
-a public function of spec §5.1–§5.12 (for ``evoparam.stream``: the estimators of
+a public function of spec §5.1-§5.12 (for ``evoparam.stream``: the estimators of
 ``trials``, ``existence`` and ``events``, step S18).
 """
 
@@ -15,13 +15,11 @@ from typing import Any
 
 import pytest
 
-# Depth of evoparam.<subpackage>.<module>.
 MODULE_DEPTH = 2
 
 PACKAGE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LAYERS = ("reports", "plots", "cli.py", "stream")
 
-# numpy functions that compute a statistic, a transform or a fit.
 NUMERICAL = {
     "linalg",
     "fft",
@@ -65,7 +63,6 @@ NUMERICAL = {
     "hamming",
     "kaiser",
 }
-# Analysis packages whose private modules hold the numerical code.
 ANALYSIS = (
     "models",
     "existence",
@@ -82,7 +79,6 @@ ANALYSIS = (
     "bands",
     "analysis",
 )
-# Private modules that hold settings or text, not numbers.
 ALLOWED_PRIVATE = {"evoparam.models._settings"}
 
 

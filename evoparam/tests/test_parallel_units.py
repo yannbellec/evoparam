@@ -39,13 +39,12 @@ def unit(item: int) -> int:
 
 
 def unit_pointing_above(item: int) -> int:
-    # stacklevel 3: two frames above the unit, on the second rung in a worker
     warnings.warn(f"above {item}", UserWarning, stacklevel=3)
     return item
 
 
 def test_a_unit_in_a_worker_collects_its_warnings_and_records() -> None:
-    other = os.getpid() + 1  # as if this process were a worker of another parent
+    other = os.getpid() + 1
     result, issued, records = _captured(unit, 2, logging.WARNING, other)
     assert result == 10 * 2
     (message, category, filename, lineno, steps) = issued[0]
@@ -56,9 +55,8 @@ def test_a_unit_in_a_worker_collects_its_warnings_and_records() -> None:
     assert lineno == unit.__code__.co_firstlineno + 2
     (record,) = records
     assert record.getMessage() == "unit 2 of run"
-    assert record.args is None  # formatted in the worker
+    assert record.args is None
     assert record.levelno == logging.WARNING
-    # the handler is removed after the unit
     assert not logging.getLogger("evoparam").handlers or all(
         type(h).__name__ != "_Collect" for h in logging.getLogger("evoparam").handlers
     )
@@ -69,7 +67,7 @@ def test_a_warning_above_the_unit_is_located_above_the_caller() -> None:
     (_, _, filename, lineno, steps) = issued[0]
     assert filename == _rungs.FILE
     assert steps == _rungs.LEVELS[lineno]
-    assert steps == 3 - 1  # stacklevel 3: two frames above the unit
+    assert steps == 3 - 1
 
 
 def test_replay_issues_the_records_and_warnings(caplog: Any) -> None:
@@ -86,7 +84,7 @@ def test_replay_issues_the_records_and_warnings(caplog: Any) -> None:
         warnings.simplefilter("always")
         _replay(issued, [])
     assert [str(w.message) for w in caught] == ["above 4"]
-    assert caught[0].filename != _rungs.FILE  # located above the caller, not on a rung
+    assert caught[0].filename != _rungs.FILE
 
 
 def test_in_the_calling_process_a_unit_runs_as_is() -> None:

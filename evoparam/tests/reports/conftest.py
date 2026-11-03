@@ -30,7 +30,7 @@ def results() -> Any:
         artifact = remove_artifact(ts, method="interpolate", window=(-0.002, 0.008))
         try:
             basis = shared_shapes(ts, random_state=0)
-        except Exception:  # noqa: BLE001  (the fixture tolerates a failure of this optional step)
+        except Exception:  # noqa: BLE001
             basis = None
     return {
         "ts": ts,
@@ -62,6 +62,5 @@ def ccep_run() -> Any:
 
     trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, sfreq=1024.0, seed=1)
     with warnings.catch_warnings():
-        # three channels are too few for the adjusted common average (plain average used)
         warnings.simplefilter("ignore", UserWarning)
         return reports.run_pipeline(trials, "ccep", trial_fits=True)

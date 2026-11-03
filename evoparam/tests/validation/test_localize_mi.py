@@ -36,7 +36,7 @@ ROOT = pathlib.Path(__file__).parents[3]
 REFERENCE = ROOT / "validation" / "layer3" / "localize_mi_responses.json"
 GIN = "https://gin.g-node.org/ezemikulan/Localize-MI/raw/master/"
 EPOCHS = "derivatives/epochs/sub-01/eeg/sub-01_task-seegstim_run-01_epochs.npy"
-SFREQ, TMIN = 8000.0, -0.25  # the authors' load_bids (fx_bids.py)
+SFREQ, TMIN = 8000.0, -0.25
 
 
 @pytest.mark.xfail(

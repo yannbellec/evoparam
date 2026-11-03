@@ -20,7 +20,6 @@ import pytest
 import evoparam
 from evoparam.models import FitSettings
 
-# Fewest modules of evoparam.models.
 MIN_FILES = 5
 
 pytestmark = pytest.mark.core
@@ -29,7 +28,7 @@ MODELS = pathlib.Path(evoparam.__file__).resolve().parent / "models"
 HOLDERS = re.compile(r"comp|shape|peak|cand", re.IGNORECASE)
 SIZES = re.compile(r"amplitude|height|snr|area|fwhm|width|beta|prominence|power", re.IGNORECASE)
 THRESHOLDS = re.compile(r"thresh|min_|max_|limit|cutoff|cut_off|floor|tol", re.IGNORECASE)
-ALLOWED = {"settings.min_amplitude"}  # §5.5.10: user option, 0 = no restriction
+ALLOWED = {"settings.min_amplitude"}
 
 
 def _text(node: Any) -> Any:
@@ -119,10 +118,8 @@ def test_req004_models_have_no_deletion_heuristic() -> None:
 
 
 def test_req004_min_amplitude_is_off_by_default() -> None:
-    # the only size rule of the engine is the user's min_amplitude (§5.5.10): 0 = none
     assert FitSettings().min_amplitude == 0.0
     engine = (MODELS / "engine.py").read_text(encoding="utf-8")
-    # the gate is the truthiness of min_amplitude, whatever the line layout (ruff format)
     assert re.search(r"if\s*\(?\s*settings\.min_amplitude\s+and\b", engine)
 
 
@@ -154,7 +151,6 @@ def test_req004_scan_finds_each_forbidden_form(form: Any) -> None:
 
 def test_req004_scan_finds_a_mutation_of_the_engine() -> None:
     engine = (MODELS / "engine.py").read_text(encoding="utf-8")
-    # the allowed user option replaced by a threshold of the engine: the scan must see it
     mutated = engine.replace("settings.min_amplitude", "settings.detection_threshold")
     assert mutated != engine
     assert scan(mutated, "engine.py")

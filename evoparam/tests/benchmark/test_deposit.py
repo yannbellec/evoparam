@@ -34,7 +34,6 @@ from evoparam.version import __version__
 
 from .helpers import ROOT, hidden_seeds_path, suite
 
-# Hidden cells of the core suite, hex digits of a SHA-256, and the hidden fraction.
 N_HIDDEN = 12
 SHA256_HEX = 64
 HIDDEN_FRACTION = 0.2
@@ -160,7 +159,6 @@ def test_req356_commitment_is_the_hash_of_the_canonical_document() -> None:
         document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     assert hidden_commitment(document) == hashlib.sha256(canonical).hexdigest()
-    # key order and whitespace do not change the commitment; any seed does
     shuffled = json.loads(json.dumps(document, indent=3))
     assert hidden_commitment(shuffled) == hidden_commitment(document)
     changed = copy.deepcopy(document)

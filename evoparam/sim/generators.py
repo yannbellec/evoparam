@@ -68,14 +68,10 @@ __all__ = [
     "GENERATORS",
 ]
 
-# probability that a CCEP response is inverted with polarity="random"
 _P_INVERTED = 0.5
-# saturation=True puts the amplifier rail at this fraction of the artifact peak
 _RAIL_FRACTION = 0.3
-# trials per cycle of the alternating-polarity and forward-masking paradigms
 _ALTERNATING_PERIOD = 2
 _MASKING_PERIOD = 4
-# lowest sampling rate of an ERNA simulation (Hz), spec §5.12 item 3 ("4096 or higher")
 _ERNA_MIN_SFREQ = 4096
 
 
@@ -229,7 +225,7 @@ def _overlap_offsets(
 ## ERP
 
 
-def simulate_erp(  # noqa: PLR0913  (spec §5.12 item 1 fixes 12 parameters, plus 6 keywords; DECISIONS.md §7.2)
+def simulate_erp(  # noqa: PLR0913
     n_trials: int = 60,
     *,
     n_channels: int = 1,
@@ -486,7 +482,7 @@ def stimulation_artifact(
 ) -> FloatArray:
     """Artifact template of one pulse on every channel, shape (n_channels, n_times).
 
-    ``scale_uv_per_ma × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
+    ``scale_uv_per_ma × current × (r0/r+ - r0/r-)`` times the recorded pulse plus a
     recovery tail of relative size ``tail.fraction``.
     """
     gain = (
@@ -632,12 +628,12 @@ def _ccep_artifact(
     return artifact_data, artifact_info, rail
 
 
-def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters, plus 17 keywords; DECISIONS.md §7.2)
+def simulate_ccep(  # noqa: PLR0913
     n_trials: int = 10,
     *,
     n_channels: int = 46,
     sfreq: float = 2048.0,
-    stim_current_mA: float = 4.0,  # noqa: N803  (unit suffix of a public keyword)
+    stim_current_mA: float = 4.0,  # noqa: N803
     pulse_width_us: float = 200.0,
     biphasic: bool = True,
     n1: Any = None,
@@ -660,7 +656,7 @@ def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters, pl
     snr: Any = None,
     jitter_sd: float = 0.0,
     amplitude_cv: float = 0.0,
-    artifact_scale_uV_per_mA: float = 100000.0,  # noqa: N803  (unit suffix of a public keyword)
+    artifact_scale_uV_per_mA: float = 100000.0,  # noqa: N803
     artifact_cv: float = 0.02,
     tail_fraction: float = 0.02,
     tail_tau: Any = (0.0015, 0.015),
@@ -676,7 +672,7 @@ def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters, pl
     probability ``p_delayed``; parameters are drawn per channel.
 
     The artifact is the potential of the stimulating current (source and sink at the
-    two contacts, ``∝ 1/r+ − 1/r−``, so it decays with distance and changes sign)
+    two contacts, ``∝ 1/r+ - 1/r-``, so it decays with distance and changes sign)
     times the rectangular pulse seen through the amplifier's anti-aliasing filter,
     followed by a double-exponential recovery tail; it varies by ``artifact_cv``
     between pulses. ``saturation`` clips the data at the rails (True: 30 % of the
@@ -822,7 +818,7 @@ def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters, pl
 ## ERNA
 
 
-def simulate_erna(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def simulate_erna(  # noqa: PLR0913
     n_pulses: int = 10,
     *,
     n_trials: int = 20,
@@ -837,7 +833,7 @@ def simulate_erna(  # noqa: PLR0913  (public API outside the spec signatures; DE
     onset_delay: float = 0.001,
     buildup: float = 2.0,
     amplitude: float | tuple[float, float] = (-300.0, -100.0),
-    stim_current_mA: float = 3.0,  # noqa: N803  (unit suffix of a public keyword)
+    stim_current_mA: float = 3.0,  # noqa: N803
     pulse_width_us: float = 60.0,
     noise: str = "pink",
     noise_sd: float = 5.0,
@@ -1022,11 +1018,9 @@ AUDITORY_COMPONENTS = {
     ),
 }
 
-# Spatial spread (head radii) of each TEP component around the stimulated site.
 _TEP_SPREAD = {"N15": 0.25, "P30": 0.25, "N45": 0.35, "P60": 0.35, "N100": 0.6, "P180": 0.6}
-_TEP_SPREAD_DEFAULT = 0.4  # spatial spread of a TEP component not in _TEP_SPREAD
-_AUDITORY_SPREAD = 0.5  # spatial spread of the auditory confound around the vertex
-# the muscle burst's frequency is capped so that a cycle spans at least 2.5 samples
+_TEP_SPREAD_DEFAULT = 0.4
+_AUDITORY_SPREAD = 0.5
 _MIN_SAMPLES_PER_CYCLE = 2.5
 
 
@@ -1155,7 +1149,7 @@ def _tms_artifacts(
     return artifact_data, info
 
 
-def simulate_tep(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def simulate_tep(  # noqa: PLR0913
     n_trials: int = 40,
     *,
     n_channels: int = 32,
@@ -1268,8 +1262,6 @@ def simulate_tep(  # noqa: PLR0913  (public API outside the spec signatures; DEC
 ## ECAP
 
 _ECAP_KINDS: dict[str, dict[str, Any]] = {
-    # N1 latency at the nearest recording contact (s), N1 -> P2 delay (s), FWHMs (s),
-    # contact spacing (mm), conduction velocity (mm/s, None: no propagation), space constant.
     "spinal": {
         "n1": (0.0008, 0.0012),
         "p2_delay": (0.0003, 0.0006),
@@ -1495,7 +1487,7 @@ def _ecap_artifact(
     return artifact_data, info
 
 
-def simulate_ecap(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def simulate_ecap(  # noqa: PLR0913
     n_trials: int = 40,
     *,
     kind: str = "spinal",
@@ -1506,7 +1498,7 @@ def simulate_ecap(  # noqa: PLR0913  (public API outside the spec signatures; DE
     paradigm: str | None = None,
     masker_probe_interval: float = 0.0005,
     masking: float = 1.0,
-    stim_current_mA: float = 1.0,  # noqa: N803  (unit suffix of a public keyword)
+    stim_current_mA: float = 1.0,  # noqa: N803
     pulse_width_us: float = 50.0,
     artifact: bool = True,
     amplitude: Any = ((-200.0, -50.0), (40.0, 150.0)),
@@ -1516,10 +1508,10 @@ def simulate_ecap(  # noqa: PLR0913  (public API outside the spec signatures; DE
     snr: Any = None,
     jitter_sd: float = 0.0,
     amplitude_cv: float = 0.0,
-    artifact_scale_uV_per_mA: float = 20000.0,  # noqa: N803  (unit suffix of a public keyword)
+    artifact_scale_uV_per_mA: float = 20000.0,  # noqa: N803
     tail_fraction: float = 0.05,
     tail_tau: float = 0.0002,
-    switch_artifact_uV: float = 20.0,  # noqa: N803  (unit suffix of a public keyword)
+    switch_artifact_uV: float = 20.0,  # noqa: N803
     seed: Any = None,
     keep_arrays: bool = True,
 ) -> tuple["TrialSet", "GroundTruth"]:
@@ -1639,7 +1631,6 @@ def simulate_ecap(  # noqa: PLR0913  (public API outside the spec signatures; DE
 
 
 ###################################################################################################
-## Animal evoked LFP
 
 ANIMAL_COMPONENTS = {
     "visual": (
@@ -1659,7 +1650,7 @@ ANIMAL_COMPONENTS = {
 }
 
 
-def simulate_animal_ep(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def simulate_animal_ep(  # noqa: PLR0913
     n_trials: int = 100,
     *,
     species: str = "mouse",

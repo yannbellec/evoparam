@@ -8,7 +8,6 @@ from evoparam import report
 from evoparam.errors import SettingsError
 from evoparam.sim import gen_response
 
-# Largest latency (ms) and relative amplitude error accepted on the example of tutorial 01.
 LATENCY_TOLERANCE_MS = 1.0
 AMPLITUDE_TOLERANCE = 0.1
 
@@ -30,7 +29,7 @@ def test_gen_response_background_and_noise() -> None:
     at = np.searchsorted(times, 0.030)
     assert signal[at] == pytest.approx(60 * np.exp(-times[at] / 0.030))
     _, noisy = gen_response([], background=None, noise=8, seed=0)
-    assert noisy.std() == pytest.approx(8, rel=0.15)  # pink noise: the SD of one draw varies
+    assert noisy.std() == pytest.approx(8, rel=0.15)
     _, again = gen_response([], background=None, noise=8, seed=0)
     assert np.array_equal(noisy, again)
 

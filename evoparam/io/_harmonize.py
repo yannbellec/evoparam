@@ -22,6 +22,5 @@ __all__ = [
     "normalize_site",
 ]
 
-# Private names kept for code that imported them from here
 _is_missing = _source._is_missing
 _stimulation_rows = _source._stimulation_rows

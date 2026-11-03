@@ -44,7 +44,6 @@ __all__ = [
 
 STATS = ("fdr", "cluster", "tfce", "baseline_normal", "none")
 MIN_TRIALS = 3
-# TFCE step in t units (the default of MNE-Python's threshold-free clustering).
 TFCE_E, TFCE_H, TFCE_DH = 0.5, 2.0, 0.2
 PERM_CHUNK = 64
 
@@ -138,13 +137,10 @@ def baseline_normal_map(
     z, p : ndarrays (n_freqs, n_times), NaN outside ``window``.
     """
     with warnings.catch_warnings():
-        # all-NaN points (and fewer than two baseline values) give NaN, reported as such
         warnings.filterwarnings("ignore", "Mean of empty slice", RuntimeWarning)
         warnings.filterwarnings("ignore", "Degrees of freedom <= 0", RuntimeWarning)
-        db = np.nanmean(10 * log10(power), axis=0)  # -inf where a trial has no power
+        db = np.nanmean(10 * log10(power), axis=0)
         ref = np.where(baseline[None], db, np.nan)
-        # a frequency whose baseline holds -inf has no baseline spread: NaN (its -inf are
-        # replaced for the arithmetic, which is row by row, so that no inf - inf is computed)
         no_spread = np.any(np.isinf(ref), axis=1, keepdims=True)
         ref = np.where(no_spread, 0.0, ref)
         mu = np.nanmean(ref, axis=1, keepdims=True)
@@ -229,7 +225,6 @@ def _cluster_masses(tmap: Any, threshold: Any) -> tuple[list[Any], list[Any]]:
     return masses, labels
 
 
-# Connectivity within each (frequency x time) slice of a stack, none across slices.
 _STACK = np.zeros((3, 3, 3), bool)
 _STACK[1] = ndimage.generate_binary_structure(2, 1)
 

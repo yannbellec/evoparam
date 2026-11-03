@@ -1,4 +1,4 @@
-# evoparam — Résumé de la spécification en français simple
+# evoparam - Résumé de la spécification en français simple
 
 *Ce document résume `SPEC.md` (en anglais) avec des mots simples. Rien n'est enlevé sur le fond : chaque choix, chaque limite et chaque exception importante est gardé. Chaque mot technique est gardé tel quel (pour pouvoir le chercher), puis expliqué tout de suite.*
 
@@ -13,7 +13,7 @@ Auteur : Yann V. Bellec. Date : 7 octobre 2026. Statut : privé, rien n'est publ
 - **µV** : microvolt, un millionième de volt. Les réponses du cerveau font quelques µV à quelques centaines de µV.
 - **Composante** (*component*) : une « bosse » ou un « creux » nommé dans la réponse. Exemple : N1 = le premier creux négatif, N2 = le deuxième.
 - **Latence** : le moment où la bosse est la plus haute (en secondes après le stimulus).
-- **Amplitude** : la hauteur de la bosse (en µV), avec un signe (+ ou −).
+- **Amplitude** : la hauteur de la bosse (en µV), avec un signe (+ ou -).
 - **Largeur / FWHM** (*full width at half maximum*) : la largeur de la bosse mesurée à mi-hauteur. Comme mesurer la largeur d'une colline à mi-pente.
 - **Essai** (*trial*) : une répétition du stimulus. On répète souvent 10 à 100 fois, puis on fait la moyenne pour enlever le bruit.
 - **Canal** (*channel*) : une électrode (un point de mesure).
@@ -22,10 +22,10 @@ Auteur : Yann V. Bellec. Date : 7 octobre 2026. Statut : privé, rien n'est publ
 
 Les modalités (types d'enregistrement) couvertes :
 - **ERP** (*event-related potential*) : réponse mesurée sur le cuir chevelu (EEG) après un son, une image, etc.
-- **SPES / CCEP** (*single pulse electrical stimulation / cortico-cortical evoked potential*) : on envoie une impulsion électrique dans le cerveau par une électrode implantée (chez des patients épileptiques avant chirurgie), et on mesure la réponse sur les autres électrodes. N1 arrive vers 10–50 ms, N2 vers 50–300 ms.
+- **SPES / CCEP** (*single pulse electrical stimulation / cortico-cortical evoked potential*) : on envoie une impulsion électrique dans le cerveau par une électrode implantée (chez des patients épileptiques avant chirurgie), et on mesure la réponse sur les autres électrodes. N1 arrive vers 10-50 ms, N2 vers 50-300 ms.
 - **ECoG** : électrodes posées à la surface du cerveau. **sEEG** : électrodes plantées en profondeur, comme des aiguilles.
 - **TEP** (*TMS-evoked potential*) : réponse EEG après une impulsion magnétique sur le crâne (TMS = stimulation magnétique transcrânienne).
-- **ERNA** (*evoked resonant neural activity*) : une petite oscillation rapide (200–450 Hz) qui suit chaque impulsion de stimulation cérébrale profonde (**DBS**, *deep brain stimulation*, utilisée dans la maladie de Parkinson).
+- **ERNA** (*evoked resonant neural activity*) : une petite oscillation rapide (200-450 Hz) qui suit chaque impulsion de stimulation cérébrale profonde (**DBS**, *deep brain stimulation*, utilisée dans la maladie de Parkinson).
 - **ECAP** (*evoked compound action potential*) : la réponse d'un faisceau de fibres nerveuses. Utilisée dans les stimulateurs de moelle épinière (**SCS**) et les implants cochléaires.
 - **SEP** : réponse somatosensorielle (après stimulation d'un nerf du bras ou de la jambe).
 - **LFP** (*local field potential*) : le signal électrique « lent » mesuré dans le cerveau des animaux.
@@ -144,13 +144,13 @@ La classe `evoparam` (même nom que le paquet, ce qui crée des bugs d'import) d
 
 ## 5. Les modules, un par un
 
-### 5.1 `io` — lire et écrire
+### 5.1 `io` - lire et écrire
 Lit BIDS (le format standard de rangement des données de neuroimagerie), MNE, EDF, BrainVision, NWB (format standard pour la neurophysiologie animale), Neo, et des tableaux NumPy. **Lecture partielle à distance** : on ne télécharge que les morceaux utiles d'un gros fichier OpenNeuro (requêtes HTTP « Range »). Exemple : 10 essais de ds004080 en moins de 60 Mo et 30 s. Harmonise les colonnes de stimulation (site, courant, largeur d'impulsion) qui ne sont pas standardisées dans BIDS. Un registre de 14 jeux de données publics avec leur licence.
 
-### 5.2 `events` — retrouver les impulsions dans le signal
+### 5.2 `events` - retrouver les impulsions dans le signal
 Quand les marqueurs de stimulation manquent, on les retrouve grâce à l'artefact (le pic énorme de l'impulsion). Méthodes : détecteur robuste sur la dérivée (normalisée par la **MAD**, *median absolute deviation*, une mesure de dispersion qui n'est pas perturbée par les valeurs extrêmes), puis confirmation par **filtre adapté** (*matched filter* : on compare chaque pic à un modèle d'artefact ; corrélation > 0,8). Détecte aussi la **saturation** (l'amplificateur bloqué à son maximum) et identifie le **site stimulé** (les deux contacts avec les plus gros artefacts de signes opposés). Objectif : rappel et précision ≥ 0,99 sur ds004080 (rappel = part des vraies impulsions trouvées ; précision = part des détections qui sont vraies).
 
-### 5.3 `artifact` — enlever l'artefact de stimulation sans abîmer la réponse
+### 5.3 `artifact` - enlever l'artefact de stimulation sans abîmer la réponse
 Onze méthodes, chacune écrite à partir des équations publiées (pas de code copié) :
 1. **interpolate** : on remplace la fenêtre de l'artefact par une ligne (ou une courbe) entre avant et après.
 2. **template** : on fait un « gabarit » de l'artefact (la médiane de tous les artefacts du même site, même courant, même polarité), on l'ajuste en taille pour chaque essai, et on le soustrait.
@@ -160,14 +160,14 @@ Onze méthodes, chacune écrite à partir des équations publiées (pas de code 
 6. **subspace** : on « blanchit » les données avec le bruit de base, puis on projette hors des directions de l'artefact.
 7. **polynomial** : à chaque instant, on ajuste un petit polynôme local et on le soustrait (pour les enregistrements très rapides).
 8. **matching_pursuit** : on décompose chaque impulsion en briques (secteur, réponse, artefact) et on enlève les briques d'artefact. ⚠ Couverte par une **demande de brevet** de Washington University (US 2023/0240618 A1) ; avertissement affiché.
-9. **paradigm** : on utilise le protocole. Polarité alternée : l'artefact s'inverse quand la polarité s'inverse, pas la réponse, donc la moyenne des deux annule l'artefact. Masquage avant (*forward masking*, implants cochléaires) : A − B + C − D.
+9. **paradigm** : on utilise le protocole. Polarité alternée : l'artefact s'inverse quand la polarité s'inverse, pas la réponse, donc la moyenne des deux annule l'artefact. Masquage avant (*forward masking*, implants cochléaires) : A - B + C - D.
 10. **learned** : on apprend une petite base de formes d'artefact par **ACP** (analyse en composantes principales) et on l'enlève.
 11. **Score de qualité** par essai (entre 0 et 1) et **masques** : les points remplacés sont marqués pour que l'ajustement ne s'y fie pas.
 
-### 5.4 `prep` — préparation légère
+### 5.4 `prep` - préparation légère
 Correction de ligne de base (avec vérification qu'elle ne chevauche pas une réponse tardive) ; **références** : bipolaire (différence entre deux contacts voisins), moyenne commune (**CAR**), **CAR ajustée** (méthode CARLA : on retire de la moyenne les canaux qui répondent, sinon ils contaminent tous les autres) ; rapport de **sensibilité à la référence** (le montage seul peut faire passer la latence du N1 de 47,4 ms à 70,7 ms dans une étude publiée) ; marquage des mauvais essais (jamais supprimés, seulement marqués) ; moyenne (moyenne, moyenne tronquée, médiane, pondérée).
 
-### 5.5 `shapes` et `models` — le cœur : décrire la courbe
+### 5.5 `shapes` et `models` - le cœur : décrire la courbe
 **Le modèle** : la courbe = une ligne de fond lente + une somme de quelques composantes + du bruit. Chaque composante = une **forme** × une **amplitude** (avec son signe).
 
 **Les formes disponibles** (toutes avec une formule et une dérivée exacte) :
@@ -185,7 +185,7 @@ Correction de ligne de base (avec vérification qu'elle ne chevauche pas une ré
 **Les fonds** : aucun, constant, linéaire, exponentiel (la queue d'artefact), double exponentiel, **P-spline** (une courbe souple, mais avec des nœuds espacés d'au moins deux largeurs de composante, pour qu'elle ne puisse pas « avaler » une vraie bosse), base d'artefact apprise.
 
 **Le moteur en 10 étapes** (c'est la correction du N1) :
-1. **Bruit estimé sur la ligne de base** : taille du bruit par la MAD, et son **autocorrélation** (à quel point un point ressemble au point suivant ; le bruit EEG/iEEG est très « collant »). On en tire un **nombre effectif d'échantillons** `n_eff = n(1−ρ)/(1+ρ)`. Exemple : avec ρ = 0,9, 2 000 points ne valent qu'environ 105 points indépendants. Sans cette correction, l'outil croit avoir beaucoup plus de preuves qu'il n'en a, et invente des bosses.
+1. **Bruit estimé sur la ligne de base** : taille du bruit par la MAD, et son **autocorrélation** (à quel point un point ressemble au point suivant ; le bruit EEG/iEEG est très « collant »). On en tire un **nombre effectif d'échantillons** `n_eff = n(1-ρ)/(1+ρ)`. Exemple : avec ρ = 0,9, 2 000 points ne valent qu'environ 105 points indépendants. Sans cette correction, l'outil croit avoir beaucoup plus de preuves qu'il n'en a, et invente des bosses.
 2. **Projection variable** (*variable projection*) : les amplitudes et le fond sont calculés exactement (moindres carrés linéaires) ; seuls les paramètres de forme sont cherchés par l'optimiseur. Avantages : moitié moins de paramètres, et un décalage constant (*DC offset*) ne change rien.
 3. **Candidats** : on lisse le résidu (ce qui reste à expliquer), on cherche les extrema au-dessus de 2 écarts-types. **Les extrema au bord de la fenêtre sont gardés** (c'était la règle 1 qui tuait le N1). La largeur de départ est mesurée, et si la bosse est trop étroite, on la met à la largeur minimale au lieu de la jeter (c'était la règle 2). Le seuil de 2 sert **seulement** à proposer des candidats.
 4. **Ajout pas à pas** : on part de zéro composante, on ajoute le meilleur candidat, on ré-optimise tout (avec bornes, dérivées exactes, 3 points de départ), et on **garde la composante seulement si le BIC baisse d'au moins 10**. Le **BIC** (*Bayesian information criterion*) est un score qui récompense un bon ajustement mais pénalise chaque paramètre ajouté : il faut que la nouvelle bosse « paie » sa complexité. Une baisse de 10 = preuve « très forte ».
@@ -205,56 +205,56 @@ Correction de ligne de base (avec vérification qu'elle ne chevauche pas une ré
 - `posterior` : modèle bayésien complet.
 Les quatre rendent les mêmes champs.
 
-**Mesures classiques** (comme ERPLAB, mais en Python) : pic local, amplitude moyenne, aire (4 variantes), **latence à 50 % de l'aire** (*fractional area latency* : le moment où la moitié de l'aire est atteinte), latence à fraction du pic, **SME** (*standardized measurement error* : l'incertitude de chaque score), outils **jackknife** (on refait le calcul en retirant un participant à la fois ; corrections t/(n−1) et F/(n−1)²).
+**Mesures classiques** (comme ERPLAB, mais en Python) : pic local, amplitude moyenne, aire (4 variantes), **latence à 50 % de l'aire** (*fractional area latency* : le moment où la moitié de l'aire est atteinte), latence à fraction du pic, **SME** (*standardized measurement error* : l'incertitude de chaque score), outils **jackknife** (on refait le calcul en retirant un participant à la fois ; corrections t/(n-1) et F/(n-1)²).
 
 **Critères chiffrés principaux** :
 - sur simulations, rappel et précision ≥ 0,95 si le rapport signal/bruit (**SNR**) ≥ 3 ;
 - erreur de latence ≤ 0,5 échantillon et biais d'amplitude ≤ 5 % si SNR ≥ 5 ;
 - avec bruit autocorrélé (ρ = 0,9) : ≤ 5 % de fausses bosses (contre 93 % pour l'ancien code) ;
-- **REQ-113, le N1** : sur ds004080 sujet 01, site PT01-PT02, N1 trouvé partout où la règle publiée (3,4 × SD, 9–100 ms) le trouve, à un canal près, avec κ ≥ 0,8 sur les 46 canaux, et reproduit sur au moins 5 sujets ;
+- **REQ-113, le N1** : sur ds004080 sujet 01, site PT01-PT02, N1 trouvé partout où la règle publiée (3,4 × SD, 9-100 ms) le trouve, à un canal près, avec κ ≥ 0,8 sur les 46 canaux, et reproduit sur au moins 5 sujets ;
 - latences à ±2 ms de la règle publiée sur ≥ 90 % des canaux ;
 - ≤ 50 ms par courbe ;
-- intervalles à 95 % qui contiennent la vraie valeur dans 90–97 % des cas.
+- intervalles à 95 % qui contiennent la vraie valeur dans 90-97 % des cas.
 
-### 5.6 `existence` — y a-t-il une réponse ?
+### 5.6 `existence` - y a-t-il une réponse ?
 - **Méthode par défaut : permutation par inversion de signe.** Idée : s'il n'y a pas de réponse, inverser le signe d'un essai au hasard ne change rien en moyenne. On fait cela 1 000 fois pour voir ce que donne le « hasard », et on compare avec la vraie donnée. Le résultat est une **valeur p** (la probabilité d'obtenir un effet aussi fort par hasard). Deux statistiques : le maximum dans le temps (pour les réponses courtes) ou la « masse de cluster » (pour les réponses longues). Donne aussi la durée et le début de la réponse.
 - **Projection croisée** (ré-implémentation de la méthode CRP d'après l'article) : on projette chaque essai sur les autres ; si les essais se ressemblent, il y a une réponse.
 - **Comparaison de modèles** : le gain de BIC, transformé en valeur p par simulation.
-- **Registre des règles publiées**, reproduites à la lettre : van Blooijs 2023 (3,4 × SD, 9–100 ms), Hays 2021 (z > 6, 10–50 ms), Keller 2014 (z > 6, < 50 ms, ligne de base −500 à −5 ms), Silverstein 2020 (z > 5, 10–50 ms), F-TRACT (Z entre 3 et 7 sur la moyenne des 800 ms après le stimulus), Prime 2020 (règle sur la RMS, *root mean square*, la « puissance moyenne » du signal, entre 10 et 100 ms). Plusieurs articles ne donnent pas la ligne de base ou le seuil exact : le registre marque ces champs « non précisé », refuse de deviner et demande la valeur à l'utilisateur.
-- **Corrections pour comparaisons multiples** : **FDR** (*false discovery rate*, méthode de Benjamini–Hochberg : contrôle la proportion de fausses découvertes parmi les découvertes), Holm, Bonferroni.
+- **Registre des règles publiées**, reproduites à la lettre : van Blooijs 2023 (3,4 × SD, 9-100 ms), Hays 2021 (z > 6, 10-50 ms), Keller 2014 (z > 6, < 50 ms, ligne de base -500 à -5 ms), Silverstein 2020 (z > 5, 10-50 ms), F-TRACT (Z entre 3 et 7 sur la moyenne des 800 ms après le stimulus), Prime 2020 (règle sur la RMS, *root mean square*, la « puissance moyenne » du signal, entre 10 et 100 ms). Plusieurs articles ne donnent pas la ligne de base ou le seuil exact : le registre marque ces champs « non précisé », refuse de deviner et demande la valeur à l'utilisateur.
+- **Corrections pour comparaisons multiples** : **FDR** (*false discovery rate*, méthode de Benjamini-Hochberg : contrôle la proportion de fausses découvertes parmi les découvertes), Holm, Bonferroni.
 - **Discordance entre trains** : si certains trains de stimulation donnent une réponse et d'autres non.
 - Critères : taux de fausses alarmes à ±20 % de α (le seuil choisi, 5 %) ; puissance ≥ 0,9 à SNR 2 avec 10 essais ; accord κ ≥ 0,7 avec la règle publiée sur ds004080.
 
-### 5.7 `trials` — essai par essai
+### 5.7 `trials` - essai par essai
 Chaque essai = la forme moyenne, **décalée** dans le temps et **mise à l'échelle**. On estime pour chaque essai le décalage (*jitter*, la variation de latence) et l'amplitude. Niveaux : décalage+échelle (par défaut, rapide) ; paramètres libres ; gabarit ; régularisé (tiré vers la moyenne quand les essais sont bruités). Mesures dérivées :
 - **écart-type du jitter**, comparé à un « jitter du hasard » mesuré sur la ligne de base (pour ne pas inventer du jitter) ;
 - **amplitude corrigée du jitter** (le jitter aplatit la moyenne ; on calcule ce que serait le pic sans jitter) ;
 - **moyenne réalignée** (refusée si le jitter n'est pas réel) ;
-- **covariables** : tendance le long du train (adaptation), **dose–réponse** (amplitude selon le courant, courbe de Hill avec un courant seuil), **état avant le stimulus** (phase et puissance de l'alpha, 8–13 Hz, avec l'incertitude de l'estimation de phase).
+- **covariables** : tendance le long du train (adaptation), **dose-réponse** (amplitude selon le courant, courbe de Hill avec un courant seuil), **état avant le stimulus** (phase et puissance de l'alpha, 8-13 Hz, avec l'incertitude de l'estimation de phase).
 
-### 5.8 `hierarchical` — essais dans canaux dans sujets
+### 5.8 `hierarchical` - essais dans canaux dans sujets
 Un seul modèle où les essais sont regroupés par canal et les canaux par sujet. Avantages : l'incertitude passe d'un niveau à l'autre, les canaux pauvres empruntent de la force au groupe, et la **probabilité qu'un canal réponde** devient une vraie probabilité. Par défaut **Bayes empirique** (rapide, quelques secondes, sans dépendance). En option, **bayésien complet** avec **NUTS** (un algorithme d'échantillonnage) via NumPyro ou PyMC, avec diagnostics (r̂ ≤ 1,01, taille d'échantillon effective ≥ 400). Objectif : ≤ 5 min par sujet (contre ~10 h et pas de code pour la méthode publiée la plus proche). Formules comme « latence ~ âge » pour les effets de groupe ; on doit retrouver l'effet de l'âge sur la latence du N1 publié pour ds004080.
 
-### 5.9 `spatial` — formes partagées et cartes
+### 5.9 `spatial` - formes partagées et cartes
 - **Formes partagées** (ré-implémentation de la méthode BPC d'après l'article) : on cherche les quelques formes de réponse communes à plusieurs sites de stimulation (ou canaux), par **NMF** (factorisation en matrices non négatives) sur une matrice de ressemblances.
 - **Ajustement multi-canaux** : la même forme pour plusieurs canaux, avec option de lissage entre contacts voisins.
 - **Cartes** des paramètres sur le cerveau.
 - **Dépistage de la conduction volumique** (un signal qui se propage passivement et n'est pas une vraie réponse locale) : inversion de polarité entre contacts voisins, décroissance avec la distance, sensibilité à la référence. Rien n'est enlevé automatiquement.
 - **Paradigme convergent** (beaucoup de sites → un canal) et divergent (un site → tous les canaux).
 
-### 5.10 `tf` — temps-fréquence
+### 5.10 `tf` - temps-fréquence
 Décompose la réponse en fréquences au cours du temps (ondelettes **Morse** γ = 3, P² = 30, comme dans les travaux du labo ; ou Morlet, multitaper). Points clés :
 - l'artefact est masqué dans le plan temps-fréquence, élargi selon chaque fréquence ;
 - **trois cartes** : totale, **empreinte évoquée** (ce que les bosses ajustées produisent à elles seules) et **résidu**. Pourquoi : un N1 très pointu crée à lui seul de l'énergie « gamma » ; sans cette séparation, on le prend pour du « gamma induit ». La décomposition est exacte ;
 - statistiques : FDR par pixel, permutation par clusters, **TFCE** ;
 - **zones trouvées par les données** (NMF ou décomposition tensorielle) au lieu de boîtes dessinées à la main ;
-- **couche de compatibilité** pour les zones publiées : la zone « tardive 50–500 ms × gamma haut 50–250 Hz » est vérifiée ; les 10 autres zones de la thèse de Brinyark sont marquées **non vérifiées** et refusées sans confirmation explicite ;
+- **couche de compatibilité** pour les zones publiées : la zone « tardive 50-500 ms × gamma haut 50-250 Hz » est vérifiée ; les 10 autres zones de la thèse de Brinyark sont marquées **non vérifiées** et refusées sans confirmation explicite ;
 - ECoG et sEEG traités pareil, avec la modalité comme covariable.
 
-### 5.11 `stats` — statistiques
-Bootstrap (intervalles BCa), jackknife sur participants, comparaisons de conditions par permutation au **bon niveau** (on ne permute pas des essais pour comparer des sujets), **fiabilité** (split-half avec correction de Spearman–Brown ; **dépendabilité Φ** et courbe « combien d'essais pour Φ ≥ 0,70 »), planification du nombre d'essais, export vers les modèles mixtes (statsmodels, lme4, brms), résumés de groupe qui comptent toujours les canaux sans réponse.
+### 5.11 `stats` - statistiques
+Bootstrap (intervalles BCa), jackknife sur participants, comparaisons de conditions par permutation au **bon niveau** (on ne permute pas des essais pour comparer des sujets), **fiabilité** (split-half avec correction de Spearman-Brown ; **dépendabilité Φ** et courbe « combien d'essais pour Φ ≥ 0,70 »), planification du nombre d'essais, export vers les modèles mixtes (statsmodels, lme4, brms), résumés de groupe qui comptent toujours les canaux sans réponse.
 
-### 5.12 `sim` — simulateurs avec vérité connue
+### 5.12 `sim` - simulateurs avec vérité connue
 Générateurs pour ERP, CCEP (avec artefact, saturation, trains), ERNA, TEP (avec artefacts TMS et confusion auditive), ECAP, potentiels animaux. Bruits : blanc, autocorrélé, « rose », **bruit réel** (morceaux de lignes de base réelles de ds004080 et ERP CORE, avec licence vérifiée). Le simulateur n'utilise jamais le module d'ajustement.
 
 ### 5.13 Rapports, figures, ligne de commande, mode en ligne
@@ -267,10 +267,10 @@ Générateurs pour ERP, CCEP (avec artefact, saturation, trains), ERNA, TEP (ave
 
 ## 6. Presets (réglages tout prêts)
 Onze presets : `erp`, `ccep`, `ccep_seeg`, `sep`, `tep`, `erna`, `ecap` (moelle), `ecap_ci` (implant cochléaire), `rodent_ep`, `primate_ep`, `p300_bci`. Chacun fixe : époque, ligne de base, fenêtre d'artefact et méthode, référence, fenêtre d'ajustement, formes, fond, nombre maximum de composantes, largeurs min/max, étiquettes de composantes avec leurs fenêtres, essai par essai ou non, et les sources. Exemples :
-- `ccep` : époque −1 à 2 s, ligne de base −0,5 à −0,02 s (comme ER-detect), artefact −2 à 8 ms par gabarit + queue jointe, référence CAR ajustée, ajustement de 9 ms à 500 ms, N1 9–50 ms, N2 50–300 ms, tardif 100 ms–1 s, largeur min 3 ms.
+- `ccep` : époque -1 à 2 s, ligne de base -0,5 à -0,02 s (comme ER-detect), artefact -2 à 8 ms par gabarit + queue jointe, référence CAR ajustée, ajustement de 9 ms à 500 ms, N1 9-50 ms, N2 50-300 ms, tardif 100 ms-1 s, largeur min 3 ms.
 - `ccep_seeg` : pareil mais référence bipolaire (le sEEG est plus sensible au montage).
 - `tep` : N15, P30, N45, P60, N100, P180 ; prévient que N100/P180 peuvent être contaminés par le clic de la bobine.
-- `erna` : oscillation amortie 200–450 Hz, une époque par impulsion (7,7 ms à 130 Hz).
+- `erna` : oscillation amortie 200-450 Hz, une époque par impulsion (7,7 ms à 130 Hz).
 Les valeurs qui sont un **choix** de la spec (et pas une convention publiée) sont marquées et testées dans le benchmark. Les presets validés seulement en simulation (ECAP, ERNA : pas de données publiques) le disent dans le paragraphe Méthodes.
 
 ---
@@ -290,7 +290,7 @@ Pourquoi : aucun benchmark commun n'existe ; un benchmark avec classement fait q
 ---
 
 ## 9. Ingénierie
-Performances (ex. ajustement d'une courbe, mémoire < 2 × la taille des données) mesurées en CI (**intégration continue** : tests automatiques à chaque modification). Dépendances : NumPy + SciPy seulement, le reste en *extras*. Jamais d'import de code GPL. Versions sémantiques, dépréciation sur deux versions mineures. Résultats identiques (à 1e-9 près sur CPU). CI sur Python 3.10–3.13 et trois systèmes ; couverture de tests ≥ 90 % du cœur, 100 % du module des formes, ≥ 80 % pour figures, ligne de commande, mode en ligne et benchmark. Typage strict. Documentation avec erreurs bloquantes. Pas de réseau caché, pas de télémétrie. Conteneur de résultats `.evoparam` avec sommes de contrôle, JSON valide, réglages enregistrés, fonction `evoparam.reproduce` qui refait tout le calcul.
+Performances (ex. ajustement d'une courbe, mémoire < 2 × la taille des données) mesurées en CI (**intégration continue** : tests automatiques à chaque modification). Dépendances : NumPy + SciPy seulement, le reste en *extras*. Jamais d'import de code GPL. Versions sémantiques, dépréciation sur deux versions mineures. Résultats identiques (à 1e-9 près sur CPU). CI sur Python 3.10-3.13 et trois systèmes ; couverture de tests ≥ 90 % du cœur, 100 % du module des formes, ≥ 80 % pour figures, ligne de commande, mode en ligne et benchmark. Typage strict. Documentation avec erreurs bloquantes. Pas de réseau caché, pas de télémétrie. Conteneur de résultats `.evoparam` avec sommes de contrôle, JSON valide, réglages enregistrés, fonction `evoparam.reproduce` qui refait tout le calcul.
 
 ## 10. Écosystème
 - **MNE** : lit et rend des objets MNE. Ce qui serait proposé à MNE est écrit à neuf sous licence BSD-3.
@@ -328,7 +328,7 @@ Exemples : le labo Voytek publie ERPparam avant nous ; les demandes de brevet ti
 1. **Nom** : evoparam (reco) ou evoresponse.
 2. **Licence à proposer à HIIE** : Apache-2.0 partout (reco).
 3. **Formes par défaut du preset ccep** : gaussienne asymétrique + gaussienne (reco) jusqu'à ce que la validation compare avec ex-gaussienne et gamma.
-4. **Seuil de sélection** : ΔBIC −10 (reco), calibré pour ≤ 5 % de fausses bosses.
+4. **Seuil de sélection** : ΔBIC -10 (reco), calibré pour ≤ 5 % de fausses bosses.
 5. **Méthodes sous brevet** (period_template, matching_pursuit) : les coder dans une branche privée maintenant, les publier seulement après l'avis FTO de HIIE (reco).
 6. **Premier moteur bayésien** : NumPyro (reco) puis PyMC.
 7. **Contact labo Voytek** : après la première sortie publique, en proposant un benchmark commun (reco).

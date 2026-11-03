@@ -38,7 +38,6 @@ UTRECHT = _table(
     "\t0.001\tn/a\n"
 )
 
-# ds003708 sub-01 run-01 (first rows, published header)
 MAYO_DS003708 = _table(
     "onset\tduration\ttrial_type\telectrodes_involved_onset\telectrodes_involved_offset\t"
     "sample_start\tsample_end\telectrical_stimulation_type\telectrical_stimulation_site\t"
@@ -50,7 +49,6 @@ MAYO_DS003708 = _table(
     "LTG1-LTG2\t13-14\t6.0 mA\tn/a\tgood\tn/a\n"
 )
 
-# ds004977 sub-1 run-01 (first rows, published header)
 MAYO_DS004977 = _table(
     "onset\tduration\tsample_start\ttrial_type\telectrical_stimulation_type\t"
     "electrical_stimulation_site\telectrical_stimulation_site_num\t"
@@ -79,7 +77,6 @@ def test_utrecht_shape() -> None:
     assert list(stim["stim_pulse_width_us"]) == pytest.approx([1000.0, 1000.0])
     assert list(stim["stim_polarity"]) == ["unknown"] * 2
     assert list(stim["evoparam_stim_type_raw"]) == ["monophasic"] * 2
-    # originals kept under their own names, trial_type unchanged
     assert {"electrical_stimulation_current", "sub_type", "notes"} <= set(out.columns)
     assert list(out["trial_type"]) == list(UTRECHT["trial_type"])
 
@@ -89,12 +86,12 @@ def test_mayo_shape(table: Any) -> None:
 
     out, report = harmonize_stim_events(table)
     assert set(out["stim_site"]) == {table["electrical_stimulation_site"][0]}
-    assert list(out["stim_current_mA"]) == pytest.approx([6.0, 6.0])  # "6.0 mA" inline
+    assert list(out["stim_current_mA"]) == pytest.approx([6.0, 6.0])
     assert report.units["stim_current_mA"] == "inline"
     assert not any(w.startswith("unit_inferred") for w in report.warnings)
     assert out["stim_pulse_width_us"].isna().all()  # no column
     assert "stim_pulse_width_us" in report.missing
-    assert set(out["stim_polarity"]) == {"unknown"}  # order not stated
+    assert set(out["stim_polarity"]) == {"unknown"}
     assert "electrical_stimulation_site_num" in out.columns
 
 
@@ -142,7 +139,6 @@ def test_read_bids_harmonises_every_events_file(tmp_path: Any) -> None:
     harmonization = ts.provenance.steps[-1]["runs"][0]["harmonization"]
     assert harmonization["mapping"]["stim_current_mA"] == "electrical_stimulation_current"
 
-    # a user mapping through read_bids: the run-level column "dose" becomes the current
     folder = os.path.join(root, "sub-01", "ieeg")
     path = os.path.join(folder, "sub-01_task-spes_run-01_events.tsv")
     events = pd.read_csv(path, sep="\t", keep_default_na=False)

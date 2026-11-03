@@ -8,7 +8,7 @@ artifact and muscle activity. The ``tep`` preset interpolates the pulse window, 
 out the decay and muscle subspace, re-references to the average and fits 12 to 300 ms.
 
 Data: simulated TMS-EEG over the left motor cortex (C3), 32 channels.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate TMS-EEG
@@ -57,10 +57,10 @@ print("simulated:\n", simulated.round(4).to_string(index=False))
 # Figures
 # -------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_artifact(result.artifact[-1], ts)
 fig = plots.plot_existence(result.test)

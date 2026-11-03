@@ -23,8 +23,6 @@ from evoparam.tests.io.helpers import (
 
 pd = pytest.importorskip("pandas")
 
-# Trials of one run of the fixture (16 stimulations, the last too close to the end), of
-# the events given as a table, and of two runs.
 N_TRIALS = 15
 N_GIVEN_EVENTS = 2
 N_TWO_RUNS = 30
@@ -50,7 +48,6 @@ def test_read_bids_local(bids_root: Any) -> None:
     assert isinstance(trials, TrialSet)
     trials.validate()
 
-    # 16 stimulation events, the last one too close to the end of the recording
     kept_onsets = STIM_ONSETS[:-1]
     assert trials.n_trials == N_TRIALS
     assert trials.ch_names == CH_NAMES
@@ -63,12 +60,11 @@ def test_read_bids_local(bids_root: Any) -> None:
     kept = trials.provenance.steps[-1]["runs"][0]["kept"]
     assert kept == [True] * 15 + [False]
 
-    # Metadata: standard columns, original columns, overlap flag
     meta = trials.metadata
     assert list(meta["stim_site"][:2]) == ["A01-A02", "A02-A03"]
     assert np.allclose(meta["stim_current_mA"], 4.0)
     assert np.allclose(meta["stim_pulse_width_us"], 200.0)
-    assert set(meta["stim_polarity"]) == {"monophasic_cathodic"}  # from the ieeg.json text
+    assert set(meta["stim_polarity"]) == {"monophasic_cathodic"}
     assert list(meta["subject"].unique()) == ["01"]
     assert list(meta["run"].unique()) == ["01"]
     assert list(meta["session"].unique()) == ["n/a"]
@@ -76,10 +72,9 @@ def test_read_bids_local(bids_root: Any) -> None:
     assert meta["trial"].dtype == np.int64
     assert "electrical_stimulation_site" in meta.columns
     assert "condition" in meta.columns
-    assert meta["overlaps_previous"].tolist() == [False] * 14 + [True]  # 41.8 s after 41 s
+    assert meta["overlaps_previous"].tolist() == [False] * 14 + [True]
     assert meta.attrs["units"]["stim_current_mA"] == "mA"
 
-    # Channel table from channels.tsv and electrodes.tsv (cm → mm)
     info = trials.ch_info
     assert list(info["name"]) == CH_NAMES
     assert set(info["type"]) == {"ecog"}
@@ -108,7 +103,6 @@ def test_provenance_source(bids_root: Any) -> None:
     assert step["settings"]["epoch"] == [-0.5, 1.0]
     assert "unit_inferred" in " ".join(step["runs"][0]["harmonization"]["warnings"])
 
-    # Same bytes, same source hash; data hash set
     again = read_bids(bids_root, "01", task="spes")
     assert again.provenance.source["sha256"] == source["sha256"]
     assert again.provenance.data_hash == trials.provenance.data_hash is not None
@@ -124,7 +118,7 @@ def test_select_picks_and_epoch(bids_root: Any) -> None:
         picks=["A03", "A01"],
         epoch=(-0.1, 0.2),
     )
-    onsets = STIM_ONSETS[1:14:2]  # A02-A03; 59.9 s is dropped
+    onsets = STIM_ONSETS[1:14:2]
     assert trials.n_trials == len(onsets)
     assert trials.ch_names == ["A03", "A01"]
     assert np.array_equal(trials.data, expected_epochs(onsets, (2, 0), -0.1, 0.2))
@@ -140,13 +134,12 @@ def test_second_subject_with_session_and_unit_strings(bids_root: Any) -> None:
 
     trials = read_bids(bids_root, "sub-02", session="1", task="spes", run="01")
     meta = trials.metadata
-    assert list(meta["stim_site"][:2]) == ["A01-A02", "A02-A03"]  # '_' and ' ' normalised
+    assert list(meta["stim_site"][:2]) == ["A01-A02", "A02-A03"]
     assert np.allclose(meta["stim_current_mA"], 4.0)
     assert np.allclose(meta["stim_pulse_width_us"], 200.0)
     assert set(meta["stim_polarity"]) == {"biphasic_cathodic_first"}
     assert list(meta["session"].unique()) == ["1"]
 
-    # Without session=: the session folders are searched
     assert read_bids(bids_root, "02", task="spes").n_trials == trials.n_trials
 
 
@@ -202,7 +195,6 @@ def test_several_runs_are_concatenated(tmp_path: Any) -> None:
     assert list(trials.metadata["run"].unique()) == ["01", "02"]
     assert len(trials.provenance.source["runs"]) == N_RUNS
 
-    # A run with other channels cannot be concatenated
     write_brainvision(
         folder, "sub-01_task-spes_run-02_ieeg", signal(2, 60000), SFREQ, ["A01", "A02"]
     )
@@ -224,7 +216,6 @@ def test_errors(bids_root: Any, tmp_path: Any) -> None:
     with pytest.raises(EventError, match="fits inside"):
         read_bids(bids_root, "01", task="spes", epoch=(-100.0, 100.0))
 
-    # channels.tsv that does not match the data file
     root = make_bids(tmp_path / "bad_channels")
     path = os.path.join(root, "sub-01", "ieeg", "sub-01_task-spes_run-01_channels.tsv")
     text = pathlib.Path(path).read_text(encoding="utf-8").replace("A03", "B07")

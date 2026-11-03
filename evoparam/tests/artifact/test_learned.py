@@ -8,8 +8,6 @@ from evoparam.artifact import remove_artifact
 from .helpers import make_overlay
 from .test_template import WINDOW, residual_db
 
-# Residual reduction (dB) in the window (REQ-061), most components learned, and the number
-# fixed by the user.
 MIN_REDUCTION_DB = 20
 MAX_COMPONENTS = 8
 N_COMPONENTS = 2

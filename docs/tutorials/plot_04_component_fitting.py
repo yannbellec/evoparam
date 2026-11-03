@@ -4,7 +4,7 @@
 =====================
 
 Choose the shape of the bumps, and read the numbers that describe them.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -20,7 +20,6 @@ Choose the shape of the bumps, and read the numbers that describe them.
 
 ###################################################################################################
 
-# Import what we need
 import numpy as np
 
 from evoparam import fit_response, gen_response, plot_fit
@@ -50,16 +49,14 @@ print(list(SHAPES))
 # ----------------
 #
 # We make a curve with an N1 that goes down fast and comes back slowly, built with the
-# ``"gamma"`` shape: it peaks at 24 ms, −150 µV, 20 ms wide at half height. It takes
+# ``"gamma"`` shape: it peaks at 24 ms, -150 µV, 20 ms wide at half height. It takes
 # 10 ms to go from its start to its peak, and 28 ms to come back. We add the broad N2 of
 # the earlier tutorials, a background and noise.
 
 ###################################################################################################
 
-# The N2, the background and the noise
 times, signal = gen_response([[150, -80, 80]], seed=3)
 
-# Add an asymmetric N1: gamma shape starting at 12 ms (start, shape, scale in seconds)
 n1 = get_shape("gamma").evaluate(times, np.array([0.012, 3.0, 0.006]))
 signal = signal - 150 * n1
 
@@ -114,8 +111,8 @@ fig = plot_fit(fit_skew)
 
 ###################################################################################################
 #
-# Now one bump is enough for the N1: 23.4 ms, −157 µV, 21 ms wide, close to the truth
-# (24 ms, −150 µV, 20 ms). Its rise (11 ms) is shorter than its decay (29 ms): the shape
+# Now one bump is enough for the N1: 23.4 ms, -157 µV, 21 ms wide, close to the truth
+# (24 ms, -150 µV, 20 ms). Its rise (11 ms) is shorter than its decay (29 ms): the shape
 # found the asymmetry. And the BIC is lower (53 against 59): the model is better while
 # using fewer numbers. The rise and decay (11 and 29 ms) are close to the true ones (10
 # and 28 ms), although the skewed bell is not the same curve as the gamma one that made

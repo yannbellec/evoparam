@@ -12,17 +12,13 @@ from evoparam.tests.sim._helpers import SMALL, fits_from_truth
 
 pd = pytest.importorskip("pandas")
 
-# Errors of fits read from the truth (exact).
 EXACT = 1e-12
-# Matched pairs, silent channels, false components added, and their rate per silent channel.
 N_MATCHED = 2
 MIN_SILENT = 2
 N_FALSE = 2
 FALSE_RATE = 2.0
-# Recall with one of four components missed, and of the P3 alone.
 RECALL = 0.75
 P3_RECALL = 0.5
-# Trials matched when the trial labels are right.
 N_TRIALS = 4
 
 
@@ -84,7 +80,7 @@ def test_errors_and_coverage() -> None:
     assert np.isclose(score["latency_mae_samples"], 0.001 * truth.sfreq)
     assert np.isclose(score["amplitude_rel_bias"], 0.1)
     assert score["coverage_latency"] == 1.0
-    assert np.isnan(score["coverage_amplitude"])  # no amplitude interval
+    assert np.isnan(score["coverage_amplitude"])
     narrow = fits_from_truth(truth, latency_error=0.001, ci_halfwidth=0.0005)
     assert sim.score_fits(truth, narrow).iloc[0]["coverage_latency"] == 0.0
 
@@ -199,7 +195,6 @@ def test_response_fit_and_dataframe_inputs() -> None:
         sim.match_components([1], table)
     with pytest.raises(SettingsError):
         sim.match_components(truth, table, level="channel")
-    # A fit without any component (component == -1 row) counts as fitted, with no rows.
     empty = pd.DataFrame(
         {
             "channel": [truth.ch_names[0]],

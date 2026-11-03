@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 
-# Hex digits of a SHA-256, and the subjects of the REQ-371 list.
 SHA256_HEX = 64
 N_SUBJECTS = 6
 
@@ -52,7 +51,7 @@ def test_rule_selects_by_trials_and_rate() -> None:
     tool.EXAMPLE = "sub-04"
     chosen, sha = tool.select(fetch=fetch, listing=listing)
     assert [s for s, _ in chosen] == ["sub-01", "sub-03", "sub-04"]
-    assert chosen[-1][1] == "example of spec §1"  # sub-04 does not qualify itself
+    assert chosen[-1][1] == "example of spec §1"
     assert len(sha) == SHA256_HEX
 
 

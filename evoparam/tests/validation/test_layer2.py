@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 
-# Rows of the grid, and the F1 of the cells with components.
 N_GRID = 4
 MIN_F1 = 0.5
 

@@ -20,10 +20,7 @@ from .utils import set_log_level as set_log_level  # REQ-304
 from .utils import verbose as verbose  # REQ-304
 from .version import __version__ as __version__
 
-# The subpackages and the functions of the package root are imported on first use (PEP 562),
-# so that ``import evoparam`` stays under 300 ms (REQ-290 P6): importing them all, with
-# scipy.stats, took about 0.95 s.
-if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
+if TYPE_CHECKING:
     from . import artifact as artifact
     from . import benchmark as benchmark
     from . import events as events
@@ -54,7 +51,6 @@ if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
     from .reports import reproduce as reproduce
     from .sim import gen_response as gen_response
 
-# Window (s) in which selftest looks for the N1 of the bundled CCEP.
 _N1_START, _N1_END = 0.009, 0.05
 _SUBPACKAGES = frozenset(
     {
@@ -85,7 +81,6 @@ _ROOT_FUNCTIONS = {
     "ResponseModel": ("models", "ResponseModel"),
     "reproduce": ("reports", "reproduce"),
     "report": ("reports", "report"),
-    # a first try in one import line (tutorial 01, DECISIONS.md §8)
     "gen_response": ("sim", "gen_response"),
     "fit_response": ("models", "fit_response"),
     "plot_response": ("plots", "plot_response"),
@@ -105,7 +100,7 @@ def _existence_detector(*args: Any, **kwargs: Any) -> Any:
     return existence_detector(*args, **kwargs)
 
 
-from .prep import register_detector as _register_detector  # noqa: E402  (registers the detector defined above; 13 ms)
+from .prep import register_detector as _register_detector  # noqa: E402
 
 _existence_detector.__name__ = _existence_detector.__qualname__ = "existence_detector"
 _register_detector("existence", _existence_detector)
@@ -141,7 +136,6 @@ def selftest(*, tolerance: float = 0.001) -> float:
     true = next(c for c in truth.components if c["channel"] == channel and c["label"] == "N1")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # one waveform (a ResponseFit), so that only NumPy and SciPy are needed
         fit = ResponseModel("ccep", random_state=0).fit_waveform(
             trials.times, trials.data[:, 0].mean(axis=0), trials=trials.data[:, 0]
         )

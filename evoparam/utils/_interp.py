@@ -15,7 +15,6 @@ __all__ = ["window_indices", "interpolate_window", "INTERPOLATIONS"]
 
 INTERPOLATIONS = ("linear", "cubic", "pchip")
 
-# Fewest samples on each side of the window for a cubic or pchip interpolation.
 _MIN_SPLINE_BUFFER = 2
 
 

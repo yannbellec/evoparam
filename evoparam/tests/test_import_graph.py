@@ -26,7 +26,6 @@ import pytest
 
 import evoparam
 
-# Cells of a row of the import table (module, imports).
 MIN_CELLS = 2
 
 pytestmark = pytest.mark.core
@@ -34,13 +33,8 @@ pytestmark = pytest.mark.core
 PACKAGE = pathlib.Path(evoparam.__file__).parent
 DECISIONS = PACKAGE.parent / "docs" / "spec" / "DECISIONS.md"
 
-# Leaf modules that import nothing from the package and that every module may import:
-# the error hierarchy that §4.6 asks every module to raise (D4: data raises DataError) and
-# the package version that every provenance record carries (§4.1 principle 3); and the
-# array type aliases of REQ-301 (§9.6: numpy.typing.NDArray), which import numpy only.
 LEAVES = {"errors", "version", "_typing"}
 
-# Every top-level module of the package (subpackages and single files).
 MODULES = sorted(
     {
         p.name if p.is_dir() else p.stem
@@ -54,39 +48,24 @@ MODULES = sorted(
 ANY = "*"
 TOP = {"reports", "plots", "cli", "stream", "benchmark"}
 
-# Spec §4.2 with D3/D4/D5 resolved: module -> modules it may import (besides LEAVES).
 RULES = {
-    # D4/D5: the plugins used for a result are recorded in its provenance (REQ-328);
-    # optional packages through utils.require only (§9.2, REQ-292).
     "data": {"_plugins", "utils"},
-    # D5: the reader registry loads the evoparam.readers entry points (REQ-328).
     "io": {"data", "utils", "_plugins"},
     "events": {"data", "utils", "shapes"},
     "artifact": {"data", "utils", "shapes"},
     "prep": {"data", "utils", "shapes"},
-    # D5: the shape registry loads the evoparam.shapes entry points (REQ-328).
     "shapes": {"_plugins"},
-    # D5: evoparam.fit(data, preset="ccep") resolves the preset (§6.3).
     "models": {"data", "shapes", "prep", "utils", "presets"},
     "existence": {"data", "models", "utils"},
     "trials": {"data", "models", "existence", "utils"},
-    # D5: optional packages are imported through utils.require only (§9.2, REQ-292).
     "hierarchical": {"data", "models", "trials", "stats", "utils"},
     "spatial": {"data", "models", "utils"},
     "tf": {"data", "models", "utils"},
-    # D5: trials_needed resamples the existence test (§5.11).
     "stats": {"data", "models", "utils", "existence"},
-    # D5: the licence of a real-noise dataset is read from the registry of io (REQ-256);
-    # optional packages through utils.require (§9.2).
     "sim": {"data", "shapes", "artifact", "utils", "io"},
-    # D5: the preset registry loads the evoparam.presets entry points (REQ-328);
-    # optional packages through utils.require only (§9.2, REQ-292).
     "presets": {"_plugins", "utils"},
-    # Cross-cutting helpers (§4.2 figure): the leaves only.
     "utils": set(),
-    # Entry-point loader of §10.8: the leaves only.
     "_plugins": set(),
-    # Data tables of §9.2 and §9.3 (REQ-292 extras, REQ-293 deprecated names).
     "_extras": set(),
     "_deprecated": set(),
     "reports": {ANY},
@@ -94,26 +73,18 @@ RULES = {
     "cli": {ANY},
     "stream": {ANY},
     "benchmark": {ANY},
-    # The package root re-exports the public API; ``python -m evoparam`` runs the cli.
     "__init__": {ANY},
     "__main__": {"cli"},
     "errors": set(),
     "version": set(),
     "_typing": set(),
 }
-# Modules whose only allowed use of utils is utils.require (the rows of §4.2 do not list
-# utils for them; §9.2 makes require the only way to import an optional package).
 REQUIRE_ONLY = {
     "data": {"evoparam.utils._optional", "evoparam.utils.require"},
     "presets": {"evoparam.utils._optional", "evoparam.utils.require"},
     "hierarchical": {"evoparam.utils._optional", "evoparam.utils.require"},
     "sim": {"evoparam.utils._optional", "evoparam.utils.require"},
 }
-# Spec §4.2: the top layers do not import each other, except benchmark -> reports.
-# D3 (owner): the HTML/PDF reports embed the figures and the command line runs the reports
-# (§5.13), so the top layers are ordered plots < reports < cli, benchmark.
-# S19: the command line runs the benchmark (§8.4 `evoparam benchmark score ...`, §10.5), so
-# cli -> benchmark; the benchmark never imports the command line.
 ALLOWED_BETWEEN = {
     ("benchmark", "reports"),
     ("reports", "plots"),
@@ -123,7 +94,6 @@ ALLOWED_BETWEEN = {
     ("cli", "benchmark"),
 }
 
-# Import names of the packages of the extras of spec §9.2 (and of the test tool chain).
 OPTIONAL_IMPORTS = {
     "mne",
     "mne_bids",
@@ -162,8 +132,6 @@ OPTIONAL_IMPORTS = {
     "click",
 }
 
-# (iii) packages that may be imported at the top level of a module: the standard library
-# and the two hard dependencies (REQ-291).
 HARD = {"numpy", "scipy", "evoparam", "__future__"}
 
 
@@ -369,32 +337,25 @@ def test_mutation_forbidden_import_is_detected() -> None:
     ):
         violations = _violations(_edges({init: text + line}))
         assert any(v.startswith("shapes/__init__.py -> models") for v in violations), line
-    # data imports nothing but the leaves and _plugins
     data_init = PACKAGE / "data" / "__init__.py"
     violations = _violations(_edges({data_init: data_init.read_text() + "import evoparam\n"}))
     assert any("data/__init__.py -> __init__" in v or "package root" in v for v in violations)
-    # a cycle: models -> existence -> models
     models_init = PACKAGE / "models" / "__init__.py"
     edges = _edges({models_init: models_init.read_text() + "from evoparam import existence\n"})
     assert _cycle(edges) is not None
-    # a top-level optional import, including one guarded by try/except
     guarded = text + "try:\n    import pandas\nexcept ImportError:\n    pandas = None\n"
     assert any("import pandas" in f for f in _optional_top_level({init: guarded}))
 
 
 ###################################################################################################
-## REQ-395: licence allow-list of the third-party packages the package imports
 
 # Licences (SPDX) a third-party package imported by evoparam may have: permissive licences
 # and file-level MPL-2.0 (tqdm, hypothesis); never a copyleft licence (spec §13.7, REQ-395).
 LICENCE_ALLOW_LIST = {"Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "MIT", "PSF-2.0", "MPL-2.0"}
-# typing-only module of the type checkers (imported under ``if TYPE_CHECKING:``)
 TYPING_ONLY = {"_typeshed"}
 SOUP = PACKAGE.parent / "soup.json"
 
 
-# modules of the standard library of a later supported Python than the running one
-# (sys.stdlib_module_names is that of the running Python): tomllib from Python 3.11
 LATER_STDLIB = frozenset({"tomllib"})
 
 

@@ -14,13 +14,10 @@ from .helpers import artifact_shape, response, times_axis
 
 pd = pytest.importorskip("pandas")
 
-# Pairs of the alternating paradigm (20 trials), trials combined per pair, and the
-# tolerances of the response and of the residual artifact.
 N_PAIRS = 10
 N_COMBINED = 2
 EXACT = 1e-9
 MAX_RESIDUAL = 0.01
-# Pairs and the unpaired trial (23 trials), explicit pairs, and forward-masking probes.
 N_WITH_UNPAIRED = 11
 N_EXPLICIT_PAIRS = 3
 N_PROBES = 3
@@ -57,7 +54,6 @@ def test_req067_alternating_polarity_cancels() -> None:
     assert out.n_trials == N_PAIRS
     assert out.metadata["paired"].all()
     assert (out.metadata["n_combined"] == N_COMBINED).all()
-    # The non-inverting response is unchanged to 1e-9, the inverting artifact cancels
     assert np.max(np.abs(out.data - resp)) <= EXACT
     residual = np.abs(out.data - resp).max() / np.abs(art).max()
     assert residual <= MAX_RESIDUAL
@@ -67,7 +63,7 @@ def test_alternating_with_imperfect_inversion_and_unpaired_trials() -> None:
 
     ts, resp, art = alternating(extra=1)
     data = ts.data.copy()
-    data[1::2][:10] += 0.005 * art  # the anodic artifact is 0.5 % larger
+    data[1::2][:10] += 0.005 * art
     from dataclasses import replace
 
     out = paradigm_subtract(replace(ts, data=data), scheme="alternating")

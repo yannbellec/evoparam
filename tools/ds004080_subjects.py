@@ -26,7 +26,6 @@ EXAMPLE = "sub-ccepAgeUMCU01"
 N_SUBJECTS = 5
 MIN_TRIALS = 10
 SFREQ = 2048.0
-# Largest difference (Hz) from SFREQ of a run kept.
 SFREQ_TOLERANCE = 1e-3
 
 

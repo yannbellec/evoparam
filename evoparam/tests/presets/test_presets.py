@@ -14,8 +14,6 @@ import pytest
 from evoparam import presets
 from evoparam.errors import SettingsError
 
-# Fewest literature keys, the ERNA frequency floor (Hz), the train baseline (s), trusted
-# trial fits per state, and trains of the train baseline.
 MIN_LITERATURE = 500
 ERNA_FREQ_MIN = 200.0
 ERNA_TRAIN_BASELINE = 0.05
@@ -29,16 +27,12 @@ needs_docs = pytest.mark.skipif(
     not SPEC.exists(), reason="the specification is not in this checkout (installed package)"
 )
 
-# The published measurement windows (s) of the four ERP CORE components that REQ-274 names
-# and the table of spec §6.1 does not label (Kappenman et al. 2021, [LIT-erpmeas-39], the
-# source §6.2 gives for the erp windows; owner decision D6), all negative.
 ERP_CORE_WINDOWS = {
     "MMN": (0.125, 0.225),
     "N2pc": (0.200, 0.275),
     "LRP": (-0.100, 0.000),
     "ERN": (0.000, 0.100),
 }
-# The six labels of the erp column of the table (§6.1), in their order.
 ERP_TABLE_LABELS = {
     "P1": (0.08, 0.13),
     "N1": (0.13, 0.20),
@@ -48,12 +42,10 @@ ERP_TABLE_LABELS = {
     "N400": (0.30, 0.50),
 }
 
-# Values that differ from the table on purpose; each is explained in the preset's notes.
 DEVIATIONS = {
     ("sep", "background"): "constant",
     ("tep", "shapes"): ("gaussian", "skewed_gaussian"),
     ("tep", "background"): "constant",
-    # D6: the table's six labels, then the four ERP CORE windows
     ("erp", "component_labels"): {**ERP_TABLE_LABELS, **ERP_CORE_WINDOWS},
 }
 
@@ -77,12 +69,12 @@ REFERENCE = {
 
 
 def _number(text: Any) -> Any:
-    return float(text.replace("−", "-"))
+    return float(text.replace("\u2212", "-"))
 
 
 def _tuples(cell: Any) -> Any:
     return [
-        (_number(a), _number(b)) for a, b in re.findall(r"\(([−\-\d.]+),\s*([−\-\d.]+)\)", cell)
+        (_number(a), _number(b)) for a, b in re.findall(r"\(([\u2212\-\d.]+),\s*([\u2212\-\d.]+)\)", cell)
     ]
 
 
@@ -96,7 +88,6 @@ def _table() -> Any:
         cells = [c.strip() for c in row.strip("|").split("|")]
         for name, cell in zip(names, cells[1:], strict=False):
             out[name][cells[0]] = cell
-    # "as rodent", "as `ccep`": copy the referenced column
     for _name, values in out.items():
         for key, cell in values.items():
             match = re.fullmatch(r"as (`?)(\w+)\1", cell)
@@ -112,7 +103,7 @@ def _expected(_name: Any, row: Any) -> Any:
 
     labels = {}
     for label, lo, hi in re.findall(
-        r"([A-Za-z0-9/]+)(?: by depth)? \(([\d.]+)–([\d.]+)\)", row["component labels (s)"]
+        r"([A-Za-z0-9/]+)(?: by depth)? \(([\d.]+)[-\u2013]([\d.]+)\)", row["component labels (s)"]
     ):
         labels[label] = (float(lo), float(hi))
     keys = tuple(re.findall(r"\[(LIT-[\w-]+)\]", row["key sources"]))
@@ -182,7 +173,6 @@ def test_d6_erp_labels_the_seven_erp_core_components() -> None:
         assert p.label_polarity[name] == -1, name
     assert "component_labels" in p.notes
     assert "LIT-erpmeas-39" in p.citation
-    # the windows of task T6 of the benchmark (ERP CORE) where it scores the component
     import json
 
     import evoparam.benchmark
@@ -212,13 +202,10 @@ def test_d6_erp_labels_the_seven_erp_core_components() -> None:
         )
         return [c.label for c in label_components(fit, "erp").components]
 
-    # a negative component inside each new window and outside the table's windows
     assert labels(-0.05, 0.04) == ["LRP", "ERN"]
     assert labels(0.21) == ["MMN"]
     assert labels(0.24) == ["N2pc"]
-    # where windows overlap, the table's label comes first (N1 at 150 ms, N400 at 400 ms)
     assert labels(0.15, 0.4) == ["N1", "N400"]
-    # the new windows are negative: a positive component at 240 ms is the table's P2
     assert labels(0.24, polarity=1) == ["P2"]
 
 
@@ -329,7 +316,6 @@ def test_fit_presets_view_follows_the_files() -> None:
 
 
 ###################################################################################################
-## Preset behaviours of spec §6.2 (audit F58), applied by the preset pipeline
 
 
 def test_f58_preset_fields() -> None:
@@ -353,10 +339,6 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report() -> None:
 
     from evoparam import reports, sim
 
-    # 16 contacts, 30 % responding (the simulator's default): with the existence test as the
-    # detector (spec §5.4, since the artefact corrections) the former 8 contacts at 50 % were
-    # all detected under CAR and under bipolar (decay tail and spread of the average), so
-    # kappa was undefined; here 8-11 of 14-16 are detected and kappa is 0.48-0.71.
     ts, _ = sim.simulate_ccep(n_trials=8, n_channels=16, sfreq=1024.0, p_response=0.3, seed=3)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -378,7 +360,6 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report() -> None:
     text = reports.methods_text(result)
     assert "dependence of the detections on the reference" in text
     assert "dependence of the detections" not in reports.methods_text(ccep)
-    # the report does not change the fits (it runs on a copy of the cleaned trials)
     assert np.allclose(
         result.group.to_dataframe()["latency"].to_numpy(float),
         plain.group.to_dataframe()["latency"].to_numpy(float),
@@ -410,7 +391,6 @@ def test_f58_rodent_state_is_a_default_trial_covariate() -> None:
     assert np.isfinite(table["p_amplitude"]).all()
     assert "state" in fits.table.columns
     assert "Trial covariates: state." in reports.methods_text(result)
-    # without the column: a warning, and the trial fits run without the covariate
     no_state = dataclasses.replace(ts, metadata=ts.metadata.drop(columns="state"))
     with pytest.warns(UserWarning, match="metadata\\['state'\\] is missing"):
         result = reports.run_pipeline(no_state, "rodent_ep", existence=False)
@@ -457,22 +437,19 @@ def test_f58_erna_baseline_per_train() -> None:
 
     ts, raw, expected = _pulse_trials()
     out = train_baseline(ts, 0.05, raw=raw, sfreq=4096.0)
-    assert np.allclose(out.data, expected)  # each train's level removed from its pulses
+    assert np.allclose(out.data, expected)
     step = out.provenance.steps[-1]
     assert step["function"] == "evoparam.prep.train_baseline"
     assert step["settings"]["source"] == "continuous"
     assert step["settings"]["n_trains"] == N_TRAINS
-    # without train_id: trains from the gaps between pulses (no pulse in the 50 ms before)
     import dataclasses
 
     bare = dataclasses.replace(ts, metadata=ts.metadata.drop(columns="train_id"))
     assert np.allclose(train_baseline(bare, 0.05, raw=raw, sfreq=4096.0).data, expected)
-    # from the epochs, when the first pulse's epoch holds the 50 ms before the train
     long, _, expected_long = _pulse_trials(tmin=-0.06)
     assert np.allclose(train_baseline(long, 0.05).data, expected_long)
     with pytest.raises(DataError, match="epochs from -0.05 s"):
         train_baseline(ts, 0.05)
-    # the preset pipeline applies it, given the recording, and says so in the methods text
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = reports.run_pipeline(
@@ -513,7 +490,6 @@ def test_f58_rodent_p1_n1_named_by_sign_at_each_depth() -> None:
     times = np.arange(-0.1, 0.5, 1 / sfreq)
     rng = np.random.default_rng(1)
     early = np.exp(-0.5 * ((times - 0.025) / 0.005) ** 2)
-    # a laminar pair: positive above the reversal, negative below
     data = np.array([60 * early, -60 * early]) + rng.normal(0, 1, (2, times.size))
     ev = Evoked(data=data, times=times, sfreq=sfreq, ch_names=["L02", "L10"])
     with warnings.catch_warnings():

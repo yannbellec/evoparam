@@ -19,7 +19,6 @@ from ._score import MAD_TO_SD, score_index
 __all__ = ["OnlinePulseDetector"]
 
 
-# The samples of an update are a matrix [n_samples, n_channels].
 _MATRIX_NDIM = 2
 
 

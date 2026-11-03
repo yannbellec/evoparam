@@ -12,7 +12,7 @@ and :func:`evoparam.io.read_nwb_results` reads them back exactly.
 
 Data: a simulated laminar recording written to NWB with pynwb (a DANDI asset is read the
 same way, by its https address).
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # An NWB file
@@ -67,7 +67,7 @@ with NWBHDF5IO(path, "w") as io:
 # Epochs from the trials table
 # ----------------------------
 
-epochs = read_nwb(path, tmin=-0.1, tmax=0.5)  # onsets: the stim_onset column of trials
+epochs = read_nwb(path, tmin=-0.1, tmax=0.5)
 print(epochs, epochs.provenance.source["events"])
 
 # %%

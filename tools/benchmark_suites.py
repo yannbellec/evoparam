@@ -32,15 +32,12 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from evoparam.benchmark._canon import canonical_bytes, sha256_bytes  # noqa: E402  (after the sys.path insert above)
+from evoparam.benchmark._canon import canonical_bytes, sha256_bytes  # noqa: E402
 
 VERSION = "1.0.0"
 OUT = ROOT / "evoparam" / "benchmark" / "suites"
 HIDDEN_SCHEMA = "evoparam-benchmark-hidden-seeds/1"
 
-# Groups: generator, tasks, shared settings and the grid of cell settings (in order). The
-# last two settings of every group form the hidden cells of the core suite; the first eight
-# are public (20 % hidden, spec §8.2).
 CCEP_DETECTION = {
     "generator": "simulate_ccep",
     "tasks": ["T1", "T2"],
@@ -207,7 +204,7 @@ ERP_SCORING = {
     + [{"component": "MMN", "snr": 2.0}, {"component": "ERN", "snr": 2.0}],
 }
 CHANNELS = {"P3": "Pz", "N170": "PO8", "N400": "CPz", "MMN": "FCz", "ERN": "FCz"}
-BURST_AMP = 10.33  # adds 20 % to the signal power over a 100 ms burst in AR(1) noise of SD 10
+BURST_AMP = 10.33
 TF = {
     "generator": "simulate_bursts",
     "tasks": ["T7"],
@@ -312,7 +309,7 @@ def build(name, replicates, hidden_per_group, seed_base):
             )
         if group["generator"] is not None:
             for cell in cells:
-                del cell["generator"]  # the group's generator
+                del cell["generator"]
         groups[gname] = {
             "generator": group["generator"] or "mixed",
             "tasks": group["tasks"],

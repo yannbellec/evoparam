@@ -322,9 +322,6 @@ def all_results() -> Any:
     }
 
 
-# The six public functions of the chain of spec REQ-294, in order, by the name each records
-# (``evoparam.fit`` records the method that makes the GroupFit, ResponseModel.fit_group,
-# and its existence test, test_response).
 CHAIN_STEPS = (
     "evoparam.io.read",
     "evoparam.events.detect_events",
@@ -333,9 +330,6 @@ CHAIN_STEPS = (
     "evoparam.existence.test_response",
     "evoparam.trials.fit_trials",
 )
-# Steps that the chain needs between those six, each the record of a container created by
-# a public function (REQ-294): the epochs cut around the detected events, and the average
-# of the trials that the group fit is made from.
 CHAIN_INTERMEDIATE = ("evoparam.io.epoch", "evoparam.data.TrialSet.average")
 
 

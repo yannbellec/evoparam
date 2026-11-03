@@ -20,12 +20,8 @@ from ._fitter import INTENDED_USE, STATUSES
 __all__ = ["LSLInlet", "LSLOutlet", "FIELDS"]
 
 PYLSL_FLOOR = "1.16"
-# Seconds an LSLInlet waits for its stream to be found.
 RESOLVE_TIMEOUT = 5.0
 
-# Channels of the outlet (float32), the fields of PulseEstimate with the strings as indices
-# into the metadata; the LSL timestamp of each sample is also the pulse time (in double
-# precision, which float32 lacks for clock values).
 FIELDS = (
     "pulse_time",
     "channel_index",
@@ -92,7 +88,6 @@ class LSLInlet:
             raise DataError(f"No LSL stream with {prop} {value!r} found within {timeout} s.")
         self._inlet = pylsl.StreamInlet(found[0], max_buflen=int(max_buflen))
         info = self._inlet.info(timeout)
-        # Samples pushed from now on are received (an inlet otherwise subscribes on its
         # first pull)
         self._inlet.open_stream(timeout)
         self.sfreq: float = float(info.nominal_srate())

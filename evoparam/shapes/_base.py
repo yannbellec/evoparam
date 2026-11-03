@@ -29,13 +29,10 @@ __all__ = [
     "ONSET_FRACTION",
 ]
 
-# Full width at half maximum of a Gaussian in units of its standard deviation.
 FWHM_PER_SIGMA = 2.0 * np.sqrt(2.0 * np.log(2.0))
 
-# Default fraction of the peak that defines onset and offset (fractional-peak rule).
 ONSET_FRACTION = 0.10
 
-# Features are computed on a grid this many times finer than 1/sfreq.
 FEATURE_OVERSAMPLING = 10
 
 
@@ -47,7 +44,6 @@ FEATURE_OVERSAMPLING = 10
 class ComponentShape(Protocol):
     """Protocol of a component shape (spec §4.3.4, §5.5.1)."""
 
-    # read-only members: a shape may give them as class variables or properties
     @property
     def name(self) -> str:
         """Registry name of the shape."""
@@ -90,7 +86,6 @@ class ComponentShape(Protocol):
 class Background(Protocol):
     """Protocol of a background (spec §4.3.4, §5.5.2)."""
 
-    # read-only members: a background may give them as class variables or properties
     @property
     def name(self) -> str:
         """Registry name of the background."""
@@ -129,8 +124,6 @@ def as_times(times: ArrayLike) -> FloatArray:
         times = times.reshape(1)
     if times.ndim != 1:
         raise DataError(f"times: must be a 1-D array, got shape {times.shape}.")
-    # a finite sum means finite entries (NaN and infinities propagate); the entries are
-    # checked one by one only when the sum is not finite (an overflow of finite values)
     if not math.isfinite(times.sum()) and not np.isfinite(times).all():
         raise DataError("times: must be finite.")
     return times
@@ -144,15 +137,10 @@ def as_params(params: ArrayLike | None, n_params: int, name: str) -> FloatArray:
     return params
 
 
-# window_info of the last time axes, by content: a fit asks for the same window many times
-# (bounds and starting values of every shape), and the median step is most of the cost
 _WINDOW_CACHE: dict[bytes, tuple[float, float, float, float]] = {}
 _WINDOW_CACHE_SIZE = 64
-# Fewest samples of a time axis
 _MIN_SAMPLES = 2
-# Fewest points of the cut feature grid (else the whole grid is used)
 _MIN_GRID_PART = 3
-# the last axis asked for (one tuple, replaced whole): (times, a copy of its values, result)
 _WINDOW_LAST: dict[str, tuple[Any, Any, tuple[float, float, float, float]]] = {}
 
 
@@ -161,8 +149,6 @@ def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     times = as_times(times)
     if times.size < _MIN_SAMPLES:
         raise DataError("times: at least 2 samples are needed to define a window.")
-    # the same array as the last call, with the same values (a copy is kept to compare):
-    # cheaper than the bytes of the axis as a key
     last = _WINDOW_LAST.get("last")
     if (
         last is not None
@@ -287,8 +273,6 @@ def _half_height_edges(
         left = _interp_points(grid[i], lobe[i], peak_time, height, half)
         right = _interp_points(peak_time, height, grid[i + 1], lobe[i + 1], half)
         return left, right
-    # lobe[k] >= half: the last sample below half before k and the first one after k
-    # each have a neighbour on the lobe, inside the grid
     below = np.nonzero(lobe[:k] < half)[0]
     left = _interp_cross(grid, lobe, below[-1], below[-1] + 1, half) if below.size else np.nan
     below = np.nonzero(lobe[k + 1 :] < half)[0]
@@ -307,7 +291,7 @@ def _interp_points(t0: float, v0: float, t1: float, v1: float, level: float) -> 
 
 def _trapezoid(y: FloatArray, x: FloatArray) -> float:
     """Return the trapezoidal integral of ``y`` over ``x``."""
-    integrate = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (NumPy < 2.0 has no trapezoid)
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201
     return float(integrate(y, x))
 
 
@@ -419,7 +403,7 @@ def _grid_search(origin: float, step: float, n_points: int, value: float, right:
         return 0 if value == -math.inf else n_points
     i = min(max(math.ceil((value - origin) / step), 0), n_points)
 
-    def before(k: int) -> bool:  # grid[k] lies before the insertion point
+    def before(k: int) -> bool:
         """Return True when grid point ``k`` lies before the insertion point."""
         point = origin + step * float(k)
         return point <= value if right else point < value
@@ -523,7 +507,6 @@ def _lobe(
 ) -> tuple[FloatArray, FloatArray]:
     """Return the curve and the times from onset to offset (``ends``), the grid inside."""
     onset, offset = ends
-    # the grid points strictly between onset and offset (the grid increases)
     within = slice(
         int(np.searchsorted(grid, onset, side="right")),
         int(np.searchsorted(grid, offset, side="left")),
@@ -539,7 +522,6 @@ def _lobe(
 
 def _local_extrema(grid: FloatArray, curve: FloatArray, large: Any, step: float) -> list[float]:
     """Return the refined times of the local extrema of ``curve`` where ``large`` is True."""
-    # only the samples next to those where large is True can be such an extremum
     first, last = _first_last(large)
     if first > last:
         return []
@@ -610,9 +592,6 @@ def compute_features(
 
     peak_time, latency = _peak_and_latency(shape, params, grid, curve)
     x_peak = _peak_points(shape, params, peak_time, step)
-    # A shape with ``support`` is evaluated point by point (the value at a time does not
-    # depend on the other times asked for): the peak and the points next to it in one call,
-    # and the area below reuses the values on the grid
     pointwise = support is not None
     if pointwise:
         at_peak = shape.evaluate(np.concatenate(([peak_time], x_peak)), params)
@@ -622,13 +601,11 @@ def compute_features(
     sign = 1.0 if peak_value >= 0 else -1.0
     height = abs(peak_value)
 
-    # Full width at half the extremum, on the lobe that holds the extremum.
     left, right = _half_height_edges(grid, sign * curve, peak_time, height)
     fwhm = right - left
     if not np.isfinite(fwhm):
         warnings.append("fwhm_outside_grid")
 
-    # Onset and offset: first and last time above the fraction of the peak.
     magnitude = np.abs(curve)
     level = onset_fraction * height
     large = magnitude >= level
@@ -648,13 +625,11 @@ def compute_features(
     total = rise_time + decay_time
     symmetry = (decay_time - rise_time) / total if total > 0 else np.nan
 
-    # Second derivative at the peak.
     if not pointwise:
         v = shape.evaluate(x_peak, params)
     curvature = (v[0] - 2.0 * v[1] + v[2]) / step**2
     sharpness = abs(curvature) / height * fwhm**2 if height > 0 else np.nan
 
-    # Local extrema of the curve above the onset fraction (oscillatory shapes have several).
     peak_times = _local_extrema(grid, curve, large, step) or [peak_time]
 
     if latency < start or latency > end:
@@ -694,7 +669,7 @@ class ShapeBase:
 
     name: ClassVar[str]
     onset_param: ClassVar[str | None] = None
-    if TYPE_CHECKING:  # defined by each shape (param_names: a property of Template)
+    if TYPE_CHECKING:
         latency_param: ClassVar[str]
 
         @property

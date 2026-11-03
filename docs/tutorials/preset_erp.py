@@ -18,7 +18,7 @@ by the published artifact detection are left out, as in the published analysis.
 How often the model finds the component, over the 40 participants, is measured by the
 layer-3 validation (``validation/erpcore.py``; ``validation/layer3/erpcore_parent.json``):
 read those numbers before trusting a single participant's fit.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Read one participant and component
@@ -40,8 +40,6 @@ from evoparam.models import classical_measures
 
 mne.set_log_level("ERROR")
 
-# component -> channel, bin of the condition carrying it, other bin, measurement window,
-# polarity (published ERP CORE analysis)
 DESIGNS = {
     "N170": ("PO8", 1, 2, (0.110, 0.150), -1),
     "P3": ("Pz", 1, 2, (0.300, 0.600), 1),
@@ -78,7 +76,6 @@ for component, (channel, _, _, window, polarity) in DESIGNS.items():
     times, waves = averages(component)
     sfreq = 1.0 / np.median(np.diff(times))
     wave, n = waves["carrying"]
-    # the label window is the measurement window widened by 30 ms on each side
     preset = presets.derive(
         "erp",
         name=f"erp_{component}",
@@ -130,8 +127,8 @@ print(table[["component", "contrast_uV"]].round(2).to_string(index=False))
 # Over the 40 participants
 # ------------------------
 
-import json  # noqa: E402  (sphinx-gallery section)
-import os  # noqa: E402  (sphinx-gallery section)
+import json  # noqa: E402
+import os  # noqa: E402
 
 summary = os.path.join(
     os.path.dirname(os.path.abspath(evoparam.__file__)),

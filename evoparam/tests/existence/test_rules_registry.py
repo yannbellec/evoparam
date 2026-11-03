@@ -15,14 +15,10 @@ from evoparam.existence import test_response as run_test
 
 from .helpers import SFREQ, TIMES
 
-# Settings of the vanblooijs2023_code reading: SD floor and saturation (uV), and the end
-# (s) of the peak search.
 SD_FLOOR_UV = 50.0
 SATURATION_UV = 3000.0
 PEAK_SEARCH_END = 0.5
-# Start (s) of the window of vanblooijs2023.
 WINDOW_START = 0.009
-# Accuracy of the statistic of a waveform built at the threshold (ftract, after the filter).
 AT_THRESHOLD = 1e-9
 
 ###################################################################################################
@@ -108,8 +104,6 @@ def test_req133_decision_flips_at_threshold(name: Any) -> None:
         assert bool(test.significant[0]) is expected, (name, delta)
 
 
-# The registry row of ftract gives "Z between 3 and 7", no single k (DECISIONS §4): k is
-# passed explicitly, at both ends and in the middle of the published range.
 @pytest.mark.parametrize("k", [3.0, 5.0, 7.0])
 def test_req133_ftract_flips_at_threshold(k: float) -> None:
     """REQ-133 for the ftract rule: its statistic is taken after the 1-45 Hz band-pass, so
@@ -160,10 +154,8 @@ def test_selective_maxima_matches_the_definition() -> None:
     from evoparam.existence.rules import selective_maxima
 
     x = np.array([0.0, 5.0, 4.0, 4.5, 0.0, 10.0, 9.0, 12.0, 0.0])
-    # 4.5 does not rise 2 above its valley (4.0); 10 does not fall 2 before 12
     assert selective_maxima(x, 2.0).tolist() == [1, 7]
     assert selective_maxima(x, 0.0).tolist() == [1, 3, 5, 7]
-    # a monotone signal: only an end point, when it stands out by more than sel
     assert selective_maxima(np.arange(5.0), 1.0).tolist() == [4]
     assert selective_maxima(np.arange(5.0), 10.0).tolist() == []
 
@@ -201,7 +193,7 @@ def test_vanblooijs2023_published_code_reading() -> None:
     tail = np.where(TIMES > 0, -600 * np.exp(-TIMES / 0.01), 0.0)
     drift = np.where(TIMES > 0, -400 * np.clip((TIMES - 0.06) / 0.04, 0, None), 0.0)
     trough = -300 * gaussian(0.025, 0.012)
-    small = -100 * gaussian(0.025, 0.012)  # under the 170 uV floor
+    small = -100 * gaussian(0.025, 0.012)
     evoked = _uv(noise + np.array([tail, drift, trough, small]))
     local = run_test(
         evoked, method="threshold", rule="vanblooijs2023_code", rule_overrides={"baseline": base}
@@ -219,7 +211,6 @@ def test_vanblooijs2023_published_code_reading() -> None:
     assert extremum.significant.tolist() == [True, True, True, True]
     assert floored.significant.tolist() == [True, True, True, False]
     assert abs(local.onset[2] - 0.025) <= 1.0 / SFREQ
-    # the same reading through the override of the default rule
     override = run_test(
         evoked,
         method="threshold",
@@ -235,7 +226,6 @@ def test_vanblooijs2023_published_code_reading() -> None:
         },
     )
     assert override.significant.tolist() == local.significant.tolist()
-    # a trough beyond 3000 uV is refused as saturated, as in the published code
     big = run_test(
         _uv(noise[0] - 4000 * gaussian(0.025, 0.012)),
         method="threshold",
@@ -279,8 +269,6 @@ def test_vanblooijs2023_strict_peak_reading() -> None:
     spec = resolve_rule("vanblooijs2023", baseline=base, peak="strict")
     out = apply_rule(evoked.data, TIMES, SFREQ, spec, "uV")
     assert np.isnan(out["statistic"][4])
-    # a trough whose minimum is the window's first sample counts, judged by the sample
-    # before the window
     edge = np.zeros((1, len(TIMES)))
     edge[0, :] = noise[0]
     first = int(np.argmax(TIMES >= WINDOW_START))

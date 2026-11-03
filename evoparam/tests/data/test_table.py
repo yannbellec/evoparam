@@ -57,7 +57,6 @@ def test_construction_from_columns_and_from_rows(table: Table) -> None:
     assert table.columns == ["onset", "site", "n", "ok"]
     assert table.shape == (len(DATA["n"]), len(DATA))
     assert not table.empty
-    # text is held as Python strings (object), as pandas holds it
     assert table["site"].dtype == object
     assert table["n"].dtype == np.int64
     rows = Table([{"a": 1.0, "b": "x"}, {"a": 2.0}])
@@ -96,7 +95,7 @@ def test_column_access_and_selection(table: Table) -> None:
     assert_equal(table["onset"][0], DATA["onset"][0])
     assert_equal(float(onset.iloc[1]), DATA["onset"][1])
     assert type(onset.values) is np.ndarray
-    assert onset.unique().tolist() == [1.5, 0.5, 1.0]  # order of first appearance
+    assert onset.unique().tolist() == [1.5, 0.5, 1.0]
     sub = table[["site", "onset"]]
     assert sub.columns == ["site", "onset"]
     assert sub.attrs == table.attrs
@@ -126,13 +125,13 @@ def test_assignment(table: Table) -> None:
     fresh["a"] = [1, 2]
     assert len(fresh) == len([1, 2])
     blank = Table()
-    blank["a"] = 1.0  # a scalar in a table without rows: no row
+    blank["a"] = 1.0
     assert len(blank) == 0
 
 
 def test_copies_order_and_export(table: Table) -> None:
     deep, shallow = table.copy(), table.copy(deep=False)
-    table["onset"][0] = 7.0  # in place in the column array
+    table["onset"][0] = 7.0
     assert_equal(deep["onset"][0], DATA["onset"][0])
     assert_equal(shallow["onset"][0], 7.0)
     assert deep.attrs == table.attrs
@@ -141,7 +140,7 @@ def test_copies_order_and_export(table: Table) -> None:
     with pytest.raises(ValueError, match="no index"):
         table.reset_index(drop=False)
     ordered = deep.sort_values("onset")
-    assert ordered["n"].tolist() == [1, 4, 2, 3]  # stable: the two 0.5 keep their order
+    assert ordered["n"].tolist() == [1, 4, 2, 3]
     assert deep.to_dict("list")["n"] == [3, 1, 2, 4]
     assert deep.to_dict("records")[0] == {"onset": 1.5, "site": "B1-B2", "n": 3, "ok": True}
     assert deep.to_dict()["onset"] == {0: 1.5, 1: 0.5, 2: 1.0, 3: 0.5}
@@ -204,7 +203,6 @@ def test_table_and_dataframe_agree(table: Table) -> None:
     for name in ("onset", "n", "ok"):
         assert table[name].tolist() == frame[name].tolist()
         assert table[name].dtype == frame[name].to_numpy().dtype
-    # text: the same values, a missing value as missing (None here, NaN or None in pandas)
     assert as_text(table["site"]).tolist() == as_text(frame["site"]).tolist()
     assert [is_missing(v) for v in table["site"]] == frame["site"].isna().tolist()
     mask = table["onset"].to_numpy() < table["onset"][0]
@@ -282,7 +280,6 @@ def test_light_table_reads_what_pandas_wrote(tmp_path: pathlib.Path) -> None:
     sidecar = json.loads((folder / f"{key}.json").read_text(encoding="utf-8"))
     light = serialize._read_light_table(str(folder), key, sidecar)
     assert_equal(light["onset"].to_numpy(), [0.5, np.nan, 0.5, np.nan])
-    # the missing text value as pandas wrote it (NaN or None, recorded in the sidecar)
     heavy = serialize._read_table(str(folder), key)
     assert light["site"][0] == "A1-A2"
     assert is_missing(light["site"][1])

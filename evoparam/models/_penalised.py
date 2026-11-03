@@ -31,15 +31,10 @@ from scipy.optimize import least_squares
 
 from evoparam._typing import Any, NDArray
 
-# SD of the prior on the asymmetry alpha (mean 0); chosen on development seeds (CHANGELOG)
 ASYMMETRY_PRIOR_SD = 2.5
-# weight of the top of the component: sqrt(1 + PEAK_WEIGHT * s^2)
 PEAK_WEIGHT = 2.0
-# fraction of the peak below which a sample counts as the component's tail
 LOCAL_LEVEL = 0.3
-# whitened energy of the component at which its tail keeps its full weight
 DISCREPANCY_ENERGY = 600.0
-# asymmetry of the second start of the refit
 ALPHA_START = 0.0
 _TOL = 1e-10
 

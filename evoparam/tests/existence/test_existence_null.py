@@ -11,7 +11,6 @@ from evoparam.existence import test_response as run_test
 
 from .helpers import noise_trials, trialset
 
-# Level of the corrections.
 ALPHA = 0.05
 
 ###################################################################################################
@@ -37,7 +36,6 @@ def test_req130_type_one_error(rho: Any, statistic: Any) -> None:
     )
     for alpha in (0.05, 0.01):
         rate = np.mean(test.p_value_raw <= alpha)
-        # [0.8 alpha, 1.2 alpha], widened by 2 binomial standard errors for 2000 channels
         se = np.sqrt(alpha * (1 - alpha) / 2000)
         assert 0.8 * alpha - 2 * se <= rate <= 1.2 * alpha + 2 * se, (alpha, rate)
 
@@ -52,7 +50,7 @@ def test_req136_corrections() -> None:
         fwe.append(np.any(correct(p, "bonferroni") <= ALPHA))
     se = np.sqrt(ALPHA * 0.95 / 2000)
     assert np.mean(fdr) <= ALPHA
-    assert np.mean(fwe) <= ALPHA + 2 * se  # at most 1 family-wise error in 95 % of runs
+    assert np.mean(fwe) <= ALPHA + 2 * se
     p = np.array([0.01, 0.02, 0.03, 0.5, np.nan])
     assert np.allclose(correct(p, "holm")[:4], [0.04, 0.06, 0.06, 0.5])
     assert np.allclose(correct(p, "fdr_bh")[:4], [0.04, 0.04, 0.04, 0.5])

@@ -26,7 +26,6 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 TARGET = ROOT / "docs" / "glossary.rst"
-# Columns of the table of §4.4: inherited name, new name, note.
 TABLE_COLUMNS = 3
 
 CLASS = re.compile(r"^class (\w+)(?:\(([\w, ]*)\))?:\s*(?:\.\.\.)?\s*(?:#\s*(.*))?$")
@@ -84,7 +83,8 @@ def modules(body):
     for name in names:
         text = f"Module ``evoparam.{name}``."
         if name in rules:
-            text += f" May import: {rst(rules[name][0])}. Must not import: {rst(rules[name][1])}."
+            banned = rules[name][1] if rules[name][1] not in ("", "-") else "none"
+            text += f" May import: {rst(rules[name][0])}. Must not import: {rst(banned)}."
         out.append((f"evoparam.{name}", text))
     return out
 
@@ -238,8 +238,6 @@ def render(spec_text):
         "Channel table columns (Table 4.2)",
         [(f"ch_info.{n}", t) for n, t in table_columns(parts["4.3"], "(Table 4.2)")],
     )
-    # a renamed name that is already a term above (GroupFit, Component.params) gets its own
-    # entry, so that the glossary has one description per term (Sphinx warns otherwise)
     defined = {
         t for t, _ in principles(parts["4.1"]) + modules(parts["4.2"]) + class_terms + field_terms
     }

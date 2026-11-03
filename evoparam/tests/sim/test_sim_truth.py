@@ -15,18 +15,14 @@ from evoparam.tests.sim._helpers import SMALL, fits_from_truth, real_baselines
 
 pd = pytest.importorskip("pandas")
 
-# Trials simulated, and the tolerance of the SD of the log scales (amplitude_cv 0.2).
 N_TRIALS = 30
 CV_TOLERANCE = 0.1
-# Sampling rates (Hz) of the real noise and of the simulation.
 SOURCE_SFREQ = 1000.0
 TARGET_SFREQ = 500.0
-# Relative tolerance of the SNR on real noise.
 SNR_TOLERANCE = 0.02
 
 
 ###################################################################################################
-## REQ-255: shared columns and units
 
 
 def _kind(series: Any) -> Any:
@@ -41,7 +37,6 @@ def test_truth_and_groupfit_share_columns_and_units(name: Any) -> None:
     for level in ("component", "trial"):
         table = truth.to_dataframe(level)
         common = [c for c in fit_table.columns if c in table.columns]
-        # Every GroupFit component column but the fit status is in the truth.
         assert common == [c for c in COMPONENT_COLUMNS if c not in ("status", "resolvable")]
         assert list(table.columns[: len(common)]) == common
         for column in common:
@@ -69,7 +64,6 @@ def test_perfect_fit_table_equals_truth_table() -> None:
 
 
 ###################################################################################################
-## Exactness of the truth
 
 
 @pytest.mark.parametrize(("name", "jitter"), [("erp", 0.004), ("ccep", 0.004), ("ecap", 0.0001)])
@@ -159,7 +153,7 @@ def test_json_round_trip() -> None:
     assert with_arrays == copy.deepcopy(truth)
     import json
 
-    json.loads(truth.to_json())  # strict JSON, no NaN tokens
+    json.loads(truth.to_json())
     assert "NaN" not in truth.to_json()
 
 
@@ -212,7 +206,6 @@ def test_keep_arrays_false() -> None:
 
 
 ###################################################################################################
-## REQ-256: real noise records and licences
 
 
 def test_real_noise_records_every_segment() -> None:
@@ -251,7 +244,6 @@ def test_real_noise_records_every_segment() -> None:
             )
         )
         assert segment["recording_samples"] == [epoch_start + start, epoch_start + stop]
-        # The noise in the data is exactly this segment (demeaned, scaled to noise_sd).
         noise = ts.data[trial] - truth.signal[trial]
         piece = real.data[segment["source_trial"], :, start:stop]
         piece = piece - piece.mean(axis=-1, keepdims=True)
@@ -277,7 +269,7 @@ def test_real_noise_resampling_is_recorded() -> None:
     assert resampling["to_sfreq"] == TARGET_SFREQ
     assert (resampling["up"], resampling["down"]) == (1, 2)
     start, stop = truth.noise["segments"][0]["epoch_samples"]
-    assert stop - start == 2 * ts.n_times  # in source samples
+    assert stop - start == 2 * ts.n_times
 
 
 def test_real_noise_unit_conversion() -> None:
@@ -306,7 +298,6 @@ def test_unknown_or_unnamed_dataset_is_refused_for_real_noise() -> None:
         sim.make_noise(400, 500.0, "real", size=(1, 3), source=real_baselines(dataset="ds999999"))
     with pytest.raises(SettingsError, match="does not name"):
         sim.make_noise(400, 500.0, "real", size=(1, 3), source=real_baselines(dataset=None))
-    # Naming the dataset explicitly is enough.
     noise = sim.make_noise(
         400,
         500.0,
@@ -383,7 +374,6 @@ def test_inject_records_and_adds_components() -> None:
         ).mean()
         peak = np.max(np.abs(truth.waveform(index)), axis=-1).mean()
         assert abs(peak / sd / comp["snr"] - 1) < SNR_TOLERANCE
-    # The user's own data (no dataset named) are accepted and recorded as such.
     own = real_baselines(dataset=None)
     _, truth = sim.inject(own, ["N1"], snr=2.0, seed=0)
     assert truth.noise["dataset"]["dataset"] is None

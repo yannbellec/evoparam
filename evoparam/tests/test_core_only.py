@@ -20,7 +20,6 @@ from typing import Any
 
 import pytest
 
-# Largest error of the self-test.
 SELFTEST_TOLERANCE = 0.001
 
 pytestmark = pytest.mark.core

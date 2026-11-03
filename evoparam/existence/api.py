@@ -27,9 +27,7 @@ from .permutation import PermutationOptions, permutation_test, shuffle_test
 from .projection import projection_test
 from .rules import apply_rule, load_rules, resolve_rule
 
-# model_comparison refits the model for every sample: more samples than this warn
 _SLOW_COMPARISON = 200
-# Baseline of fit() when the preset gives none and the epoch starts early enough (s)
 _DEFAULT_BASELINE = (-0.5, -0.05)
 
 
@@ -52,7 +50,6 @@ logger = logging.getLogger(__name__)
 
 METHODS = ("baseline_permutation", "projection", "model_comparison", "threshold")
 
-# Inter-rater agreement of human experts on CCEP N1 presence (van Blooijs et al.).
 HUMAN_KAPPA = 0.60
 
 
@@ -117,7 +114,6 @@ def _comparison_fits(unit: tuple[Any, ...]) -> dict[str, Any] | None:
     background = ResponseModel(
         fit_window=window, baseline=baseline, classical=False, max_components=0
     )
-    # a failed fit is the failure of the channel (REQ-307 ii: recorded by test_response)
     fit = model.fit_waveform(times, y, on_error="raise")
     if fit.gof is None:
         return None
@@ -189,8 +185,6 @@ def _model_comparison(
         n_jobs,
         desc="test_response",
     )
-    # a copy of the generator when the serial loop reaches each fitted channel; the
-    # draws of the channel are then skipped here (made again in its unit)
     units = []
     for c, first in enumerate(firsts):
         if first is None:
@@ -223,7 +217,7 @@ def _model_comparison(
 
 
 @verbose
-def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_overrides, allow_artifact_overlap, n_boot, projection_profile, projection_pairs and on_error; DECISIONS.md §7.2)
+def test_response(  # noqa: PLR0913
     ts: Any,
     *,
     method: str = "baseline_permutation",
@@ -244,7 +238,7 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
     n_boot: int = 200,
     random_state: Any = None,
     n_jobs: int = 1,
-    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
+    verbose: Any = None,  # noqa: ARG001
     projection_profile: str = "published",
     projection_pairs: str = "signflip",
     on_error: str = "record",
@@ -314,8 +308,6 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
     _check_test_settings(method, correction, statistic, polarity)
     check_on_error(on_error)
     if random_state is None:
-        # a seed drawn from the operating system and recorded in the settings, so that the
-        # test can be regenerated from its provenance (REQ-007, REQ-333)
         random_state = int(np.random.default_rng().integers(2**31 - 1))
     rng = np.random.default_rng(random_state)
     spec = None
@@ -358,7 +350,6 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
         except PROPAGATE:
             raise
         except Exception:
-            # the channels that fail on their own (REQ-307 ii); none: not a channel's failure
             res, failed, rng = _channel_by_channel(
                 tester.run, rows, index, names, group, snapshot, on_error
             )
@@ -406,7 +397,6 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
     status, message = _failure_arrays(failures, len(index), len(groups))
     curve_times = curve = band = None
     if all(r.get("curve") is not None for r in results):
-        # the statistic over time and its null band (spec §5.13, plot_existence)
         curve_times = np.asarray(results[0]["curve_times"], float)
         curve, band = _stack(results, "curve"), _stack(results, "null_band")
     return ResponseTest(
@@ -465,9 +455,9 @@ class _Tester:
     baseline: Any
     spec: Any
     options: PermutationOptions
-    projection: tuple[str, str]  # profile and pairs of the projection method
+    projection: tuple[str, str]
     trials_ts: Any
-    evoked: Any  # an Evoked whenever trials_ts is None
+    evoked: Any
 
     @property
     def base_obj(self) -> "TrialSet | Evoked":
@@ -482,7 +472,6 @@ class _Tester:
         span = slice(None)
         if trials_ts is not None:
             if self.method == "baseline_permutation":
-                # the permutation test reads the window and the baseline only
                 span = _span(times, window, baseline)
             data, masks = _select(trials_ts, rows, chans, span)
         if self.method == "baseline_permutation":
@@ -593,7 +582,6 @@ def _failure_arrays(
     return status, message
 
 
-# the entries of a test's result that hold one value (or row) per channel
 _PER_CHANNEL = (
     "statistic",
     "p_value",
@@ -635,7 +623,7 @@ def _channel_by_channel(
             parts.append(run(rows, [ch], gen))
         except PROPAGATE:
             raise
-        except Exception as exc:  # the failure of this channel only
+        except Exception as exc:
             unit = f"{names[ch]} ({group})" if group else str(names[ch])
             if on_error == "raise":
                 raise fit_error("test_response", unit, exc) from exc
@@ -917,7 +905,7 @@ def methods_text(test: Any) -> str:
     )
 
 
-class detectors:  # noqa: N801  (public namespace evoparam.existence.detectors)
+class detectors:  # noqa: N801
     """The registry rules as functions: ``detectors.vanblooijs2023(ts, baseline=(-1, -0.1))``."""
 
 
@@ -972,7 +960,6 @@ def fit(
 
     data = _from_mne(data)
     if isinstance(data, np.ndarray):
-        # the same Evoked as evoparam.models.fit builds, so that the test sees its channels
         times = kwargs.pop("times", None)
         sfreq = kwargs.pop("sfreq", None)
         if times is None:
@@ -1008,7 +995,6 @@ def fit(
     elif data.times[0] <= _DEFAULT_BASELINE[0]:
         baseline = _DEFAULT_BASELINE
     else:
-        # a preset without a baseline (short epochs: ECAP, ERNA): the pre-stimulus samples
         baseline = (float(data.times[0]), min(0.0, window[0]))
     test_kwargs: dict[str, Any] = {
         "window": window,
@@ -1016,7 +1002,6 @@ def fit(
         "by": (),
         "random_state": seed,
     }
-    # the channels and the workers of the fit
     test_kwargs.update({k: kwargs[k] for k in ("picks", "n_jobs") if kwargs.get(k) is not None})
     test_kwargs.update(existence_kwargs or {})
     try:
@@ -1077,8 +1062,6 @@ def attach_test(group: Any, test: Any) -> Any:
     )
 
 
-# Settings of a test that hold one value per channel; the provenance step of the test
-# attached to a fit keeps the settings that apply to every channel.
 _PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "groups", "critical")
 
 

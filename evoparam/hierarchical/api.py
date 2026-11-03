@@ -45,9 +45,6 @@ from ._inputs import (
 
 logger = logging.getLogger(__name__)
 
-# spec §4.2: hierarchical imports data, models, trials and stats only (utils.require aside),
-# so the verbose= of fit_hierarchical sets the level of the evoparam logger here, with the
-# values of evoparam.utils.verbose (REQ-304); "progress" acts as "info" (no bar)
 _LEVELS = {
     None: None,
     False: None,
@@ -105,25 +102,9 @@ ENGINES = ("eb", "numpyro", "pymc")
 LEVELS = ("trial", "channel", "subject")
 MIN_TRUSTED = 3
 
-# Fewest channels with a value from which a parameter is shrunk.
 MIN_SHRINK_CHANNELS = 2
-# Channel statistics taken from the trusted trial estimates (shift-and-scale trial fits)
-# rather than from the fit of the average: the amplitude, because latency jitter flattens
-# the average (the channel SD of the amplitude came out 11 % low). The latency stays the
-# fit's: the average is not biased by a symmetric jitter, and its estimate beat the mean
-# of the trial latencies (latency RMSE lower in 2 of 3 simulated datasets).
 TRIAL_PARAMETERS = ("amplitude",)
-# The standard error of the channel latency (the fit of the average) has two parts: the
-# noise of the average (Wald error of the fit) and the mean of the trial jitter, whose
-# variance is the jitter SD beyond noise (estimated below, pooled over the channels)
-# divided by the number of trials. The latency of a labelled component lies in the label's
-# window, so the error is the SD of that normal truncated to the window: on simulations,
-# Wald errors with medians of 7.1 and 15.5 ms went with errors of RMS 4.2 and 9.7 ms, and
-# shrank those channels too far (CHANGELOG, REQ-171). The spread of the trusted trials,
-# used before in quadrature with the Wald error, counted the noise twice (median |z| 0.54
-# against the normal 0.67); it is kept for a channel without a Wald error.
 TRIAL_SE_PARAMETERS = ("latency",)
-# Largest trial shift, in FWHM of the component (see the trial fits below).
 JITTER_RANGE = 0.75
 MODALITY_PRESETS = {
     "spes": "ccep",
@@ -162,7 +143,7 @@ def _preset_for(ts: Any, preset: Any) -> Any:
 
 
 @_verbose
-def fit_hierarchical(  # noqa: PLR0913  (spec §5.8 fixes 14 parameters, plus preset, group_fits and subject_column; DECISIONS.md §7.2)
+def fit_hierarchical(  # noqa: PLR0913
     ts: Any,
     *,
     levels: Any = LEVELS,
@@ -180,7 +161,7 @@ def fit_hierarchical(  # noqa: PLR0913  (spec §5.8 fixes 14 parameters, plus pr
     subject_column: str = "subject",
     random_state: Any = None,
     n_jobs: int = 1,
-    verbose: Any = None,  # noqa: ARG001  (read by the @_verbose decorator)
+    verbose: Any = None,  # noqa: ARG001
 ) -> "HierarchicalFit":
     """Hierarchical estimates of evoked components: trial -> channel -> subject.
 
@@ -394,8 +375,6 @@ def _fit_component(run: _Run, label: str, pd: Any) -> None:
         run.notes.append(f"component {label!r}: found on no channel; left out.")
         return
     group_tmpl = template(pooled)
-    # Trial shifts up to 0.75 FWHM: with the default quarter FWHM of §5.7, trials of a
-    # 4 ms jitter reach the bound, are not trusted, and the jitter SD comes out halved
     t1 = _time.perf_counter()
     trial_sets = run_subjects(
         trial_fits,
@@ -496,8 +475,6 @@ def _add_parameters(row: Any, comp: Any, trusted: Any) -> None:
     for p in eb.PARAMETERS:
         row[f"{p}_fit"] = getattr(comp, p) if comp is not None else np.nan
         row[f"{p}_fit_se"] = wald_se(comp, p) if comp is not None else np.nan
-        # the sufficient statistics (§5.8 step 2): mean and standard error of
-        # the trusted trial estimates (see TRIAL_PARAMETERS)
         values = (
             trusted[p].to_numpy(float)
             if p in TRIAL_PARAMETERS + TRIAL_SE_PARAMETERS and len(trusted)
@@ -510,7 +487,6 @@ def _add_parameters(row: Any, comp: Any, trusted: Any) -> None:
                 row[f"{p}_raw"] = float(values.mean())
                 row[f"{p}_raw_se"] = se_trials
             else:
-                # completed below, once the jitter SD is known
                 row[f"_{p}_se_trials"] = se_trials
 
 
@@ -610,11 +586,8 @@ def _shrink_parameter(
             X=design,
         )
     except (DataError, ArithmeticError, ValueError, np.linalg.LinAlgError) as err:
-        # a numerical failure of this parameter (singular design, too few channels
-        # for the covariates): recorded and warned (REQ-307), the raw values kept
         message = f"component {label!r}, {p}: REML failed ({type(err).__name__}: {err})."
         run.notes.append(message)
-        # stacklevel 4: the caller of fit_hierarchical, as when this was its own code
         _warn(f"fit_hierarchical: {message} The raw values are kept.", UserWarning, stacklevel=4)
         return
     run.diagnostics["reml"][f"{label}/{p}"] = {
@@ -686,7 +659,6 @@ def _subject_level(
         out["labels"][0], out["unit_mean"][0], out["unit_mean_se"][0], strict=False
     ):
         subject_est[(sname, p)] = (float(m), float(se))
-    # a subject without usable channels: its prediction is the group value
     for sname, _ in run.subjects:
         if (sname, p) not in subject_est:
             row = (
@@ -698,7 +670,6 @@ def _subject_level(
                 float(row @ beta),
                 float(np.sqrt(row @ beta_cov @ row + out["variances"][0])),
             )
-    # prior-only estimate of the flagged channels: their subject's value
     flagged = frame["flag"].eq("prior_dominated")
     for idx in frame.index[flagged]:
         est = subject_est.get((frame.at[idx, "subject"], p))

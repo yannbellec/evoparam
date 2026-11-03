@@ -4,7 +4,7 @@ r"""
 =====================
 
 What evoparam does, shown on one example curve.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -26,7 +26,6 @@ What evoparam does, shown on one example curve.
 
 ###################################################################################################
 
-# Import what we need
 from evoparam import (
     fit_response,
     gen_response,
@@ -52,7 +51,6 @@ from evoparam import (
 
 ###################################################################################################
 
-# Make an example curve with two bumps: [latency (ms), amplitude (µV), width (ms)]
 times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
 ###################################################################################################
@@ -64,7 +62,6 @@ times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 
 ###################################################################################################
 
-# Plot the curve, from 100 ms before to 500 ms after the stimulus
 fig = plot_response(times, signal, xlim=[-100, 500], color="black")
 
 ###################################################################################################
@@ -84,10 +81,8 @@ fig = plot_response(times, signal, xlim=[-100, 500], color="black")
 
 ###################################################################################################
 
-# Fit the model and draw the figure
 fit = report(times, signal, preset="ccep")
 
-# Show the summary
 print(fit)
 
 ###################################################################################################
@@ -104,7 +99,6 @@ print(fit)
 
 ###################################################################################################
 
-# The same fit, with grey areas
 fit = report(times, signal, preset="ccep", shade_color="grey")
 
 ###################################################################################################
@@ -120,7 +114,6 @@ fit = report(times, signal, preset="ccep", shade_color="grey")
 
 ###################################################################################################
 
-# Draw the model with its numbers
 fig = plot_annotated_fit(fit)
 
 ###################################################################################################
@@ -180,16 +173,13 @@ fig = plot_annotated_fit(fit)
 
 ###################################################################################################
 
-# Two other bumps, and a background given as [height (µV), how fast it fades (ms)]
 bumps = [[20, -100, 8], [200, -50, 100]]
 times2, signal2 = gen_response(bumps, background=[80, 40], seed=1)
 
-# Fit the model, without drawing
 fit2 = fit_response(times2, signal2, preset="ccep")
 
 ###################################################################################################
 
-# Show the summary, then draw the fit
 print(fit2)
 fig = plot_fit(fit2)
 

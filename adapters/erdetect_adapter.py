@@ -56,7 +56,7 @@ def main(argv):
     task = descriptor["task"]
     if task not in ("T1", "T2"):
         sys.exit(f"erdetect_adapter: task {task} is not answered (T1, T2 only).")
-    data = arrays["data"]                                  # trials x channels x samples
+    data = arrays["data"]
     average = np.nanmean(data, axis=0)
     t = times(descriptor, average.shape[-1])
     onset = int(np.argmin(np.abs(t)))

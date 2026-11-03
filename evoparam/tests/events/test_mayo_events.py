@@ -26,15 +26,11 @@ import pytest
 
 from evoparam.events import detect_pulses, match_onsets
 
-# Tolerance (s) of a matched onset, and the confidence of a site guess counted as sure.
 TOLERANCE = 0.01
 CONFIDENT = 0.5
-# Runs of the Mayo datasets, the fewest pulses, and the recall and precision required.
 N_RUNS = 11
 MIN_PULSES = 150
 MIN_RATE = 0.99
-# Fewest confident pulses, the site agreement, and the accuracy and fraction of the
-# confident guesses (REQ-042).
 MIN_CONFIDENT_PULSES = 160
 MIN_AGREEMENT = 0.95
 MIN_ACCURACY = 0.98
@@ -48,8 +44,6 @@ pytestmark = [
     ),
 ]
 
-# (dataset, run, sites): the first pulse of each site starts a segment. The sites of the
-# 2048 Hz runs are the 10th, 50th and 90th percentiles of the order of first stimulation.
 RUNS = [
     (
         "ds003708",
@@ -262,7 +256,6 @@ def match_all(results: Any) -> Any:
 def site_agreement(results: Any, column: Any = "stim_site_guess") -> Any:
     agree, confident = [], []
     for _, _, _, events, onsets, sites in results:
-        # No vote (and no per-pulse column) when a single pulse was detected
         name = column if column in events.columns else "stim_site_guess"
         times = events["onset_time"].to_numpy()
         for onset, site in zip(onsets, sites, strict=False):
@@ -294,7 +287,7 @@ def test_mayo_onsets_match_events_tsv(results: Any) -> None:
     hits, misses, _, errors = match_all(mayo)
     assert hits + misses >= MIN_PULSES
     assert hits / (hits + misses) >= MIN_RATE
-    assert np.median(np.abs(errors)) <= 1 / 2048 + 1e-6  # rounding of the onsets
+    assert np.median(np.abs(errors)) <= 1 / 2048 + 1e-6
 
 
 def test_mayo_precision(results: Any) -> None:

@@ -31,7 +31,6 @@ __all__ = [
     "MARKERS",
 ]
 
-# Columns of parameter_map(), one row per (stimulation site, channel).
 MAP_COLUMNS = (
     ("stim_site", "channel", "status", "component", "label", "shape")
     + COMPONENT_FEATURES
@@ -50,8 +49,6 @@ MAP_COLUMNS = (
         "marker",
     )
 )
-# Marker of each row: a stimulating contact of that site, a bad channel, a channel whose
-# window was masked (not fitted), a fitted response, no response, or a failed fit.
 MARKERS = ("stim_contact", "bad", "masked", "response", "no_response", "failed")
 PARAMETERS = COMPONENT_FEATURES + ("r2", "existence_p", "p_response", "shape_weight")
 LONG_COLUMNS = ("stim_site", "channel", "parameter", "value")
@@ -59,7 +56,7 @@ LONG_COLUMNS = ("stim_site", "channel", "parameter", "value")
 
 def _contacts(site: Any) -> set[Any]:
     """Return the contact names of a bipolar site name (``"A1-A2"``: ``A1`` and ``A2``)."""
-    return {part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()}
+    return {part.strip() for part in re.split(r"[-\u2013]", str(site)) if part.strip()}
 
 
 def _pick(fit: Any, component: Any) -> Any:
@@ -394,7 +391,6 @@ _STYLE = {
 }
 
 
-# coord_space values (BIDS, lower case) in a template space whose glass brain nilearn draws
 MNI_SPACES = ("mni", "icbm", "fsaverage", "talairach")
 
 

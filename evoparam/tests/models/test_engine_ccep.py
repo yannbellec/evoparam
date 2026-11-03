@@ -34,34 +34,24 @@ from evoparam.prep import baseline_correct, rereference
 
 pd = pytest.importorskip("pandas")
 
-# Baseline (s) of the averages, and the N1 window of the detection rule.
 BASELINE_START = -0.5
 BASELINE_END = -0.02
 N1_START = 0.009
 RULE_END = 0.1
-# N1 latency window end (s) of the CCEP preset, and the N1 window of REQ-113 ("a negative
-# component with latency in 9-50 ms"), which also names the rule's N1 detections
 # (DECISIONS §5.11).
 N1_END = 0.05
 N1_WINDOW = (N1_START, N1_END)
-# Largest latency difference (s) counted as agreeing with the rule (REQ-114).
 LATENCY_TOLERANCE = 0.002
-# mnl_ccepAge baselines (s): per trial (-1, -0.1), on the average (-2, -0.1).
 AVERAGE_BASELINE_START = -2
 RULE_BASELINE_END = -0.1
-# Non-stimulated PT contacts of the example run, the kappa required (REQ-113), the other
-# subjects of the REQ-371 list, and how many of them must reproduce it.
 N_PT_CONTACTS = 46
 MIN_KAPPA = 0.8
 N_OTHER_RUNS = 6
 MIN_REPRODUCED = 5
-# Fewest channels where both find an N1, and the fraction within the tolerance (REQ-114).
 MIN_BOTH = 10
 MIN_CLOSE = 0.9
-# Floor of the regression on the example run: N1s found and kappa.
 MIN_N1_FOUND = 8
 MIN_REGRESSION_KAPPA = 0.3
-# Fraction of real baselines with no response (REQ-112).
 MIN_SILENT = 0.95
 
 pytestmark = [
@@ -137,7 +127,6 @@ def _agreement() -> Any:
 
 
 ###################################################################################################
-## Agreement with the published rule, applied as the published pipeline applies it
 
 LIST = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "validation", "ds004080_subjects.txt"
@@ -207,7 +196,7 @@ def _pair_trials(subject: Any, run: Any, site: Any) -> Any:
             & ~info["bad"].astype(bool)
             & ~info["name"].isin([a, b])
         ).to_numpy()
-        tmp = f"{path[:-4]}.{os.getpid()}.tmp.npz"  # atomic: concurrent runs share the cache
+        tmp = f"{path[:-4]}.{os.getpid()}.tmp.npz"
         np.savez_compressed(
             tmp,
             data=ts.data[:, keep].astype(np.float32),
@@ -228,31 +217,11 @@ def _pair_trials(subject: Any, run: Any, site: Any) -> Any:
     )
 
 
-# The two readings of "the published rule" (owner decision D8): the registry row of spec
-# §5.6 as written ("|x| > 3.4·SD_baseline with a negative peak, >= 1 sample", 9-100 ms: the
-# deepest strict local minimum of the window beyond 3.4 SD, no SD floor, no selectivity)
-# and the published code (mnl_ccepAge: 50 uV SD floor, local minimum with 20 uV
-# selectivity, first sample excluded, saturation at 3000 uV). The tests are parametrised
-# by these two; "extremum" (the window's most negative sample, peak or not: the registry
-# row as read until 2026-10-13) is measured too.
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
 RULE_NAMES = {**READINGS, "extremum": "vanblooijs2023"}
 
-# Owner decision (D8 revised, docs/spec/DECISIONS.md §5.8): the requirements are judged on
-# the spec's registry row ("paper"); the published code's reading ("code") is measured and
-# reported by the same tests but does not gate (no decision can satisfy both: the exact
-# joint bound of test_d8_req113_cannot_hold_under_both_readings).
 GATING = "paper"
 
-# Where each reading reads the average: the SD baseline and the time axis. The registry
-# row reads the data's own time axis (stimulation at t = 0) with the baseline the registry
-# names for its unspecified one (the ER-detect default, -1 to -0.1 s, as REQ-135's test
-# does). The published code takes its SD over (-2, -0.1) s and labels the stimulation
-# sample t = 1/sfreq (MATLAB indexing), so its 9 ms is one sample earlier on the data's
-# axis. Until 2026-10-13 the registry row was read with the code's baseline and axis too
-# (CHANGELOG, "the comparator trail"). Third field: the peak operator (registry overrides).
-# The row's "negative peak" is a peak, a local minimum: a sample at the window's edge on a
-# monotone slope is not one (DECISIONS §5.8).
 FRAMES = {
     "paper": ((-1.0, -0.1), 0, {"peak": "strict"}),
     "extremum": ((-1.0, -0.1), 0, {"peak": "extremum"}),
@@ -429,9 +398,6 @@ def _model_n1(fits: Any) -> Any:
     det, lat, trough, trough_amp = [], [], [], []
     for fit in fits:
         n1 = [c for c in fit.components if N1_START <= c.latency <= N1_END and c.amplitude < 0]
-        # the preset's N1 decision (ccep 1.2, DECISIONS §5.12): the trough of the fitted
-        # curve in 9-50 ms deeper than 3.4 times the fit's noise SD, not the presence of a
-        # negative component there
         det.append(
             curve_detection(fit, rule["window"], polarity=rule["polarity"], k=rule["k"])[
                 "detected"
@@ -466,7 +432,6 @@ def _rule_peak_on_fitted_curve(
     t = ts.times
     curve = _rule_average(ts)
     baseline, shift = _frame(ts, reading)
-    # from the rule's first sample on (in its frame)
     late = t >= 0.009 - shift - 0.01 / ts.sfreq
     common = np.interp(t[late], *reference) if reference is not None else 0.0
     for c, fit in enumerate(fits):
@@ -513,8 +478,6 @@ def agreement() -> Any:
         ts = _pair_trials(subject, run, site)
         fits, ref_times, reference, evoked = _preset_fits(ts)
         det, lat, trough, trough_amp = _model_n1(fits)
-        # the same chain in the recording reference (DECISIONS §5.11: REQ-113 is asked in
-        # the reference the rule reads, too)
         det_recording = _model_n1(_preset_fits(ts, reference=False)[0])[0]
         for reading in FRAMES:
             rule, rule_lat, floor = _published_rule(ts, reading)
@@ -524,13 +487,10 @@ def agreement() -> Any:
                 evoked, reading, N1_WINDOW, latency=True
             )
             out[(subject, run, reading)] = {
-                # the rule read in the preset's reference (its own input average), and the
-                # preset's N1 fitted in the recording reference (DECISIONS §5.11)
                 "rule_on_input": on_input,
                 "rule_on_input_lat": on_input_lat,
                 "rule_on_input_n1_lat": on_input_n1_lat,
                 "model_recording": det_recording,
-                # the rule's N1 detections (gating, DECISIONS §5.11) and its 9-100 ms ones
                 "rule_n1": rule_n1,
                 "rule_n1_lat": rule_n1_lat,
                 "rule_on_input_n1": on_input_n1,
@@ -549,8 +509,6 @@ def agreement() -> Any:
                 ),
                 "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
                 "no_n1_trough": _no_n1_trough(ts, reading),
-                # the decision of the earlier proposed wording (not the REQ): the trough of
-                # the fitted curve at least as deep as the code's amplitude criterion
                 "trough_floor": np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
                 "names": ts.ch_names,
             }
@@ -698,13 +656,6 @@ def _assert_req113(agreement: Any, reading: Any, rule: Any, decision: Any) -> No
     assert sum(ok) >= MIN_REPRODUCED, [(round(s["kappa"], 2), s["missed"]) for s in scores]
 
 
-# REQ-113 in one reference (DECISIONS §5.11): the preset's N1 and the rule both read in the
-# preset's reference (the rule applied to the preset's own input, the adjusted common
-# average), and both in the recording reference (the preset's chain run without its
-# re-referencing, the rule as the published pipeline applies it); with the rule's N1
-# detections ("n1") and with its detections over 9-100 ms ("all"). Measured once on the
-# test runs (ccep v1.1, the preset fitted on its trials, 2026-10-19): kappa on the 46 PT
-# contacts, then per REQ-371 run with the channels missed, then pooled over these runs.
 _NOT_MET = "not met (measured once on the test runs, 2026-10-19): kappa "
 ONE_REFERENCE_NOT_MET: dict[tuple[str, str, str], str] = {
     ("presets_reference", "n1", "paper"): _NOT_MET
@@ -824,13 +775,6 @@ def test_req113_rule_on_the_presets_input_bound(agreement: Any) -> None:
     assert sum(ok) < MIN_REPRODUCED, [(round(s["kappa"], 2), s["missed"]) for s in scores]
 
 
-# Why REQ-114 is not met (CHANGELOG, "N1 latency agreement"): on the REQ runs the
-# rule's peak is an N1 trough of the average it reads (the deepest interior local minimum
-# in 9-50 ms) on 44 of the 61 channels where the registry row and the preset both find an
-# N1 (72 %) and on 24 of 28 with the code (86 %; measured once on the test runs,
-# 2026-10-19, the preset fitted on its trials; 77 % and 80 % until 2026-10-18). The others
-# peak after 50 ms, outside the N1 window (registry row 14, code 2), or at the window start
-# (registry row 3, code 2).
 RULE_PEAKS = (
     "the rule's peak is an N1 trough of its average on 72 % (registry row) and 86 % "
     "(code) of these channels; elsewhere it is mostly a deflection at 51-100 ms, after "
@@ -985,15 +929,6 @@ def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
     assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
-# "The model latency" of REQ-114 against the rule's N1 detections (DECISIONS §5.11), the
-# readings of §5.2: the N1 component's latency (as written), the trough of the fitted
-# curve, the rule's operator on the fitted curve, and the same in the rule's reference
-# (measured once on the test runs, 2026-10-19, ccep v1.1 with the preset fitted on its
-# trials; until 2026-10-18, the average fitted without its trials: registry row 49.0 %,
-# 74.5 % and 82.4 %, code 44.4 % and 88.9 %, the code's trough not met then)
-# Measured once on the test runs with ccep 1.2 (2026-10-20, the N1 read on the fitted curve,
-# DECISIONS §5.12); with 1.1 (2026-10-19) the fourth reading was met with both readings of
-# the rule (90.2 %, 46 of 51, and 92.0 %, 23 of 25) and the code's fitted trough (96.0 %).
 N1_LATENCIES_NOT_MET = {
     ("paper", "lat"): "not met (2026-10-20): 44.1 % (26 of 59)",
     ("code", "lat"): "not met (2026-10-20): 44.8 % (13 of 29)",

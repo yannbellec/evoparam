@@ -14,11 +14,8 @@ from .helpers import channel_fit, gauss, simulate
 
 pd = pytest.importorskip("pandas")
 
-# Fraction of converged trial fits required in every mode.
 MIN_CONVERGED = 0.9
-# Components of the channel fit (the response and the added later one).
 N_COMPONENTS = 2
-# Correlation of the fitted and simulated shifts required of both trial models.
 MIN_SHIFT_CORRELATION = 0.5
 
 ###################################################################################################
@@ -57,7 +54,6 @@ def test_other_modes_run(mode: Any) -> None:
         tf = fit_trials(ts, channel_fit(ts), mode=mode, r2_min=0.0)
     fit = tf.fits[0]
     assert fit.converged.mean() >= MIN_CONVERGED
-    # the template mode uses the jitter-blurred channel average as template: less precise
     assert np.corrcoef(fit.shift[:, 0], shifts)[0, 1] >= (0.35 if mode == "template" else 0.5)
 
 
@@ -69,7 +65,7 @@ def test_realign_and_errors() -> None:
         tf = fit_trials(ts, channel_fit(ts), max_shift=0.02)
     evoked = realign(ts, tf)[0]
     plain = ts.data[:, 0].mean(axis=0)
-    assert np.min(evoked.data[0]) < np.min(plain)  # sharper, deeper peak
+    assert np.min(evoked.data[0]) < np.min(plain)
     with pytest.raises(SettingsError):
         fit_trials(ts, mode="magic")
     with pytest.raises(SettingsError):
@@ -103,7 +99,7 @@ def test_options_are_checked_and_recorded() -> None:
 def test_selected_trial_model_keeps_only_the_chosen_components() -> None:
 
     ts, shifts, _ = simulate(n=30, jitter=0.003, seed=5)
-    ts.data[:, 0] += 15 * gauss(0.2, 0.06)[None]  # a second, later component
+    ts.data[:, 0] += 15 * gauss(0.2, 0.06)[None]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = channel_fit(ts)
@@ -112,7 +108,6 @@ def test_selected_trial_model_keeps_only_the_chosen_components() -> None:
         first = int(np.argmin([abs(c.latency - 0.08) for c in comps]))
         full = fit_trials(ts, group, components=[first], r2_min=0.0)
         only = fit_trials(ts, group, components=[first], r2_min=0.0, trial_model="selected")
-    # both report the chosen component only, but the models differ
     assert full.fits[0].shift.shape == only.fits[0].shift.shape == (30, 1)
     assert not np.allclose(full.fits[0].shift, only.fits[0].shift)
     for fit in (full, only):

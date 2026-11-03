@@ -22,10 +22,8 @@ from evoparam.shapes import get_background, get_shape
 
 from .helpers import TIMES, gauss, noise
 
-# Fit window (s) of the kernel tests.
 WINDOW_START = 0.02
 WINDOW_END = 0.6
-# Solver tolerance under which the iterations converge tightly.
 TIGHT_TOLERANCE = 1e-6
 
 SFREQ = 2048.0
@@ -104,7 +102,6 @@ def test_vectorised_exp_within_one_ulp_of_numpy() -> None:
     out = np.empty_like(x)
     _fast._vexp(x, out, np.empty(len(x), np.int64))
     np.testing.assert_allclose(out, np.exp(x), rtol=4.5e-16, atol=0)
-    # below ln(2^-1022) the result is 0 (NumPy's subnormals, at most 2.2e-308)
     low = np.array([-708.4, -720.0, -745.2, -800.0, -np.inf])
     out = np.empty_like(low)
     _fast._vexp(low, out, np.empty(len(low), np.int64))
@@ -135,8 +132,6 @@ def test_compiled_optimum_is_the_numpy_one(
         reference, compiled = _both_paths(monkeypatch, struct, _start(struct), tol)
         assert reference[3]
         assert compiled[3]
-        # the same optimum: within the solver tolerance where the iterations converge
-        # tightly, and on the same path at the loose tolerance
         rtol = 1e-6 if tol < TIGHT_TOLERANCE else 1e-3
         np.testing.assert_allclose(compiled[0], reference[0], rtol=rtol, atol=1e-9)
         np.testing.assert_allclose(compiled[1], reference[1], rtol=rtol, atol=1e-6)
@@ -215,7 +210,7 @@ def test_without_numba_the_fit_is_the_numpy_fit(monkeypatch: Any) -> None:
     monkeypatch.setattr(eng, "_FAST", "off")
     reference = fitted()
     monkeypatch.setattr(eng, "_FAST", "auto")
-    monkeypatch.setattr(_fast, "kernel", lambda: None)  # what kernel() returns without numba
+    monkeypatch.setattr(_fast, "kernel", lambda: None)
     without = fitted()
     assert [c.shape for c in without.components] == [c.shape for c in reference.components]
     for new, old in zip(without.components, reference.components, strict=True):

@@ -10,10 +10,8 @@ from evoparam.utils._optional import require
 
 __all__ = ["group_trains", "trains", "events_to_metadata"]
 
-# Largest gap inside a train, as a multiple of the expected (or median) interval.
 GAP_FACTOR = 3.0
 
-# Default largest gap inside a train, in seconds, when there is a single pulse.
 DEFAULT_MAX_GAP = 2.0
 
 
@@ -80,8 +78,6 @@ def group_trains(
             sites = as_text(out[site_column])
             known = (sites[1:] != "") & (sites[:-1] != "")
             change = known & (sites[1:] != sites[:-1])
-            # With both sites known, a pause inside a site is not a new train unless the
-            # gap was set explicitly (max_gap or expected_rate)
             new[1:] = change | (gap & (explicit | ~known))
         else:
             new[1:] = gap

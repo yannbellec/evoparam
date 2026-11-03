@@ -162,12 +162,10 @@ def select_stimulation_events(
 
 
 ###################################################################################################
-## BIDS file access
 
 _ENTITY = re.compile(r"(sub|ses|task|acq|run)-([a-zA-Z0-9]+)")
 _ORDER = ("sub", "ses", "task", "acq", "run")
 
-# BIDS channel types -> types of the channel table (spec Table 4.2).
 _CH_TYPES = {
     "ecog": "ecog",
     "seeg": "seeg",
@@ -180,7 +178,6 @@ _CH_TYPES = {
     "emg": "emg",
 }
 
-# Coordinate units -> factor to mm.
 _TO_MM = {"m": 1e3, "cm": 10.0, "mm": 1.0}
 
 
@@ -266,7 +263,6 @@ def _find_runs(tree: Any, wanted: Any, datatype: Any) -> Any:
                 "Remote reads need task= (and run= when the dataset has runs): "
                 "a remote folder cannot be listed."
             )
-        # BrainVision, else a MEF 3.0 session (the Mayo Clinic datasets)
         name = f"{_stem(wanted)}_{datatype}.vhdr"
         if tree.read(folder + name, optional=True) is None:
             name = f"{_stem(wanted)}_{datatype}.mefd"
@@ -305,7 +301,6 @@ def _find_runs(tree: Any, wanted: Any, datatype: Any) -> Any:
             f"No {datatype} recording matches "
             f"{ ({k: v for k, v in wanted.items() if v}) } under {tree.root}."
         )
-    # One data file per run: prefer BrainVision when several formats exist (then EDF, MEF).
     by_stem = {}
     for rel, entities, name in runs:
         key = (rel, _stem(entities))
@@ -669,7 +664,7 @@ def _read_brainvision_run(
                 f"No epoch of ({tmin}, {tmax}) s around the selected events of {run.stem} fits "
                 "inside the recording."
             )
-        order = np.argsort(starts[kept], kind="stable")  # read in file order
+        order = np.argsort(starts[kept], kind="stable")
         data = np.empty((int(kept.sum()), len(ch_index), times.size))
         data[order] = _read_windows(
             reader, header, starts[kept][order], times.size, ch_index, n_samples
@@ -828,7 +823,7 @@ def _dataset_record(root: Any, base: Any, tree: Any) -> Any:
     return None, None
 
 
-def read_bids(  # noqa: PLR0913  (spec §5.1 fixes 14 parameters, plus stim_mapping of §10.2; DECISIONS.md §7.2)
+def read_bids(  # noqa: PLR0913
     root: StrPath,
     subject: str,
     *,
@@ -989,8 +984,6 @@ def read_bids(  # noqa: PLR0913  (spec §5.1 fixes 14 parameters, plus stim_mapp
             "runs": [p["source"] for _, p in parts],
         }
 
-    # Epochs whose samples are all exactly zero: data censored in the deposit (ds004977
-    # keeps one stimulation site per run and writes zeros elsewhere), never real signal
     flat = np.flatnonzero(np.all(np.nan_to_num(data) == 0, axis=(1, 2)))
     if flat.size:
         _warn(

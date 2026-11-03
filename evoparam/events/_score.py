@@ -8,13 +8,10 @@ from evoparam.errors import DataError
 
 __all__ = []
 
-# Number of samples processed at once by the score, to bound memory.
 _CHUNK = 1 << 14
 
-# Scale factor from the median absolute deviation to the standard deviation of a Gaussian.
 MAD_TO_SD = 1.4826
 
-# Continuous data is a matrix [n_channels, n_times] of at least three samples.
 _MATRIX_NDIM = 2
 _MIN_SAMPLES = 3
 
@@ -59,9 +56,6 @@ def pick_index(n_channels: int, picks: Any, ch_names: Any = None) -> Any:
     return index
 
 
-# The score uses at most this many channels, evenly spaced among the picks: the median
-# of 16 channels already ignores transients on a few of them, and the median over all
-# channels of a large grid would cost seconds per minute of data.
 SCORE_CHANNELS = 16
 
 

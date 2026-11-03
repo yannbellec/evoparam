@@ -13,22 +13,16 @@ from ._score import as_continuous, pick_index
 
 __all__ = ["detect_saturation"]
 
-# Fraction of the rail above which a sample counts as railed when the rail is estimated.
 RAIL_FRACTION = 0.999
 
-# A flat run counts as saturation only if it sits at least this far towards the rail,
-# so that quantised low-amplitude noise (repeated integer codes) is never flagged.
 FLAT_MIN_FRACTION = 0.5
 
-# An estimated rail must lie at least this many robust SD from the channel's median:
-# a clean channel's largest value is only a few SD, and on quantised data it repeats.
 RAIL_MIN_SD = 8.0
 
-# Step of the subsample used to estimate a channel's spread.
 _SPREAD_STEP = 16
 
 
-def detect_saturation(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus t0, ch_names and picks; DECISIONS.md §7.2)
+def detect_saturation(  # noqa: PLR0913
     data: FloatArray,
     sfreq: float,
     *,
@@ -134,7 +128,6 @@ def detect_saturation(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus t0
     return mask, _run_table(rows)
 
 
-# Runs at the rail count from 2 samples when the rail is estimated (and flat runs from 2).
 _MIN_RAIL_RUN = 2
 _MAD_TO_SD = 1.4826
 
@@ -168,13 +161,10 @@ def _examined(events: Any, search: float, sfreq: float, n_times: int) -> tuple[A
 def _estimated_rail(trace: Any, segment: Any) -> Any:
     """Return the rail of a channel from its examined samples, or None when it has none."""
     level = RAIL_FRACTION * np.nanmax(np.abs(segment))
-    # The spread is estimated on every 16th sample of the recording: accurate to
-    # about 1 % with tens of thousands of samples, and 16 times faster
     sample = trace[::_SPREAD_STEP]
     sample = sample[~np.isnan(sample)]
     center = np.median(sample) if len(sample) else 0.0
     spread = _MAD_TO_SD * np.median(np.abs(sample - center)) if len(sample) else 0.0
-    # A channel whose largest value is not an outlier has no estimable rail
     if level - abs(center) < RAIL_MIN_SD * spread:
         return None
     return level
@@ -183,11 +173,9 @@ def _estimated_rail(trace: Any, segment: Any) -> Any:
 def _channel_runs(ch: int, segment: Any, level: Any, scan: _Scan, mask: Any) -> list[Any]:
     """Return the saturated runs of channel ``ch`` and mark them in ``mask``."""
     railed = np.abs(segment) >= level
-    # a zero difference of two samples (equal and finite: inf - inf is not computed)
     flat = (segment[:, 1:] == segment[:, :-1]) & np.isfinite(segment[:, 1:])
     flat = np.c_[np.zeros((len(segment), 1), bool), flat]
     flat &= np.abs(np.nan_to_num(segment)) >= FLAT_MIN_FRACTION * level
-    # A flat run of k equal samples has k - 1 zero differences: grow it by one sample.
     flat |= np.c_[flat[:, 1:], np.zeros((len(segment), 1), bool)]
     rows = []
     for kind, values, min_len in (
@@ -230,8 +218,6 @@ def _runs(ch: int, kind: str, runs: Any, scan: _Scan, mask: Any) -> list[Any]:
 
 def _run_table(rows: list[Any]) -> Any:
     """Return the table of the runs, sorted by start time and channel, duplicates dropped."""
-    # sorted by start time and channel, the first of the runs with the same channel and
-    # start kept (a table without pandas, REQ-010: the same rows and dtypes)
     rows.sort(key=lambda run: (run["start_time"], run["channel"]))
     seen: set[tuple[Any, Any]] = set()
     kept = []

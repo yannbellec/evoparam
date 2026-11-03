@@ -8,7 +8,6 @@ import numpy as np
 from evoparam import shapes
 
 SFREQ = 2000.0
-# Fit window of 320 ms at 2 kHz, starting 20 ms before the event.
 TIMES = -0.02 + np.arange(640) / SFREQ
 
 
@@ -29,7 +28,6 @@ def sample_params(shape: Any, times: Any, n_sets: Any, rng: Any) -> Any:
     lower, upper = shape.default_bounds(times)
     params = lower + (upper - lower) * rng.random((n_sets, shape.n_params))
     if shape.name == "biexponential":
-        # tau_decay >= 1.5 tau_rise
         low = np.maximum(lower[2], 1.5 * params[:, 1])
         params[:, 2] = low + (upper[2] - low) * rng.random(n_sets)
     return params

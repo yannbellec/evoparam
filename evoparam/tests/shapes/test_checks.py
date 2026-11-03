@@ -34,7 +34,6 @@ def clean_registry() -> Any:
 
 
 ###################################################################################################
-## _base: time axes, waveforms, bounds, crossings, grids
 
 
 def test_time_axis_checks() -> None:
@@ -67,7 +66,6 @@ def test_crossings() -> None:
     grid = np.array([0.0, 1.0, 2.0])
     with pytest.raises(IndexError, match="samples -1 and 0 of a grid of 3"):
         _base._interp_cross(grid, np.array([0.0, 1.0, 0.0]), -1, 0, 0.5)
-    # a flat segment: the crossing is at its first sample
     assert_equal(_base._interp_cross(grid, np.array([1.0, 1.0, 0.0]), 0, 1, 1.0), 0.0)
     assert_equal(_base._interp_points(0.25, 2.0, 0.75, 2.0, 2.0), 0.25)
     assert_equal(_base._interp_points(0.0, 0.0, 1.0, 2.0, 1.0), 0.5)
@@ -84,21 +82,17 @@ def test_feature_grid_checks() -> None:
 
 def test_grid_extremum_at_an_edge_and_on_a_flat_top() -> None:
     grid = np.arange(5, dtype=float)
-    # the largest value on the first or the last sample: that sample, not refined
     assert_equal(_base._grid_extremum(grid, np.array([3.0, 2.0, 1.0, 0.0, 0.0])), 0.0)
     assert_equal(_base._grid_extremum(grid, np.array([0.0, 0.0, 1.0, 2.0, -3.0])), 4.0)
-    # a top whose second difference rounds to exactly 0 (1 - 2^-53, 1, 1): the sample itself
     top = np.array([0.0, 1.0 - 2.0**-53, 1.0, 1.0, 0.0])
     assert_equal(top[1] - 2.0 * top[2] + top[3], 0.0)
     assert_equal(_base._grid_extremum(grid, top), 2.0)
-    # elsewhere the parabola through the three samples refines it
     assert_equal(_base._grid_extremum(grid, np.array([0.0, 1.0, 2.0, 1.0, 0.5])), 2.0)
     refined = _base._grid_extremum(grid, np.array([0.0, 1.0, 2.0, 1.5, 0.5]))
     assert_allclose(refined, 2.0 + 0.5 / 3.0, rtol=1e-15)
 
 
 def test_features_of_a_curve_above_the_onset_level_at_the_grid_start() -> None:
-    # a Gaussian much wider than the window: above 10 % of its peak over the whole grid
     feats = shapes.Gaussian().features(TIMES, [0.0, 10.0])
     assert_array_equal(np.isnan([feats.onset, feats.offset, feats.area, feats.symmetry]), True)
     assert "onset_outside_grid" in feats.warnings
@@ -106,11 +100,9 @@ def test_features_of_a_curve_above_the_onset_level_at_the_grid_start() -> None:
 
 
 ###################################################################################################
-## components: helpers, settings, fallbacks
 
 
 def test_bisection_of_an_undefined_bracket_returns_nan() -> None:
-    # a NaN bound never converges: the iteration stops after its fixed number of steps
     at = 0.3
     root = components._bisect(lambda x: x > at, [0.0, np.nan], [1.0, 1.0])
     assert_allclose(root[0], at, rtol=1e-12)
@@ -124,7 +116,6 @@ def test_gaussian_factor_outside_its_support_is_zero() -> None:
         raise AssertionError("evaluated outside the support")
 
     assert_array_equal(components.gaussian_factor(z, value), np.zeros(3))
-    # a few points outside: those are 0, the others computed
     z = np.array([0.0, 1.0, 2.0, 40.0, 0.5])
     out = components.gaussian_factor(z, lambda x: np.exp(-0.5 * x**2))
     assert_allclose(out, np.exp(-0.5 * z**2), rtol=1e-15)
@@ -132,27 +123,23 @@ def test_gaussian_factor_outside_its_support_is_zero() -> None:
 
 
 def test_skew_mode_of_one_value_equals_the_array_path() -> None:
-    for alpha in (2.5, -4.0, 1e12):  # 1e12: the iteration stops after its 60 steps
+    for alpha in (2.5, -4.0, 1e12):
         one = components.skew_mode(alpha)
         many = components.skew_mode(np.array([alpha, alpha]))
         for a, b in zip(one, many, strict=True):
             assert_allclose(float(a), b, rtol=1e-12, atol=0.0)
-        # the value at the mode is above that of the Gaussian (1)
         assert float(one[1]) > 1.0
 
 
 def test_skew_mode_of_a_non_finite_or_huge_skewness() -> None:
-    # NaN gives NaN (it recursed without end before), without a warning
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         result = components.skew_mode(np.nan)
     assert_array_equal(np.isnan(result), True)
     z, _, _ = components.skew_mode(np.array([np.nan, 1.0]))
     assert_array_equal(np.isfinite(z), [False, True])
-    # a skewness whose square overflows: the half-normal limit (mode 0, value 2), on both
-    # paths (the scalar path raised OverflowError before)
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # IEEE overflow warnings of NumPy
+        warnings.simplefilter("ignore", RuntimeWarning)
         one = components.skew_mode(1e155)
         many = components.skew_mode(np.array([1e155, 1e155]))
     assert_allclose(float(one[0]), 0.0, atol=1e-14)
@@ -177,7 +164,6 @@ def test_oscillation_settings_are_checked() -> None:
         shapes.DampedOscillation(freq_min=-1.0)
     with pytest.raises(SettingsError, match="freq_max must be a positive number"):
         shapes.Gabor(freq_max=np.inf)
-    # freq_min above sfreq/4 of the window: no admissible frequency
     with pytest.raises(SettingsError, match=r"freq_min \(600.0\) must be smaller"):
         shapes.Gabor(freq_min=600.0).default_bounds(TIMES)
 
@@ -186,19 +172,16 @@ def test_oscillation_settings_are_checked() -> None:
 def test_frequency_guess_falls_back_to_the_middle_of_the_range(cls: Any) -> None:
     shape = cls(freq_min=10.0, freq_max=100.0)
     lower, upper = shape.default_bounds(TIMES)
-    # no periodogram peak (a flat waveform) or a waveform with a NaN
     flat = shape.initial_guess(TIMES, np.zeros(TIMES.size), 100)
     assert_equal(flat[2], 0.5 * (lower[2] + upper[2]))
     holed = np.sin(2 * np.pi * 30.0 * TIMES)
     holed[5] = np.nan
     assert_equal(shape.initial_guess(TIMES, holed, 100)[2], 0.5 * (lower[2] + upper[2]))
-    # too few samples for a periodogram
     short = cls(freq_min=10.0, freq_max=1000.0, min_fwhm=1e-4, max_fwhm=1.0)
     times = np.array([0.0, 0.001, 0.002])
     lower, upper = short.default_bounds(times)
     guess = short.initial_guess(times, np.array([0.0, 1.0, 0.0]), 1)
     assert_equal(guess[2], 0.5 * (lower[2] + upper[2]))
-    # a clean oscillation: its frequency
     clean = shape.initial_guess(TIMES, np.sin(2 * np.pi * 30.0 * TIMES), 100)
     assert_allclose(clean[2], 30.0, atol=1.0)
 
@@ -232,7 +215,7 @@ def test_linear_backgrounds_have_no_nonlinear_parameters() -> None:
 
 
 def test_background_settings_are_checked() -> None:
-    short = np.arange(5) / 1000.0  # 4 ms: tau2 >= 3 tau1 does not fit
+    short = np.arange(5) / 1000.0
     with pytest.raises(SettingsError, match="too short for tau2 >= 3 tau1"):
         bg.DoubleExponentialBackground(tau_min=0.002).default_bounds(short)
     with pytest.raises(SettingsError, match="max_fwhm must be positive"):
@@ -251,7 +234,6 @@ def test_pspline_select_lambda_from_given_candidates() -> None:
 
 
 ###################################################################################################
-## registry: plugins, settings, checks of register_shape
 
 
 class PluginBackground(bg.ConstantBackground):
@@ -435,7 +417,6 @@ def test_jacobian_error_leaves_out_a_column_that_is_not_smooth() -> None:
             return base * (1.0 + 0.1 * np.sin(3e8 * params[..., 1, None]))
 
     error = registry.jacobian_error(Rough(), registry.CHECK_TIMES, np.array([[0.1, 0.01]]))
-    assert np.isnan(error[0, 1])  # left out: not smooth
-    # the centre column is measured: its analytic derivative lacks the oscillating factor
+    assert np.isnan(error[0, 1])
     assert np.isfinite(error[0, 0])
     assert_allclose(error[0, 0], 0.0, atol=0.1)

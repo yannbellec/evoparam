@@ -19,7 +19,6 @@ NAMES = ["C1", "C2", "C3"]
 
 
 def small_signal(n_times: Any = 1000) -> Any:
-    # Integers below 2**14 so that INT_16 with resolution 0.5 is exact
     return (np.arange(3)[:, None] * 1000 + np.arange(n_times)[None, :] % 997).astype(float)
 
 
@@ -48,7 +47,6 @@ def test_formats_and_orientations(tmp_path: Any, fmt: Any, orientation: Any) -> 
     assert t0 == 0
     assert np.array_equal(out, data)
 
-    # Window [1.0, 2.0) s: samples 250 to 499
     out, _, names, t0 = read_brainvision(vhdr, tmin=1.0, tmax=2.0, picks=["C3", "C1"])
     assert names == ["C3", "C1"]
     assert t0 == 1.0

@@ -7,7 +7,6 @@ import numpy as np
 
 from evoparam.data import TrialSet
 
-# Dimensions of single-channel data, [n_trials, n_times].
 ONE_CHANNEL_NDIM = 2
 
 SFREQ = 1000.0

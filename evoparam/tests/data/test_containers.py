@@ -13,14 +13,10 @@ from evoparam.tests.data.factories import SFREQ, make_trialset
 
 pd = pytest.importorskip("pandas")
 
-# Samples in the 0.1 s windows of select and crop (the factory samples at 1000 Hz), and in
-# the 0.05 s window of the per-channel Evoked.
 WINDOW_SAMPLES = 100
 HALF_WINDOW_SAMPLES = 50
-# Trials of make_trialset, and those left when one is rejected.
 N_TRIALS = 6
 N_KEPT = 5
-# Units of a tiny job: auto_chunk puts them all in one chunk.
 N_UNITS = 3
 
 
@@ -65,7 +61,7 @@ def test_invariants(change: Any, field: Any) -> None:
 
 
 def test_data_error_is_value_error() -> None:
-    with pytest.raises(ValueError):  # noqa: PT011  (the test checks that DataError is a ValueError)
+    with pytest.raises(ValueError):  # noqa: PT011
         TrialSet(np.zeros((1, 1, 1)), np.zeros(1), 1.0, ["A"])
 
 

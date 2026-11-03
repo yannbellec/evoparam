@@ -18,7 +18,6 @@ from evoparam.io import (
 
 pd = pytest.importorskip("pandas")
 
-# Rows of the tables harmonised, the current (mA) mapped, and the sites.
 N_ROWS = 4
 CURRENT_MA = 2.5
 N_PARTIAL_ROWS = 2
@@ -35,7 +34,6 @@ def table(text: Any) -> Any:
     return pd.read_csv(io.StringIO(text), sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
-# Shaped like the events.tsv of ds004080: currents in A and pulse widths in s, without Units.
 UTRECHT = table(
     "onset\tduration\ttrial_type\tsub_type\telectrodes_involved_onset\telectrical_stimulation_type"
     "\telectrical_stimulation_site\telectrical_stimulation_current"
@@ -67,7 +65,6 @@ def test_utrecht_columns() -> None:
         out, report = harmonize_stim_events(UTRECHT)
     stim = out[out["trial_type"] == "electrical_stimulation"]
 
-    # Every stimulation row has site, current and pulse width (REQ-022)
     assert (stim["stim_site"] != "n/a").all()
     assert stim["stim_current_mA"].notna().all()
     assert stim["stim_pulse_width_us"].notna().all()
@@ -77,7 +74,6 @@ def test_utrecht_columns() -> None:
     assert list(stim["stim_charge_uC"]) == pytest.approx([8.0, 8.0, 4.0])
     assert list(stim["stim_site"]) == ["PT01-PT02", "PT01-PT02", "PT03-PT02"]
 
-    # Units inferred, with a warning; polarity unknown (phase order not stated)
     assert any(
         line.startswith("unit_inferred: electrical_stimulation_current")
         for line in report.warnings
@@ -90,7 +86,6 @@ def test_utrecht_columns() -> None:
     assert set(stim["stim_polarity"]) == {"unknown"}
     assert list(stim["evoparam_stim_type_raw"]) == ["monophasic"] * 3
 
-    # Artefact row: missing values, condition copied from trial_type, originals kept
     assert out.loc[0, "stim_site"] == "n/a"
     assert np.isnan(out.loc[0, "stim_current_mA"])
     assert list(out["condition"]) == list(out["trial_type"])
@@ -131,7 +126,6 @@ def test_sidecar_units_and_unit_strings() -> None:
     assert report.units["stim_current_mA"] == "inline"
     assert not any(line.startswith("unit_inferred: stim_current") for line in report.warnings)
 
-    # Units from the sidecar
     events = pd.DataFrame(
         {
             "onset": [1.0],
@@ -216,7 +210,6 @@ def test_polarity_vocabulary() -> None:
         "n/a",
     ]
 
-    # The phase order may come from ElectricalStimulationParameters
     out, _ = harmonize_stim_events(
         events.iloc[[4]], {"ElectricalStimulationParameters": "anodic pulses"}
     )
@@ -257,7 +250,6 @@ def test_harmonising_twice_keeps_values() -> None:
 
 def test_validator_reports_missing_fields() -> None:
 
-    # Only trial_type: everything is missing, nothing raises
     minimal = pd.DataFrame(
         {
             "onset": [1.0, 2.0],
@@ -279,14 +271,12 @@ def test_validator_reports_missing_fields() -> None:
     assert report.n_sites == 0
     assert not report.complete
 
-    # Utrecht shape: the artefact row is not checked; polarity and pulse count are missing
     report = validate_stimulation_events(UTRECHT)
     assert report.n_rows == N_UTRECHT_ROWS
     assert report.sites == ["PT01-PT02", "PT03-PT02"]
     assert report.missing == ["stim_polarity", "stim_n_pulses"]
     assert any(line.startswith("unit_inferred") for line in report.warnings)
 
-    # Partially filled field
     partial = UTRECHT.copy()
     partial.loc[2, "electrical_stimulation_current"] = np.nan
     report = validate_stimulation_events(partial)
@@ -305,6 +295,5 @@ def test_select_stimulation_events_on_tables() -> None:
     assert list(select_stimulation_events(out, current=8.0).index) == [1, 2]
     assert len(select_stimulation_events(out, trial_type=None)) == N_ALL_EVENTS
 
-    # Inherited list form
     events = out.to_dict("records")
     assert len(select_stimulation_events(events, site="PT01-PT02")) == N_SITE_EVENTS

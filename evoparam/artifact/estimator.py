@@ -15,7 +15,6 @@ from evoparam.utils._estimator import (
 
 __all__ = ["ArtifactRemover"]
 
-# Dimensions of a single-channel array [n_trials, n_times] (a channel axis is added).
 _ONE_CHANNEL_NDIM = 2
 
 
@@ -63,7 +62,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         from evoparam.data import TrialSet
 
         if type(x).__module__.split(".")[0] == "mne":
-            x = TrialSet.from_mne(x)  # mne.Epochs (the only MNE object accepted)
+            x = TrialSet.from_mne(x)
         if isinstance(x, TrialSet):
             if reset:
                 self.n_features_in_: int = int(x.n_times)
@@ -89,7 +88,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         )
         return ts, shape
 
-    def fit(self, X: Any, y: Any = None) -> "ArtifactRemover":  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "ArtifactRemover":  # noqa: N803, ARG002
         """Nothing is learned from X but its time axis (``times_``, ``n_features_in_``).
 
         ``y`` is ignored.
@@ -98,7 +97,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         self.times_: NDArray[Any] = np.array(trials.times)
         return self
 
-    def transform(self, X: Any) -> Any:  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any) -> Any:  # noqa: N803
         """X without the artifact.
 
         When the artifact window does not fit inside the epoch (it needs 3 samples on each side) X

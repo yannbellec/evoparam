@@ -35,7 +35,6 @@ def results() -> Any:
         }
 
 
-# words that name the statistical (or estimation) choice of each kind of result
 CHOICES = {
     "GroupFit": ("BIC", "intervals", "permutation test", "alpha", "correction"),
     "ResponseFit": ("BIC", "intervals", "permutation test"),
@@ -48,12 +47,9 @@ CHOICES = {
 @pytest.mark.parametrize("kind", sorted(CHOICES))
 def test_req008_methods_paragraph(kind: Any, results: Any) -> None:
     text = methods_text(results[kind])
-    # the package version
     assert re.search(r"evoparam \(version " + re.escape(evoparam.__version__) + r"\)", text)
-    # the statistical choices
     for word in CHOICES[kind]:
         assert word in text, word
-    # the citations: the software, and the method papers when a method has one
     assert "Bellec Y.V. evoparam" in text
     if kind in ("GroupFit", "ResponseFit", "ResponseTest"):
         assert "Benjamini and Hochberg (1995)" in text
@@ -77,7 +73,6 @@ def test_req008_no_changed_settings_sentence_without_changes() -> None:
 
 
 # ---------------------------------------------------------------------------------------
-# REQ-390: the methods paragraph is stored in the saved result and in the derivatives
 # ---------------------------------------------------------------------------------------
 
 
@@ -91,15 +86,15 @@ def test_req390_methods_text_stored_in_saved_result(
     from evoparam.data import load_object, save_object
 
     obj = results[kind]
-    if kind == "TrialFitSet":  # a list of TrialFit: each one is saved
+    if kind == "TrialFitSet":
         obj = obj.fits[0]
     path = save_object(obj, str(tmp_path / kind))
     with open(os.path.join(path, "methods.txt"), encoding="utf-8") as fobj:
         stored = fobj.read()
     assert stored == obj.methods_text() + "\n"
     with open(os.path.join(path, "manifest.json"), encoding="utf-8") as fobj:
-        assert "methods.txt" in json.load(fobj)["files"]  # checked at loading
-    assert load_object(path).methods_text() + "\n" == stored  # byte-identical round trip
+        assert "methods.txt" in json.load(fobj)["files"]
+    assert load_object(path).methods_text() + "\n" == stored
 
 
 def test_req390_methods_text_in_nwb_and_bids_derivatives(results: Any, tmp_path: Any) -> None:
@@ -126,7 +121,7 @@ def test_req390_methods_text_in_nwb_and_bids_derivatives(results: Any, tmp_path:
     with open(readme, encoding="utf-8") as fobj:
         assert methods_text(group) in fobj.read()
     containers = [p for p in written if p.endswith(".evoparam")]
-    for container in containers:  # the result next to its table
+    for container in containers:
         with open(f"{container}/methods.txt", encoding="utf-8") as fobj:
             assert fobj.read().strip()
 

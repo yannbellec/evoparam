@@ -19,7 +19,6 @@ from typing import Any
 
 import pytest
 
-# Participants, and the fraction of latencies within 10 ms (REQ-274).
 N_PARTICIPANTS = 40
 MIN_WITHIN = 0.9
 

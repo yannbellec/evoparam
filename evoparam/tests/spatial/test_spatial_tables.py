@@ -33,15 +33,12 @@ from .helpers import BASELINE, SFREQ, TIMES, gauss
 
 pd = pytest.importorskip("pandas")
 
-# The N1 of contact A04: largest amplitude (uV), and the latency tolerance (s).
 MAX_AMPLITUDE = -40
 LATENCY_TOLERANCE = 0.004
-# Probability of a response and shape weight given, views drawn, and axes of a figure.
 P_RESPONSE = 0.97
 SHAPE_WEIGHT = 2.0
 MIN_VIEWS = 3
 N_AXES = 2
-# Fewest channels fitted on the fsaverage example.
 MIN_OK = 100
 
 ###################################################################################################
@@ -124,13 +121,11 @@ def test_req195_connectivity_round_trip_and_cells(scene: Any) -> None:
         long = connectivity_matrix(group, parameter, long=True)
         assert len(long) == wide.size
         assert set(long["parameter"]) == {parameter}
-        # wide -> long -> wide, and long -> wide
         back = connectivity_from_long(connectivity_to_long(wide, parameter))
         pd.testing.assert_frame_equal(back, wide, check_exact=False, rtol=1e-12)
         pd.testing.assert_frame_equal(
             connectivity_from_long(long), wide, check_exact=False, rtol=1e-12
         )
-        # Cell by cell against GroupFit.to_dataframe()
         largest = _largest(group.to_dataframe())
         for site in wide.index:
             for ch in wide.columns:
@@ -156,7 +151,6 @@ def test_parameter_map_columns_markers_and_coordinates(scene: Any) -> None:
     rows = table.set_index(["stim_site", "channel"])
     assert rows.loc[("A01-A02", "A01"), "marker"] == "stim_contact"
     assert rows.loc[("A01-A02", "B04"), "marker"] == "bad"
-    # A responsive contact: an N1 near 20 ms, coordinates from ch_info
     a04 = rows.loc[("A01-A02", "A04")]
     assert a04["marker"] == "response"
     assert a04["amplitude"] < MAX_AMPLITUDE
@@ -165,7 +159,6 @@ def test_parameter_map_columns_markers_and_coordinates(scene: Any) -> None:
     assert (table["value"] == table["amplitude"]).sum() == table["amplitude"].notna().sum()
     ok = table["status"] == "ok"
     assert table.loc[ok, "amplitude"].notna().all()
-    # One site, another parameter
     one = parameter_map(group, parameter="latency", stim_site="B01-B02", ch_info=ts)
     assert set(one["stim_site"]) == {"B01-B02"}
     assert len(one) == ts.n_channels
@@ -195,7 +188,6 @@ def test_parameter_map_with_existence_and_shapes(scene: Any) -> None:
     assert rows.loc[("A01-A02", "A04"), "existence_significant"]
     assert not rows.loc[("A01-A02", "B03"), "existence_significant"]
     assert np.allclose(table["value"], table["existence_p"], equal_nan=True)
-    # A hierarchical-style table of P(response)
     probs = pd.DataFrame(
         {"channel": ["A04", "B03"], "stim_site": ["A01-A02"] * 2, "p_response": [0.97, 0.02]}
     )
@@ -203,7 +195,6 @@ def test_parameter_map_with_existence_and_shapes(scene: Any) -> None:
     rows = parameter_map(group, ch_info=ts, existence=hier).set_index(["stim_site", "channel"])
     assert rows.loc[("A01-A02", "A04"), "p_response"] == P_RESPONSE
     assert np.isnan(rows.loc[("A03-A04", "A04"), "p_response"])
-    # Shape weights of a divergent basis of one site
     basis = {"A01-A02": copy.deepcopy(shared_shapes_stub())}
     rows = parameter_map(group, ch_info=ts, basis=basis).set_index(["stim_site", "channel"])
     assert rows.loc[("A01-A02", "A03"), "shape_id"] == 0
@@ -272,9 +263,7 @@ def test_parameter_map_glass_brain_with_nilearn(scene: Any) -> None:
     ts, group = scene
     table = _mni(parameter_map(group, ch_info=ts))
     site = table["stim_site"].iloc[0]
-    figure = plot_parameter_map(table, stim_site=site)  # backend "auto" -> nilearn
-    # the glass brain: one axes per view (ortho: sagittal, coronal, axial) plus the colour
-    # bar, each view with the response markers and the stimulation contacts
+    figure = plot_parameter_map(table, stim_site=site)
     views = [a for a in figure.axes if any(isinstance(c, PathCollection) for c in a.collections)]
     assert len(views) >= MIN_VIEWS
     markers = table[table["stim_site"] == site]["marker"]
@@ -298,7 +287,7 @@ def test_parameter_map_electrode_grid_fallback(scene: Any, monkeypatch: Any) -> 
     table = _mni(parameter_map(group, ch_info=ts))
     monkeypatch.setattr(maps, "_have_nilearn", lambda: False)
     figure = plot_parameter_map(table, projection=("x", "z"))
-    assert len(figure.axes) == N_AXES  # the grid and its colour bar
+    assert len(figure.axes) == N_AXES
     assert figure.axes[0].get_xlabel().startswith("x (mm, MNI152")
     plt.close(figure)
     monkeypatch.undo()
@@ -309,7 +298,6 @@ def test_parameter_map_electrode_grid_fallback(scene: Any, monkeypatch: Any) -> 
 
 
 ###################################################################################################
-## REQ-196 on OpenNeuro ds004080
 
 network = pytest.mark.skipif(
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
@@ -400,7 +388,6 @@ def test_req196_parameter_map_on_ds004080() -> None:
 
     ts = load_ds004080()
     assert set(ts.metadata["stim_site"]) == set(SITES_4080)
-    # Three of the six cached sites keep the fits under five minutes (about 0.8 s per fit)
     sites = SITES_4080[:3]
     ts = ts.select(trials=np.flatnonzero(ts.metadata["stim_site"].isin(sites)))
     baseline = (-0.5, -0.05)
@@ -412,11 +399,9 @@ def test_req196_parameter_map_on_ds004080() -> None:
         ts = baseline_correct(ts, baseline, check=False)
         group = fit_models(ts, "ccep", baseline=baseline, by="stim_site", classical=False)
     table = parameter_map(group, ch_info=ts)
-    # One row per (stim_site, channel)
     assert len(table) == len(sites) * ts.n_channels
     assert not table.duplicated(["stim_site", "channel"]).any()
     assert set(table["stim_site"]) == set(sites)
-    # Coordinates from electrodes.tsv (mm, fsaverage)
     electrodes = _electrodes().set_index("name")
     rows = table.drop_duplicates("channel").set_index("channel")
     shared = [ch for ch in rows.index if ch in electrodes.index]
@@ -426,7 +411,6 @@ def test_req196_parameter_map_on_ds004080() -> None:
             rows.loc[shared, axis], electrodes.loc[shared, axis], equal_nan=True, atol=1e-6
         )
     assert set(rows["coord_space"]) == {"fsaverage"}
-    # No NaN amplitude where the fit status is "ok"
     ok = table["status"] == "ok"
     assert ok.sum() >= MIN_OK
     assert table.loc[ok, "amplitude"].notna().all()

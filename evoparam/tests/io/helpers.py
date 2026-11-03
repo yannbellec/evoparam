@@ -22,8 +22,6 @@ SFREQ = 1000.0
 DURATION = 60.0
 CH_NAMES = ["A01", "A02", "A03"]
 
-# 20 events: 16 stimulations (one 0.8 s after the previous one, one too close to the end
-# of the 60 s recording) and 4 artefacts.
 STIM_ONSETS = [2.0 + 3 * k for k in range(14)] + [41.8, 59.9]
 ARTEFACT_ONSETS = [50.0, 52.0, 54.0, 56.0]
 SITES = ["A01-A02", "A02-A03"]
@@ -85,7 +83,6 @@ def write_brainvision(
     with open(os.path.join(folder, stem + ".vhdr"), "w", encoding="utf-8") as file:
         file.write("\n".join(lines) + "\n")
 
-    # Stored value = value in the channel unit / resolution
     to_unit = np.array([{"µV": 1.0, "mV": 1e-3, "V": 1e-6}.get(unit, 1.0) for unit in units])
     stored = np.asarray(data, dtype=float) * to_unit[:, None] / np.array(resolutions)[:, None]
     dtype = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2", "INT_32": "<i4"}[layout.fmt]
@@ -197,7 +194,6 @@ def make_bids(root: Any) -> Any:
             rows,
         )
         if subject == "02":
-            # Run-level sidecar: overrides the Units of the root events.json
             with open(os.path.join(folder, stem + "_events.json"), "w", encoding="utf-8") as file:
                 json.dump({"electrical_stimulation_current": {"Units": "mA"}}, file)
         else:
@@ -214,17 +210,12 @@ def make_bids(root: Any) -> Any:
 
 
 ###################################################################################################
-## MEF 3.0 writer (synthetic sessions for the MEF reader tests)
 ##
-## Written from the MEF 3.0 specification and the reference C library (meflib), independently
-## of evoparam.io.mef: byte-by-byte CRC, the range encoder of RED_encode_exec, and the file
-## layouts (universal header, .tmet, .tidx, .tdat).
 
 MEF_NAN = -(1 << 31)
 MEF_NEG_INF = -(1 << 31) + 1
 MEF_POS_INF = (1 << 31) - 1
 _MEF_UNITS = {"microvolts": 1.0, "uV": 1.0, "millivolts": 1e3, "mV": 1e3, "volts": 1e6}
-# Largest difference stored in one byte by RED, and the largest byte value.
 _RED_MAX_STEP = 127
 _BYTE_MAX = 0xFF
 
@@ -308,7 +299,6 @@ def _range_encode(diffs: Any, stats: Any) -> bytes:
         cum.append(cum[-1] + count)
     total = cum[256]
 
-    # Range encoder (meflib constants)
     top, bottom, carry, mask = 0x80000000, 0x800000, 0x7F800000, 0xFFFFFFFF
     low, rng, out_byte, underflow, out = 0, top, 0, 0, []
 
@@ -345,7 +335,7 @@ def _range_encode(diffs: Any, stats: Any) -> bytes:
         out.append(out_byte)
         out.extend([0xFF] * underflow)
     out += [last & 0xFF, 0]
-    return bytes(out[1:])  # the first output byte is junk
+    return bytes(out[1:])
 
 
 def red_encode(
@@ -542,8 +532,8 @@ def write_mef(
                     _universal_header("tidx", index, common, n_entries=n_blocks, max_entry=56)
                 )
             meta = bytearray(16384 - 1024)
-            meta[0] = 1 if options.encrypt == "metadata" else 0  # section 2 encryption
-            meta[1] = 0  # section 3 encryption
+            meta[0] = 1 if options.encrypt == "metadata" else 0
+            meta[1] = 0
             body = 8720 - 1024
             struct.pack_into("<dddddd", meta, body, sfreq, 0.0, -1.0, -1.0, 60.0, options.factor)
             meta[8768 - 1024 : 8768 - 1024 + len(options.units)] = options.units.encode("utf-8")
@@ -594,12 +584,11 @@ def glob_files(root: Any, suffix: Any) -> Any:
 
 
 ###################################################################################################
-## Local HTTP server
 
 
 class _Stats:
     def __init__(self) -> None:
-        self.requests = []  # (method, path, range header or None, status)
+        self.requests = []
         self.bytes_sent = 0
         self.failures_left = 0
 
@@ -661,7 +650,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             f'"http://s3.amazonaws.com/doc/2006-03-01/"><Prefix>{escape(prefix)}</Prefix><KeyCount>{len(keys)}'
             f"</KeyCount><IsTruncated>false</IsTruncated>{items}</ListBucketResult>"
         ).encode()
-        # recorded before the body is sent: the client may go on as soon as it has the body
         self.stats.bytes_sent += len(body)
         self.stats.requests.append(("GET", self.path, None, 200))
         self.send_response(200)
@@ -706,8 +694,6 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.stats.requests.append(("GET", self.path, byte_range, status))
             self.send_error(status)
             return
-        # recorded before the body is sent: once the client has read the body it goes on,
-        # and a record made after the write could land among its next requests
         self.stats.bytes_sent += len(body)
         self.stats.requests.append(("GET", self.path, byte_range, status))
         self.send_response(status)

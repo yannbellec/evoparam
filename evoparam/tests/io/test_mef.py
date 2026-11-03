@@ -38,29 +38,22 @@ from evoparam.tests.io.helpers import (
 )
 from evoparam.tests.io.helpers import SFREQ as BIDS_SFREQ
 
-# Entries 1 and 128 of meflib's CRC table (CRC_KOOPMAN32_KEY).
 CRC_ENTRY_1 = 0x9695C4CA
 CRC_ENTRY_128 = 0xEB31D82E
-# Start time (us) and units factor of the session written, and its blocks per channel.
 START_TIME_US = 1_600_000_000_000_000
 FACTOR = 0.1
 N_BLOCKS = 12
-# Largest error of the lossy RED options (2 steps of 0.1 uV, scale factor 4).
 MAX_LOSSY_ERROR = 0.25
-# NaN samples written (one, then a whole block of 500).
 N_NAN = 501
-# Blocks of the three channels, read for their CRC.
 N_BLOCKS_READ = 36
-# HTTP status of a missing file.
 NOT_FOUND = 404
-# HTTP status of a byte-range answer.
 PARTIAL_CONTENT = 206
 
 ###################################################################################################
 ###################################################################################################
 
 SFREQ = 1000.0
-NAMES = ["A10", "A2", "B1"]  # natural order on reading: A2, A10, B1
+NAMES = ["A10", "A2", "B1"]
 ORDER = [1, 0, 2]
 
 
@@ -70,7 +63,7 @@ def make_signal(n_times: Any = 6000, seed: Any = 0) -> Any:
     rng = np.random.default_rng(seed)
     data = np.cumsum(rng.normal(0, 2, (3, n_times)), axis=1)
     data[1, 1000:1200] += rng.normal(0, 800, 200)
-    data[2, 2000:3000] = 12.5  # two constant blocks of 500 samples
+    data[2, 2000:3000] = 12.5
     data[0, 4321] = np.nan
     return data
 
@@ -97,7 +90,6 @@ def test_crc_matches_the_bytewise_crc() -> None:
     got = mef_module.crc32_koopman(buf, starts, lengths)
     expected = [mef_crc(buf[s : s + n].tobytes()) for s, n in zip(starts, lengths, strict=False)]
     assert got.tolist() == expected
-    # Table entries of meflib (CRC_KOOPMAN32_KEY)
     assert mef_crc(b"\x00") != mef_crc(b"\x01")
     assert mef_module._crc_tables()["table"][1] == CRC_ENTRY_1
     assert mef_module._crc_tables()["table"][128] == CRC_ENTRY_128
@@ -109,7 +101,7 @@ def test_red_blocks_round_trip() -> None:
     cases = [
         np.cumsum(rng.integers(-100, 100, 3000)),  # differences only
         rng.integers(-(2**30), 2**30, 700),  # keysamples only
-        np.full(1500, -7),  # one symbol (stats > 255)
+        np.full(1500, -7),
         np.array([5]),  # one sample
         np.array([MEF_NAN, 0, MEF_POS_INF, MEF_NEG_INF, -128, 127, -127, 128]),
         np.concatenate([np.zeros(400), rng.integers(-5000, 5000, 400)]),
@@ -196,7 +188,7 @@ def test_gaps_are_nan(tmp_path: Any) -> None:
     data = make_signal()
     root = write_mef(tmp_path, "gap", data, SFREQ, NAMES, gaps={3000: 0.25, 5000: 0.0105})
     out, *_ = read_mef(root)
-    assert out.shape == (3, 6000 + 250 + 10)  # 10.5 ms = 10.5 samples
+    assert out.shape == (3, 6000 + 250 + 10)
     expected = stored(data)[ORDER]
     np.testing.assert_allclose(out[:, :3000], expected[:, :3000], atol=1e-9)
     assert np.isnan(out[:, 3000:3250]).all()
@@ -213,14 +205,12 @@ def test_gaps_are_nan(tmp_path: Any) -> None:
     assert np.isnan(other).sum() == 3 * 1500 + 1
     np.testing.assert_allclose(other[:, 3500:], expected[:, 2000:], atol=1e-9)
 
-    # read() marks the gap in masks, for the continuous recording and for epochs
     trials = read(root)
     assert isinstance(trials, TrialSet)
     assert trials.masks is not None
     assert np.array_equal(trials.masks[0], np.isnan(out))
     epochs = read(root, onsets=[2.0, 3.1], epoch=(-0.2, 0.3))
     assert epochs.data.shape == (2, 3, 500)
-    # The second epoch, from grid sample 2900 to 3400, holds the gap (3000 to 3250)
     assert not epochs.masks[0].any()
     assert epochs.masks[1, :, 100:350].all()
     assert not epochs.masks[1, :, :100].any()
@@ -261,7 +251,7 @@ def test_lossy_blocks(tmp_path: Any) -> None:
             back = mef_round(mef_round(scaled * 4.0) + slope * c + intercept)
             expected[ch, first : first + 600] = back * 0.1
     np.testing.assert_allclose(out, expected, atol=1e-9)
-    assert 0 < np.max(np.abs(out - data)) < MAX_LOSSY_ERROR  # lossy, within 2 steps
+    assert 0 < np.max(np.abs(out - data)) < MAX_LOSSY_ERROR
 
 
 def test_nan_and_infinity_codes(tmp_path: Any) -> None:
@@ -270,7 +260,7 @@ def test_nan_and_infinity_codes(tmp_path: Any) -> None:
     data[0, 10] = np.nan
     data[0, 20] = np.inf
     data[0, 30] = -np.inf
-    data[0, 500:] = np.nan  # a whole NaN block
+    data[0, 500:] = np.nan
     root = write_mef(tmp_path, "codes", data, SFREQ, ["X"], block_samples=500)
     out, *_ = read_mef(root)
     assert np.isnan(out[0, 10])
@@ -310,7 +300,6 @@ def test_crc_errors(session: Any) -> None:
     root, data = session
     reference, *_ = read_mef(root)
     seg = os.path.join(root, "A2.timd", "A2-000000.segd", "A2-000000")
-    # A byte of the discretionary region of the first block: the decoding is unchanged
     corrupt_byte(seg + ".tdat", 1024 + 10)
     with pytest.raises(ReaderError, match="block 0 of channel A2 has a wrong CRC"):
         read_mef(root)
@@ -352,8 +341,6 @@ def test_constant_blocks_are_not_decoded(tmp_path: Any) -> None:
     root = write_mef(tmp_path, "censored", data, SFREQ, NAMES)
     out, *_ = read_mef(root)
     np.testing.assert_allclose(out, stored(data)[ORDER], atol=1e-9)
-    # 12 blocks of 500 samples per channel, the first 8 constant: read for their CRC only,
-    # not read at all without CRC checks
     _, _, _, _, checked = mef_module._read_with_source(root)
     _, _, _, _, unchecked = mef_module._read_with_source(root, check_crc=False)
     assert checked["blocks_read"] == N_BLOCKS_READ
@@ -389,9 +376,8 @@ def test_remote_matches_local(tmp_path: Any) -> None:
         for f in files
         if f.endswith(".tdat")
     )
-    assert rsource["data_bytes_read"] < sizes / 3  # 3 of 20 blocks per channel
+    assert rsource["data_bytes_read"] < sizes / 3
 
-    # Without channels.tsv and without listing, the channel names must be given
     os.remove(tmp_path / "sub-01_run-01_channels.tsv")
     with http_server(tmp_path) as (base, stats):
         with pytest.raises(ReaderError, match="cannot be listed"):
@@ -495,7 +481,6 @@ def test_read_bids_mef_matches_brainvision(bids_root: Any, tmp_path: Any) -> Non
         assert source["path"].endswith("_ieeg.mefd")
         assert source["reader"] == "evoparam.io.read_bids"
 
-    # Remotely, with the channel names of channels.tsv: only the picked channels are read
     local = read_bids(root, "01", task="spes", run="01", picks=["A03", "A01"])
     with http_server(root) as (base, stats):
         remote = read_bids(base, "01", task="spes", run="01", remote=True, picks=["A03", "A01"])
@@ -528,7 +513,6 @@ def test_read_bids_mef_gap_is_masked(tmp_path: Any) -> None:
     )
     trials = read_bids(root, "01", task="spes", run="01")
     assert trials.masks is not None
-    # The epoch of the onset at 5.0 s holds the gap, from 5.2 to 5.3 s
     row = int(np.flatnonzero(np.isclose(trials.event_times, 5.0))[0])
     gap = (trials.times >= 0.2 - 1e-9) & (trials.times < 0.3 - 1e-9)
     assert trials.masks[row][:, gap].all()

@@ -10,7 +10,6 @@ import pytest
 
 import evoparam
 
-# Links of the 1.0 checklist.
 MIN_LINKS = 3
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
@@ -43,7 +42,6 @@ def test_req312_inherited_code_is_found(tmp_path: Any) -> None:
     fresh = tmp_path / "fresh.py"
     fresh.write_text("\n".join(f"value_{i} = {i}" for i in range(20)) + "\n")
     copied = tmp_path / "copied.py"
-    # the same code, re-indented with tabs and spaces and blank lines added
     copied.write_text(
         "\n\n".join(line.replace("    ", "\t  ") for line in original.splitlines()) + "\n"
     )

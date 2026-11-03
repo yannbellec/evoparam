@@ -17,66 +17,29 @@ from ._score import MAD_TO_SD, as_continuous, pick_index
 
 __all__ = ["identify_stim_site", "vote_sites", "contact_group", "SITE_METHODS"]
 
-# "evidence": held and leading contacts (the default, measured better on ds004080:
-# docs/spec/DECISIONS.md, CHANGELOG); "spec": the rule of spec §5.2 method 5 as reviewed.
 SITE_METHODS = ("evidence", "spec")
 
-# Shortest reference lag before the onset (s): used when pulses are too close for the
-# full lead window, and to decide that a train is too fast to identify the site.
 REFERENCE_LAG = 0.002
 
-# Lead window (s): the reference sample is taken this long before the onset, and the
-# samples between it and the onset are where a stimulating contact may move first. The
-# onset of detect_pulses is the start of the artifact shared by most channels; on the
-# Utrecht SPES recordings (OpenNeuro ds004080) the stimulating contacts move up to 3 ms
-# earlier, so 5 ms leaves a margin.
 LEAD_WINDOW = 0.005
 
-# Hold window (s, after the onset): once the common artifact is over (about 5 ms), a
-# stimulating contact that the amplifier holds, or that stays at the rail, is flat here.
 HOLD_WINDOW = (0.005, 0.100)
 
-# Pre-pulse window used to measure each channel's noise level (s, relative to the onset).
 NOISE_WINDOW = (-0.100, -0.005)
 
-# A channel without noise of its own (held, or at the rail) gets this fraction of the
-# median noise of the channels, so that its normalised artifact stays finite.
 NOISE_FLOOR = 0.1
 
-# Evidence that a channel carries a stimulating contact, besides the artifact size:
-# - it moves: its artifact is at least MOVED_FRACTION of the largest one (in data units);
-# - it leads: before the onset, it already moves by LEAD_MIN_SD times its noise and by
-#   LEAD_MIN_FRACTION of its whole artifact;
-# - it is held: at least HOLD_MIN_FRACTION of its steps in the hold window are smaller
-#   than HOLD_TOLERANCE times the typical step of the channels before the pulse.
 MOVED_FRACTION = 0.05
 LEAD_MIN_SD = 10.0
 LEAD_MIN_FRACTION = 0.3
 HOLD_MIN_FRACTION = 0.5
 HOLD_TOLERANCE = 0.1
 
-# Two more kinds of evidence, for recordings where the stimulating contacts behave
-# differently (measured on the Mayo Clinic CCEP sets of OpenNeuro, CHANGELOG):
-# - it reaches the rail (counted as held, the same amplifier limit): within ±RAIL_WINDOW of
-#   the onset, a channel that moves reaches (to RAIL_TOLERANCE) the largest absolute value
-#   of the candidate channels over the whole recording, the input range of the amplifier:
-#   the stimulating contacts receive the stimulation voltage itself (ds003708, ds004457,
-#   ds004696: 34.8 mV). Only when at least two channels reach it at that pulse;
-# - a silent pair: when the stimulating contacts are switched from the amplifier to the
-#   stimulator, they carry no signal at all (ds004977: 3 to 5 uV of noise against 260 to
-#   340 uV on the other contacts) and the largest artifact is on the contacts next to them.
-#   Two adjacent contacts of one electrode whose noise is below NOISE_FLOOR times the median
-#   noise and whose artifact is below MOVED_FRACTION of the median artifact of the other
-#   contacts of the electrode (themselves not silent), with the largest normalised artifact
-#   on the contact just outside the pair, are the site when exactly one pair qualifies.
 RAIL_WINDOW = 0.005
 RAIL_TOLERANCE = 1e-3
 
-# Channel types that can carry a stimulating contact (channel table ``type`` column).
 NEURAL_TYPES = {"ecog", "seeg", "dbs", "eeg", "lfp", "ieeg", "meg"}
 
-# Names of channels that never are stimulating contacts: markers, triggers, status,
-# physiological and auxiliary channels.
 NON_NEURAL = re.compile(
     r"^(mkr|trig|sti|status|event|marker|dc\d|ecg|ekg|emg|eog|resp|"
     r"spo2|pulse|photic|aux|misc|ref$|gnd)",
@@ -84,10 +47,8 @@ NON_NEURAL = re.compile(
 )
 
 
-# Two contacts make a stimulation pair; the confidence compares rank 2 with rank 3.
 _PAIR = 2
 _THIRD = 2
-# Fewest pre-pulse samples for a noise level, and fewest samples in the hold window.
 _MIN_NOISE_SAMPLES = 8
 _MIN_HOLD_SAMPLES = 4
 
@@ -116,7 +77,7 @@ def _silent_pair(
     quiet = np.flatnonzero((raw_noise > 0) & (raw_noise < NOISE_FLOOR * floor))
     if len(quiet) < _PAIR:
         return None
-    number: list[Any] = [contact_number(names[k]) for k in range(len(names))]  # None: no number
+    number: list[Any] = [contact_number(names[k]) for k in range(len(names))]
     top = int(np.argmax(size))
     found = []
     for a in quiet:
@@ -140,7 +101,7 @@ def _silent_pair(
     return found[0] if len(found) == 1 else None
 
 
-def identify_stim_site(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus picks, exclude, lead, hold and method; DECISIONS.md §7.2)
+def identify_stim_site(  # noqa: PLR0913
     data: FloatArray,
     sfreq: float,
     events: Any,
@@ -148,7 +109,7 @@ def identify_stim_site(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus p
     ch_names: list[str],
     ch_info: Any = None,
     window: float = 0.001,
-    t0: float = 0.0,  # noqa: ARG001  (documented: kept for symmetry with the other functions)
+    t0: float = 0.0,  # noqa: ARG001
     picks: ArrayLike | None = None,
     exclude: Any = NON_NEURAL,
     lead: float = LEAD_WINDOW,
@@ -298,7 +259,6 @@ def _candidate_channels(names: list[str], index: Any, ch_info: Any, exclude: Any
     Neural types only (with a ``type`` column), else names not matching ``exclude``; channels
     flagged ``bad`` in the channel table are dropped.
     """
-    # the channel table, read column by column (a DataFrame, or a Table without pandas)
     info_names = [] if ch_info is None else list(np.asarray(ch_info["name"], dtype=object))
     if ch_info is not None and "type" in ch_info.columns:
         kinds = [str(kind).lower() for kind in np.asarray(ch_info["type"], dtype=object)]
@@ -355,7 +315,6 @@ class _SiteScan:
         lag, hold, half, shortest = windows
         noise_lo, noise_hi = (int(round(edge * sfreq)) for edge in NOISE_WINDOW)
         hold_lo, hold_hi = (int(round(edge * sfreq)) for edge in hold)
-        # Largest absolute value of the candidate channels (one row at a time, no full copy)
         rail = max(
             (float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index),
             default=0.0,
@@ -382,7 +341,6 @@ def _evidence_site(scan: _SiteScan, onset: int, ordered: Any) -> Any:
     lag_row = min(scan.lag, onset)
     if lag_row < scan.shortest or onset + half + 1 > n_times:
         return None
-    # Only the samples around this pulse are copied, never the whole recording
     reference = data[index, onset - lag_row]
     deviation = data[index, onset - lag_row : onset + half + 1] - reference[:, None]
     amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
@@ -392,14 +350,12 @@ def _evidence_site(scan: _SiteScan, onset: int, ordered: Any) -> Any:
     noise, typical_step, raw_noise, floor, known = _noise_levels(scan, onset)
     size = amplitude / noise
 
-    # Evidence needs the noise level, so not for a pulse at the very start
     moved = (amplitude >= MOVED_FRACTION * amplitude.max()) & known
     leads = moved & (early >= LEAD_MIN_SD * noise) & (early >= LEAD_MIN_FRACTION * amplitude)
     held = _held(scan, onset, ordered, moved, typical_step if known else None)
     evidence = leads.astype(int) + held.astype(int)
 
     names_index = [scan.names[ind] for ind in index]
-    # (method="spec" without ch_info.group has no groups; only the evidence rule uses these)
     group_index = None if scan.group is None else [scan.group[ind] for ind in index]
     silent = (
         _silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
@@ -414,7 +370,7 @@ def _evidence_site(scan: _SiteScan, onset: int, ordered: Any) -> Any:
     score = 1.0 if silent is not None else _margin(order, evidence, size)
 
     opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0
-    groups_of = cast("list[Any]", scan.group)  # set whenever method is not "spec"
+    groups_of = cast("list[Any]", scan.group)
     same_group = groups_of[index[first]] == groups_of[index[second]]
     pair = sorted((index[first], index[second]))
     return pair, score * (1.0 if (opposite and same_group) else 0.5), bool(opposite)
@@ -458,12 +414,9 @@ def _held(scan: _SiteScan, onset: int, ordered: Any, moved: Any, typical_step: A
         flat = np.mean(steps <= HOLD_TOLERANCE * typical_step, axis=1)
         held = moved & (flat >= HOLD_MIN_FRACTION)
     if scan.rail > 0:
-        # Reaching the amplifier's range is the same evidence as being held there
         near = data[index, max(0, onset - scan.rail_span) : onset + scan.rail_span + 1]
         peak = np.nan_to_num(np.nanmax(np.abs(near), axis=1), nan=0.0)
         at_range = moved & (peak >= (1 - RAIL_TOLERANCE) * scan.rail)
-        # A range is reached by both contacts of the pair; one channel alone is
-        # just the largest artifact of a recording that never saturates
         if at_range.sum() >= _PAIR:
             held = held | at_range
     return held
@@ -537,7 +490,6 @@ def vote_sites(
         block's pulses whose own guess contains both voted contacts (times the mean
         per-pulse confidence), and ``site_block`` (int64).
     """
-    # in time order (stable), then back in the order of ``events`` at the end
     order = np.argsort(np.asarray(events["onset_time"], dtype=float), kind="stable")
     out = events.iloc[order].copy()
     times = np.asarray(out["onset_time"], dtype=float)
@@ -562,7 +514,6 @@ def vote_sites(
         if len(votes) < _PAIR:
             continue
         top = sorted(votes, key=lambda contact: (-votes[contact], contact))[:2]
-        # Orientation: the one the per-pulse guesses use most, else alphabetical
         forward, backward = f"{top[0]}-{top[1]}", f"{top[1]}-{top[0]}"
         counts = {name: sum(guesses[row] == name for row in rows) for name in (forward, backward)}
         if counts[forward] == counts[backward]:

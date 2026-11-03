@@ -21,7 +21,6 @@ __all__ = ["baseline_correct", "train_baseline", "previous_pulse_gaps", "train_s
 MODES = ("mean", "median", "linear")
 SOURCES = ("own", "first_pulse")
 
-# Fewest valid (unmasked) baseline samples, as a fraction of the baseline window.
 MIN_VALID_FRACTION = 0.5
 
 
@@ -55,8 +54,6 @@ def _check_delayed(ts: Any, baseline: Any, delayed_margin: Any, source: Any) -> 
     if ts.event_times is None or source == "first_pulse":
         return
     gaps = previous_pulse_gaps(ts.event_times)
-    # The baseline starts |baseline[0]| s before the pulse, i.e. gap + baseline[0] s after
-    # the previous pulse; it must be at least delayed_margin
     after_previous = gaps + baseline[0]
     bad = after_previous < delayed_margin
     if not bad.any():

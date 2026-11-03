@@ -19,28 +19,17 @@ from scipy.special import erfc
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.models.component_shapes import Gaussian, SkewedGaussian, skew_mode
 
-# the constants of the skewed Gaussian (evoparam.shapes.components)
 _SQRT2 = np.sqrt(2.0)
 _SQRT_2_OVER_PI = np.sqrt(2.0 / np.pi)
 
 __all__ = []
 
 FREE_RANGE = 0.25
-# initial Levenberg-Marquardt damping (relative to the curvature); 1 chosen on simulated
-# CCEPs (simulate_ccep, 3 x 46 channels): 0.4 % of trials end at a worse point than the
-# one-trial bounded least-squares solver, against 1.4 % with 1e-3
 MU0 = 1.0
-# smallest factor of the damping after a good step (Nielsen: 1/3)
 MU_DOWN = 1 / 3
-# damping above which a trial's iteration stops
 _MU_MAX = 1e10
-# u**2 below which the erfc factor of the skewed Gaussian is evaluated (|u| < 9.6: the curve is
-# below 1e-20 of its peak elsewhere)
 _ERFC_RANGE = 184.0
-# a parameter within this fraction of its range from a bound is at the bound
 _AT_BOUND = 1e-3
-# smallest diagonal of the Cholesky factor of the unit-norm Gram matrix for the normal
-# equations (condition about 1e6)
 _CHOLESKY_MIN = 1e-6
 
 
@@ -48,12 +37,12 @@ _CHOLESKY_MIN = 1e-6
 class ChannelTemplate:
     """What a trial fit needs from the channel fit."""
 
-    shapes: list[Any]  # shape objects, one per component
-    params: list[Any]  # channel parameters of each component
-    loc_index: list[Any]  # index of the location parameter of each component
-    max_shift: NDArray[Any]  # per component (s)
+    shapes: list[Any]
+    params: list[Any]
+    loc_index: list[Any]
+    max_shift: NDArray[Any]
     background: Any  # background object
-    bg_nonlinear: NDArray[Any]  # background time constants, fixed
+    bg_nonlinear: NDArray[Any]
     tw: NDArray[Any]  # window times
 
     def basis(self) -> Any:
@@ -157,20 +146,17 @@ def _batched_lstsq(a: Any, y: Any, pad: Any = None) -> tuple[FloatArray, Any]:
     """
     n, _, m = a.shape
     at = np.swapaxes(a, 1, 2)
-    # Gram matrix of the unit-norm columns, from the raw columns (no scaled copy of ``a``)
     raw = np.matmul(at, a)
     norms = np.sqrt(np.maximum(np.diagonal(raw, axis1=1, axis2=2), 0.0))
     norms = np.where(norms > 0, norms, 1.0)
     gram = raw / (norms[:, :, None] * norms[:, None, :])
     if pad is not None and pad.any():
-        # padding columns are zero: a unit diagonal gives them a zero coefficient
         rows, cols = np.nonzero(pad)
         gram[rows, cols, cols] = 1.0
     good = np.ones(n, bool)
     try:
         chol = np.linalg.cholesky(gram)
         diag = np.diagonal(chol, axis1=1, axis2=2)
-        # well conditioned enough for normal equations (condition of b below about 1e6)
         good = diag.min(axis=1) > _CHOLESKY_MIN
     except np.linalg.LinAlgError:
         good[:] = False
@@ -355,8 +341,8 @@ class _Batch:
         self.lo, self.hi = np.zeros((n, p)), np.zeros((n, p))
         self.z = np.zeros((n, p))
         self.tol = np.zeros(n)
-        self.pad = np.ones((n, p), bool)  # parameter slots that are padding
-        self.fcols = np.zeros((n, self.n_t, self.n_fix))  # columns that do not move (unweighted)
+        self.pad = np.ones((n, p), bool)
+        self.fcols = np.zeros((n, self.n_t, self.n_fix))
         self._stack()
         self.tws = np.array([f.tpl.tw for f in infos])
         self._fixed_basis()
@@ -364,7 +350,6 @@ class _Batch:
 
     def _stack(self) -> None:
         """Fill the per-trial bounds, start, tolerance and fixed columns of every problem."""
-        # one entry per (trial, moving component)
         pr_row: Any
         pr_comp: Any
         pr_prob: Any
@@ -439,7 +424,7 @@ class _Batch:
         generic = {}
         n_entries = len(self.pr_row)
         self.base_loc = np.zeros(n_entries)
-        self.pars = np.zeros((n_entries, 4))  # gauss: mu, sigma; skew: xi, omega, alpha, c
+        self.pars = np.zeros((n_entries, 4))
         for e in range(n_entries):
             tpl = self.infos[self.pr_prob[e]].tpl
             k = self.pr_comp[e]
@@ -470,8 +455,6 @@ class _Batch:
         omega, alpha, c = pars[e, 1, None], pars[e, 2, None], pars[e, 3, None]
         u = (tt - pars[e, 0, None]) / omega
         gauss_u = np.exp(-0.5 * u * u)
-        # erfc (the costly part) only where the Gaussian factor is not negligible
-        # (|u| < 9.6: the curve is below 1e-20 of its peak elsewhere)
         near = u * u < _ERFC_RANGE
         numerator = np.zeros_like(u)
         alpha_b = np.broadcast_to(alpha, u.shape)
@@ -522,7 +505,6 @@ class _Batch:
         """Return ``x`` (rows, T, k) without its projection on the fixed columns."""
         n_t, u_f = self.n_t, self.u_f
         if self.shared:
-            # one product for all trials: (T, f) against (T, rows x k)
             nr, _, k = x.shape
             flat = np.swapaxes(x, 0, 1).reshape(n_t, nr * k)
             flat = flat - u_f @ (u_f.T @ flat)
@@ -627,7 +609,6 @@ def _levenberg_marquardt(batch: _Batch, max_iter: Any) -> NDArray[np.bool_]:
         g = np.matmul(np.swapaxes(ja, 1, 2), ra[..., None])[..., 0]
         za, la, ha, ta = z[act], lo[act], hi[act], tol[act, None]
         step, g, h, dh_safe = _box_step(g, h, mu[act], (za, la, ha))
-        # first-order optimality (scale-free: gradient over curvature, in parameter units)
         gstop = np.all(np.abs(g) / dh_safe <= ta * (ta + np.abs(za)), axis=1)
         z_new = np.clip(za + step, la, ha)
         r_new, beta_new, _, jacobian_new = batch.evaluate(z_new, act)
@@ -641,13 +622,10 @@ def _levenberg_marquardt(batch: _Batch, max_iter: Any) -> NDArray[np.bool_]:
         fstop = better & (cost[act] - cost_new <= ta[:, 0] * np.maximum(cost[act], 1e-300))
         idx = act[better]
         z[idx], r[idx], beta[idx] = z_new[better], r_new[better], beta_new[better]
-        # the Jacobian only where the iteration goes on from the new point
         going = better & ~(xstop | fstop)
         if going.any():
             j[act[going]] = jacobian_new(np.flatnonzero(going))
         cost[idx] = cost_new[better]
-        # Nielsen's update of the damping from the gain ratio (overshooting steps along a
-        # curved valley raise the damping instead of zig-zagging)
         mu[act] = np.where(
             better,
             mu[act] * np.maximum(MU_DOWN, 1 - (2 * np.clip(rho, 0, 1) - 1) ** 3),
@@ -669,7 +647,6 @@ def _problem_results(f: _Problem, start: int, solution: dict[str, Any]) -> list[
     moving_k = [k for k, free in enumerate(layout) if free]
     support = f.support
     keep = f.valid if support is None else f.valid & np.asarray(support)[None]
-    # r² on the kept samples (support of the reported components), all trials at once
     x, fit_x, kf = f.data, fitted[rows], keep.astype(float)
     count = kf.sum(axis=1)
     mean = (x * kf).sum(axis=1) / np.maximum(count, 1)
@@ -723,8 +700,6 @@ def _solve_multi(problems: Any, max_iter: Any) -> Any:
     batch = _Batch(problems)
     n, z, w = batch.n, batch.z, batch.w
     converged = _levenberg_marquardt(batch, max_iter)
-    # the model at the solution: moving coefficients as in the iteration, then the fixed
-    # ones by least squares on what the moving columns leave (minimum norm)
     _, beta_s, ms, _ = batch.evaluate(z, np.arange(n), jac=False)
     rest = batch.wx - np.matmul(ms * w[:, :, None], beta_s[..., None])[..., 0]
     beta_f = batch.fixed_coefficients(rest)
@@ -813,7 +788,6 @@ def fit_trial(
                 cols.append(-beta[k] * jk[:, i] * w)
                 pos += 1
         j = np.column_stack(cols) if cols else np.zeros((len(x), 0))
-        # Kaufman projection: remove the part explained by the linear columns
         a = m * w[:, None]
         q, _ = np.linalg.qr(a)
         j = j - q @ (q.T @ j)
@@ -845,7 +819,6 @@ def fit_trial(
     r2 = 1 - np.sum(resid**2) / tss if tss > 0 else np.nan
     span = hi - lo
     hit = (z - lo <= _AT_BOUND * span) | (hi - z <= _AT_BOUND * span)
-    # per component: any of its free parameters at a bound
     owner = np.array([k for k, free in enumerate(layout) for _ in free], dtype=int)
     at_bound_k = np.array([bool(np.any(hit[owner == k])) for k in range(len(layout))])
     shifts = np.array(

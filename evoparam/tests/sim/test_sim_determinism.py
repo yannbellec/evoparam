@@ -13,7 +13,6 @@ from evoparam import sim
 from evoparam.errors import SettingsError
 from evoparam.tests.sim._helpers import SMALL, real_baselines
 
-# Seed of the determinism test.
 SEED = 11
 
 REFERENCE = pathlib.Path(__file__).with_name("reference_sim.json")

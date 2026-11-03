@@ -12,8 +12,6 @@ from evoparam.shapes import backgrounds as bg
 from evoparam.tests.shapes import references
 from evoparam.tests.shapes.helpers import TIMES, sample_background_params
 
-# Smallest error of a P-spline on a component narrower than its max_fwhm, and the range of
-# the selected penalty.
 MIN_MISFIT = 0.25
 MIN_LAMBDA = 1e-6
 MAX_LAMBDA = 1e6
@@ -110,7 +108,6 @@ def test_pspline_basis() -> None:
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.03)
     basis = spline.basis(TIMES)
     assert basis.shape == (spline.n_basis, TIMES.size)
-    # Partition of unity inside the window, zero outside.
     np.testing.assert_allclose(basis.sum(axis=0), 1.0, rtol=1e-13)
     assert np.all(spline.basis(np.array([WINDOW[0] - 0.01, WINDOW[1] + 1.0])) == 0)
     grid = TIMES[::23]
@@ -121,7 +118,6 @@ def test_pspline_basis() -> None:
         np.testing.assert_allclose(basis[j, ::23], expected, rtol=1e-12, atol=1e-15)
     penalty = spline.penalty_matrix()
     assert penalty.shape == (spline.n_basis,) * 2
-    # The penalty vanishes on straight lines.
     np.testing.assert_allclose(penalty @ np.arange(spline.n_basis), 0.0, atol=1e-12)
 
 
@@ -142,7 +138,6 @@ def test_pspline_basis_mpmath() -> None:
 
 
 def test_pspline_cannot_absorb_a_narrow_component() -> None:
-    # A component of width max_fwhm is mostly left in the residual of the spline fit.
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.03)
     component = shapes.Gaussian().evaluate(TIMES, [0.15, 0.03 / 2.3548200450309493])
     design = spline.basis(TIMES).T

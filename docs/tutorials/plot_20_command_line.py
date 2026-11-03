@@ -4,7 +4,7 @@
 =====================
 
 Run the whole pipeline from a shell, with no Python, and read the JSON summary it prints.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -30,7 +30,6 @@ Run the whole pipeline from a shell, with no Python, and read the JSON summary i
 
 ###################################################################################################
 
-# Import what we need
 import json
 import subprocess
 import sys

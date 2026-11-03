@@ -12,22 +12,17 @@ from evoparam.tf import list_published_zones, tf_fit
 from evoparam.tf.stats import baseline_normal_map
 from evoparam.tf.zones import load_zones, resolve_published, volume_conduction_weight, zone_mask
 
-# Unverified zones of the article, a time (s) and a frequency (Hz) of the grid checked.
 N_UNVERIFIED = 10
 AT_50_MS = 0.05
 EIGHT_HZ = 8.0
-# Settings of the article zone: window start (s), Morse beta, and the significant fraction.
 WINDOW_START = 0.015
 MORSE_BETA = 10.0
 MIN_FRACTION = 0.2
-# t and p-value of the verified zone.
 MIN_T = 3
 MAX_P = 0.01
 
 VERIFIED = "brinyark2026_delayed_high_gamma"
 UNVERIFIED = "brinyark2026_TN1"
-# The eleven zones of Brinyark et al. 2026 ([LIT-tf-4], §2.4 and Fig. 2): five bands x N1
-# (15-50 ms) and N2 (50-500 ms), and the whole response (4-250 Hz x 15-500 ms).
 BANDS = {
     "T": (4.0, 8.0),
     "A": (8.0, 13.0),
@@ -79,7 +74,6 @@ def test_the_eleven_published_zones_have_the_article_bounds() -> None:
     whole = registry["brinyark2026_WR"]
     assert whole["freq"] == [4.0, 250.0]
     assert whole["time"] == [0.015, 0.5]
-    # the ten other zones are unverified (spec §5.10: confirmed by the user before use)
     others = [
         n
         for n in registry
@@ -150,7 +144,6 @@ def test_article_zone_uses_the_published_statistic_and_significance_fraction() -
     region = zone_mask(resolve_published("brinyark2026_GhN1", True), tf.freqs, tf.times)
     cells = region & np.isfinite(tf.maps["total_norm"][0])
     row = tf.zone_metrics.iloc[0]
-    # significance fraction: significant pixels / pixels of the zone (Fig. 2C)
     assert row["fraction_significant"] == pytest.approx(tf.significant[0][cells].mean())
     assert row["fraction_significant"] > MIN_FRACTION
     assert "baseline of its frequency" in tf.methods_text()

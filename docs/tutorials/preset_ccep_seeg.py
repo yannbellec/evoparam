@@ -16,7 +16,7 @@ Data: OpenNeuro ds004977 (Mayo Clinic, CC0), subject 1, run 01; tables checked a
 registry, the recording (4800 Hz) read by byte ranges. The deposit keeps the signal around
 one stimulation site per run (ROC11-ROC12 here) and writes zeros elsewhere: reading another
 site gives epochs of zeros, and ``read_bids`` warns.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Tables and the epochs of one site
@@ -47,7 +47,6 @@ print(
     "; polarities:",
     stim["electrical_stimulation_type"].value_counts().to_dict(),
 )
-# the stimulated shaft (ROC) and a neighbouring one (RB)
 shaft = [
     n
     for n, t in zip(channels["name"], channels["type"], strict=False)
@@ -85,7 +84,7 @@ print(
 # -------------------------------
 # CARLA keeps out of the average the contacts whose responses correlate across trials.
 
-from evoparam.prep import car_adaptive_select  # noqa: E402  (sphinx-gallery section)
+from evoparam.prep import car_adaptive_select  # noqa: E402
 
 selection = car_adaptive_select(trials.data, trials.times, random_state=0)
 members = [trials.ch_names[i] for i in selection["members"]]
@@ -97,7 +96,7 @@ carla = rereference(trials, "car_adaptive", random_state=0)
 # Shapes shared along the shaft
 # -----------------------------
 
-from evoparam.spatial import fit_shared  # noqa: E402  (sphinx-gallery section)
+from evoparam.spatial import fit_shared  # noqa: E402
 
 shared = fit_shared(result.trials, channels=[str(c) for c in responding], preset="ccep_seeg")
 print(

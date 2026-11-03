@@ -15,15 +15,12 @@ from .helpers import ccep, epochs
 
 pd = pytest.importorskip("pandas")
 
-# Window (s) of the resampled peak, and the tolerance of t = 0.
 PEAK_START = 0.005
 PEAK_END = 0.05
 ON_GRID = 1e-9
-# Masked samples after halving the rate, conditions, and trials kept.
 N_MASKED = 5
 N_CONDITIONS = 2
 N_KEPT = 9
-# Largest error of a filtered sine.
 MAX_FILTER_ERROR = 0.1
 
 ###################################################################################################
@@ -41,7 +38,7 @@ def test_req085_latency_and_event_times(new_sfreq: Any) -> None:
     win = (out.times > PEAK_START) & (out.times < PEAK_END)
     latency = out.times[win][np.argmin(out.data[0, 0, win])]
     assert abs(latency - 0.0237) <= 1 / (2 * new_sfreq) + 1e-12
-    assert np.min(np.abs(out.times)) < ON_GRID  # t = 0 stays on the grid
+    assert np.min(np.abs(out.times)) < ON_GRID
 
 
 def test_resample_carries_masks() -> None:
@@ -66,7 +63,7 @@ def test_average_methods() -> None:
     )
     ts = epochs(n_trials=10, metadata=meta)
     data = ts.data.copy()
-    data[-1] += 1e4  # the rejected trial
+    data[-1] += 1e4
     ts = replace(ts, data=data)
     mean = average(ts)
     assert np.allclose(mean.data, ts.data[:9].mean(axis=0))

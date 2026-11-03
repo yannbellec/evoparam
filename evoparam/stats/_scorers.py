@@ -32,14 +32,11 @@ SCORES = (
     "fractional_peak_latency",
 )
 
-# Scores that are linear in the waveform: the score of an average is the average of the
-# scores, so they can be computed once per trial.
 LINEAR_SCORES = ("mean_amplitude",)
 
-# Scores in seconds (the others are in the data unit, or data unit x s for the area).
 TIME_SCORES = ("peak_latency", "fractional_area_latency", "fractional_peak_latency")
 
-_TRAPEZOID: Callable[..., Any] = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
+_TRAPEZOID: Callable[..., Any] = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201
 
 
 def _signed(y: Any, polarity: Any) -> Any:
@@ -134,7 +131,7 @@ def _fractional_peak_latency(t: Any, s: Any, peak: Any, fraction: Any) -> Any:
     return np.where(has, out, t[0])
 
 
-def score_waveforms(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def score_waveforms(  # noqa: PLR0913
     times: ArrayLike,
     waveforms: ArrayLike,
     score: str,

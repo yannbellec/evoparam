@@ -10,7 +10,6 @@ from evoparam.artifact import apply_mask, artifact_quality, remove_artifact
 
 from .helpers import artifact_shape, make_overlay
 
-# Start (s) of the residual tail, the clipped span (s), and the AUC of the quality score.
 TAIL_START = 0.008
 CLIP_START = -0.002
 CLIP_END = 0.02
@@ -33,24 +32,20 @@ def test_req066_quality_separates_corrupted_trials() -> None:
     data = noisy.data.copy()
     meta = noisy.metadata.copy()
     times, sfreq = noisy.times, noisy.sfreq
-    # Two stimulation sites with different artifacts
     site_b = np.arange(50, 100)
     other = artifact_shape(times, sfreq, -2500.0, -300.0, 0.004)
     data[site_b] += (other - artifact_shape(times, sfreq, 3000.0, 500.0, 0.002))[None, None]
     meta.loc[site_b, "stim_site"] = "C3-C4"
 
     corrupted = np.r_[0:4, 50:52, 4:6, 52:53, 6:8]
-    # Residual artifact: a long extra tail that no template contains
     after = times > TAIL_START
     data[0:4, :, after] += 200 * np.exp(-(times[after] - 0.008) / 0.01)
     data[50:52, :, after] += 200 * np.exp(-(times[after] - 0.008) / 0.01)
-    # Saturation: clipped samples, masked
     sat = np.zeros(data.shape, dtype=bool)
     clip = (times >= CLIP_START) & (times <= CLIP_END)
     sat[4:6, :, clip] = True
     sat[52, :, clip] = True
     data[sat] = 9000.0
-    # Wrong site label: the template of the other site is subtracted
     meta.loc[6:7, "stim_site"] = "C3-C4"
 
     ts = apply_mask(replace(noisy, data=data, metadata=meta), sat)

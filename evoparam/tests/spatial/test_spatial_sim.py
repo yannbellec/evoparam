@@ -36,32 +36,24 @@ from .helpers import (
 
 pd = pytest.importorskip("pandas")
 
-# Shapes simulated, the fraction of runs that find them, and their correlation (REQ-190).
 N_SHAPES = 3
 MIN_FOUND = 0.9
 MIN_CORRELATION = 0.95
-# Trials kept for the small site, the stability and median R2 of the bases.
 SMALL_GROUP = 2
 MIN_STABILITY = 0.8
 MIN_R2 = 0.3
-# Shapes of the divergent example, and the stability of an accepted decomposition.
 N_DIVERGENT = 2
 STABLE = 0.99
-# Tolerance at the ends of the template shape.
 EXACT = 1e-12
-# Fewest channels with an independent estimate, and the largest RMSE ratio (REQ-191).
 MIN_ESTIMATES = 5
 MAX_RMSE_RATIO = 0.7
-# Channels of the shared fit, the shared latency (s) and its tolerances.
 N_CHANNELS = 10
 SHARED = 1e-6
 LATENCY_TOLERANCE = 0.002
 OFFSET_TOLERANCE = 0.0015
-# Window (s) of the held-out prediction, and neighbours on a shaft (two on each side).
 WINDOW_START = 0.009
 WINDOW_END = 0.5
 N_NEIGHBOURS = 4
-# Channels at high and low risk of volume conduction, and the fraction labelled right.
 MIN_HIGH = 50
 N_LOW = 20
 MIN_LABELLED = 0.9
@@ -97,7 +89,6 @@ def test_req190_recovers_three_shapes(method: Any) -> None:
         if basis.n_shapes == N_SHAPES:
             correlations += list(_matched_correlations(basis))
             agreement.append(adjusted_rand_index(basis.assignment["shape_id"], which))
-    # n_shapes = 3 in >= 90 % of runs; recovered curves correlate >= 0.95 with the truth
     assert np.mean(found) >= MIN_FOUND
     assert np.min(correlations) >= MIN_CORRELATION
     assert np.median(agreement) == 1.0
@@ -110,7 +101,6 @@ def test_weights_are_the_clustering_loadings(method: Any) -> None:
     weight alpha_m of method 1 (mean projection on the shape) is ``assignment["weight"]``."""
 
     ts, which = multi_site(3)
-    # site S19 keeps 2 trials: it is projected, not used to define the bases
     meta = ts.metadata
     keep = [
         i
@@ -131,14 +121,11 @@ def test_weights_are_the_clustering_loadings(method: Any) -> None:
     assert (np.argmax(w[used], axis=1) == ids[used]).all()
     assert np.allclose(table["nmf_loading"], w[np.arange(20), ids])
     if method == "nmf":
-        # columns of H: unit-norm rows over the defining groups
         assert np.allclose(np.linalg.norm(w[used], axis=0), 1.0, atol=1e-6)
-        # the projected group's loadings put it with the sites of its true shape
         assert np.argmax(w[-1]) == ids[-1]
     else:
         assert set(np.unique(w)) <= {0.0, 1.0}
         assert (w.sum(axis=1) == 1).all()
-    # alpha_m: the mean projection of the group's trials on its shape, data units
     v = ts.data[np.asarray(ts.metadata["stim_site"] == "S00-T00"), 0]
     win = (ts.times >= basis.times[0] - 1e-9) & (ts.times <= basis.times[-1] + 1e-9)
     alpha = (v[:, win] @ basis.curves[ids[0]]).mean()
@@ -184,7 +171,6 @@ def test_same_result_with_the_same_seed() -> None:
 
 def test_divergent_groups_channels() -> None:
 
-    # One site into 12 channels: two shapes, six channels each, plus the stimulated contacts
     rng = np.random.default_rng(0)
     names = [f"C{i:02d}" for i in range(14)]
     data = rng.normal(0, 20, (10, 14, len(TIMES)))
@@ -220,7 +206,6 @@ def test_small_groups_are_projected_not_used() -> None:
     assert not row["used"]
     assert row["n_trials"] == SMALL_GROUP
     assert "S00-T00" not in basis.settings["defining_groups"]
-    # Projected on the shape that explains it best: the one of its own true shape
     others = basis.assignment[basis.assignment["used"]]
     same = others[which[1:] == which[0]]["shape_id"]
     assert row["shape_id"] == same.mode()[0]
@@ -245,12 +230,12 @@ def test_edge_cases() -> None:
 
     ts, _ = multi_site(0, n_sites=2)
     with pytest.raises(DataError):
-        shared_shapes(ts)  # fewer than 3 groups
+        shared_shapes(ts)
     ts, _ = multi_site(0)
     with pytest.raises(SettingsError):
         shared_shapes(ts, method="pca")
     with pytest.raises(SettingsError):
-        shared_shapes(ts, by="channel")  # many sites: stim_site needed
+        shared_shapes(ts, by="channel")
     two = TrialSet(
         data=np.repeat(ts.data, 2, axis=1),
         times=ts.times,
@@ -264,7 +249,6 @@ def test_edge_cases() -> None:
 
 def test_unstable_basis_returns_one_shape_with_a_warning() -> None:
 
-    # Every site has its own random waveform: no shared structure beyond chance
     rng = np.random.default_rng(1)
     data, sites = [], []
     for s in range(12):
@@ -285,7 +269,7 @@ def test_unstable_basis_returns_one_shape_with_a_warning() -> None:
     if basis.n_shapes == 1:
         assert "unstable_basis" in basis.settings["warnings"]
         assert any("unstable_basis" in str(w.message) for w in caught)
-    else:  # a stable decomposition was found instead
+    else:
         assert all(
             row["stability"] >= STABLE for row in basis.settings["selection"] if row["accepted"]
         )
@@ -326,11 +310,10 @@ def test_req191_shared_fit_reduces_latency_rmse() -> None:
         shared = fit_shared(evoked, preset="ccep", baseline=BASELINE, group_fit=independent)
         ind = np.array([_closest_latency(f, 0.03) - 0.03 for f in independent.fits])
         sha = np.array([_closest_latency(f, 0.03) - 0.03 for f in shared.fits])
-        ok = np.isfinite(ind)  # channels with an independent estimate
+        ok = np.isfinite(ind)
         assert ok.sum() >= MIN_ESTIMATES
         assert np.isfinite(sha).all()
         ratios.append(np.sqrt(np.mean(sha[ok] ** 2)) / np.sqrt(np.mean(ind[ok] ** 2)))
-    # RMSE reduced by >= 30 % in every run (0.01 to 0.37 at the time of writing)
     assert max(ratios) <= MAX_RMSE_RATIO
 
 
@@ -345,7 +328,7 @@ def test_fit_shared_result_and_flags() -> None:
     assert len(group.fits) == N_CHANNELS
     assert all(f.status == "ok" for f in group.fits)
     latencies = [f.components[0].latency for f in group.fits]
-    assert np.ptp(latencies) < SHARED  # one shared latency
+    assert np.ptp(latencies) < SHARED
     assert abs(latencies[0] - 0.03) < LATENCY_TOLERANCE
     for f, truth in zip(group.fits, clean, strict=False):
         amp = f.components[0].amplitude
@@ -356,7 +339,6 @@ def test_fit_shared_result_and_flags() -> None:
     assert len(table) == N_CHANNELS
     assert table["amplitude"].notna().all()
     assert group.provenance.steps[-1]["function"] == "evoparam.spatial.fit_shared"
-    # A channel without response is fitted with the modal K and flagged
     evoked.data[3] = np.random.default_rng(1).normal(0, 5, evoked.data.shape[1])
     group = fit_shared(evoked, preset="ccep", baseline=BASELINE)
     flagged = group.settings["fit_shared"]["flagged"]
@@ -374,7 +356,7 @@ def test_free_latency_recovers_offsets() -> None:
     latencies = np.array([f.components[0].latency for f in group.fits])
     assert np.max(np.abs(latencies - 0.03 - offsets)) < OFFSET_TOLERANCE
     fwhm = [f.components[0].fwhm for f in group.fits]
-    assert np.ptp(fwhm) < SHARED  # width still shared
+    assert np.ptp(fwhm) < SHARED
 
 
 def test_req192_penalty_never_hurts_held_out_prediction() -> None:
@@ -383,9 +365,9 @@ def test_req192_penalty_never_hurts_held_out_prediction() -> None:
     rng = np.random.default_rng(0)
     for seed in range(2):
         smooth_field = seed % 2 == 0
-        if smooth_field:  # latency drifting along each shaft
+        if smooth_field:
             offsets = np.concatenate([np.linspace(-0.004, 0.004, 10) * s for s in (1, -1, 1)])
-        else:  # no spatial structure
+        else:
             offsets = rng.uniform(-0.004, 0.004, 30)
         draw, _, _ = shared_channels(seed, snr=3.0, offsets=offsets)
         train, test = draw(), draw()
@@ -401,13 +383,12 @@ def test_req192_penalty_never_hurts_held_out_prediction() -> None:
         off = fit_shared(train, smooth_lambda=0.0, **kw)
 
         def err(g):
-            return sum(np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits))  # noqa: B023  (called within this iteration only)
+            return sum(np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits))  # noqa: B023
 
         smooth = chosen.settings["fit_shared"]["smooth"]
         assert smooth["grid"][0] == 0.0
         assert len(smooth["loco_error"]) == len(smooth["grid"])
         assert min(smooth["loco_error"]) <= smooth["loco_error"][0]
-        # Held-out error (fresh noise) with the chosen lambda <= 1.01 x the one of lambda = 0
         assert err(chosen) <= 1.01 * err(off)
 
 
@@ -424,7 +405,6 @@ def test_smooth_needs_free_latency_and_neighbours() -> None:
         group = fit_shared(bare, preset="ccep", baseline=BASELINE, free_latency=True, smooth=True)
     assert group.settings["fit_shared"]["smooth"]["lambda"] == 0.0
     weights = neighbours(info, list(info["name"]), radius_mm=10.0)
-    # Contacts 3.5 mm apart on a shaft: two neighbours on each side, none across shafts
     assert weights.sum(axis=1).max() == N_NEIGHBOURS
     assert weights[0, 1] == 1
     assert weights[0, 3] == 0

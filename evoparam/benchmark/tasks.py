@@ -144,8 +144,6 @@ def _first_error(validator: Any, document: Any) -> Any:
     errors = list(validator.iter_errors(document))
     if not errors:
         return None
-    # the first violation in document order: by the path of the instance, then by the
-    # schema keyword, so that the same file always reports the same first violation
     return min(
         errors,
         key=lambda e: (
@@ -387,7 +385,7 @@ def _parse(text: Any, column: Any, strings: Any, where: Any) -> Any:
     try:
         number = float(text)
     except ValueError:
-        return text  # the schema reports the wrong type
+        return text
     if not math.isfinite(number):
         raise BenchmarkValidationError(
             f"{where}, column '{column}': {text!r} is not a finite "

@@ -16,7 +16,6 @@ import evoparam.stats
 from evoparam import sim
 from evoparam.data import save_object
 
-# Relative tolerance of a rerun.
 RTOL = 1e-9
 
 pytest.importorskip("pandas")
@@ -96,7 +95,6 @@ def test_req013_different_seeds_differ_where_randomness_is_used() -> None:
 
 
 ###################################################################################################
-## REQ-295 (ii) and (iii), REQ-399 (algorithm versions)
 
 
 def test_req295_fixture_matches_the_reference_values() -> None:

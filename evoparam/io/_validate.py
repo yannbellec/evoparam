@@ -28,7 +28,6 @@ from evoparam.utils._optional import require
 
 from ._harmonize import STIM_FIELDS, harmonize_stim_events
 
-# Most missing fields listed in the error of strict=True
 _MAX_LISTED = 50
 
 

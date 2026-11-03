@@ -38,7 +38,6 @@ from evoparam.utils._optional import require
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 from .variance import reml
 
-# Fewest units for a correlation; fewest counts for the power law (else 1 / sqrt(n))
 _MIN_CORRELATION_UNITS = 3
 _MIN_POWER_COUNTS = 2
 
@@ -55,9 +54,7 @@ __all__ = [
 
 METHODS = ("split_half", "dependability", "both")
 
-# Facets of reliability: ("trial", <unit column>)
 _N_FACETS = 2
-# Fewest trials of a unit, and units, for reliability; fewest trials for trials_needed
 _MIN_UNIT_TRIALS = 2
 _MIN_UNITS = 3
 _MIN_TRIALS = 2
@@ -91,22 +88,12 @@ TRIALS_NEEDED_COLUMNS = {
     "n_resamples": "",
 }
 
-# Random splits processed at once for scores that need the half averages (bounds memory).
 _CHUNK = 64
 
-# Bootstrap resamples per unit for the measurement error of a non-linear score.
 _SME_BOOT = 200
 
-# Laws that extrapolate a score's SD beyond the recorded trials (trials_needed).
 EXTRAPOLATIONS = ("auto", "sqrt_n", "power")
-# Bounds of the fitted exponent of the power law: the SD of a score does not grow with the
-# trial count, and a latency approaches the 1/sqrt(n) law from below (its SD is bounded by
-# the window while the average is noisy), so its local exponent lies in [-1/2, 0].
 _POWER_EXPONENT = (-0.5, 0.0)
-# Scores extrapolated by the power law with extrapolation="auto": the two latencies whose
-# 80-trial SD the power law predicted better than the 1/sqrt(n) law on development
-# simulations (pink, white and AR(1) noise, per-trial SNR 0.5 to 2; CHANGELOG). The
-# fractional peak latency is not among them (the power law over-predicted it).
 _POWER_SCORES = ("peak_latency", "fractional_area_latency")
 
 
@@ -220,7 +207,7 @@ def _nanmean(x: Any, axis: Any) -> NDArray[Any]:
 ## Reliability
 
 
-def reliability(  # noqa: PLR0913  (spec §5.11 fixes 7 parameters, plus window and picks; DECISIONS.md §7.2)
+def reliability(  # noqa: PLR0913
     ts: "TrialSet",
     *,
     scorer: str | Callable[..., Any] = "mean_amplitude",
@@ -484,7 +471,7 @@ def _random_splits(
         for j in range(m):
             r_sb[start + j] = spearman_brown(_pearson(first[j], second[j]))
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN channels stay NaN
+        warnings.simplefilter("ignore", RuntimeWarning)
         return {
             "split_half_random": np.nanmean(r_sb, axis=0),
             "split_half_low": np.nanpercentile(r_sb, 2.5, axis=0),
@@ -550,9 +537,6 @@ def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
         logm = np.log(np.asarray(fit, float))
         dm = logm - logm.mean()
         sds = np.stack([sd[m] for m in fit])  # (n_counts, n_ch)
-        # a channel with a zero, infinite or NaN SD has no power law (NaN): its column is
-        # set to 1 for the arithmetic, so that no invalid operation is computed, and its
-        # results to NaN; the other columns are computed independently of it
         valid = np.all(np.isfinite(sds) & (sds > 0), axis=0)
         logsd = np.log(np.where(valid, sds, 1.0))
         slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
@@ -564,7 +548,7 @@ def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
 
 
-def trials_needed(  # noqa: PLR0913  (spec §5.11 fixes 5 parameters, plus window, picks, existence_kwargs and extrapolation; DECISIONS.md §7.2)
+def trials_needed(  # noqa: PLR0913
     ts: "TrialSet",
     *,
     scorer: str | Callable[..., Any] = "existence",
@@ -752,7 +736,7 @@ def _existence_records(plan: _Plan, window: Any, existence_kwargs: Any) -> list[
                 f"trials_needed: {n} trials exceed the {n_total} recorded; the "
                 "detection probability is not extrapolated.",
                 UserWarning,
-                stacklevel=3,  # _existence_records, trials_needed, then its caller
+                stacklevel=3,
             )
             continue
         hits = np.zeros(len(index))

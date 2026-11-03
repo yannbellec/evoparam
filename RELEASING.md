@@ -57,7 +57,7 @@ DOI added to the release notes) and a CHANGELOG section.
 3. Bump the version in `evoparam/version.py` and in `CITATION.cff` (`version`,
    `date-released`); `evoparam/tests/test_citation.py` checks both.
 4. Run `python benchmarks/run_benchmarks.py --suite perf` on the reference machine named in
-   `benchmarks/README.md` and record P1–P6 in the CHANGELOG (REQ-290); the results file is
+   `benchmarks/README.md` and record P1-P6 in the CHANGELOG (REQ-290); the results file is
    attached to the release.
 5. Run the robustness layer `python validation/robustness.py --jobs 4` (the five analyses of
    spec §7.4, REQ-375) and the gate `python tools/layer3_gate.py` against the previous tag
@@ -75,7 +75,7 @@ DOI added to the release notes) and a CHANGELOG section.
 10. Verify the PyPI smoke test (`smoke` workflow: clean environment, `pip install
     evoparam==X.Y.Z`, `evoparam.selftest()`, `evoparam fit --help`, REQ-300) and link its
     log from the release notes.
-11. Verify the Zenodo DOI of the version (GitHub–Zenodo integration) and add it to the
+11. Verify the Zenodo DOI of the version (GitHub-Zenodo integration) and add it to the
     release notes and to `CITATION.cff` (`identifiers`).
 12. Announce (release notes, mailing list, Neurostars), only after steps 10 and 11.
 

@@ -19,16 +19,11 @@ import pytest
 
 from evoparam.io import openneuro_url, read, read_mef, read_mef_header
 
-# Sampling rates (Hz) of ds003708 and ds004977.
 DS003708_SFREQ = 2048.0
 DS004977_SFREQ = 4800.0
-# Most bytes transferred for the 20 s window: data ranges, and in all.
 MAX_DATA_BYTES = 10e6
 MAX_BYTES = 40e6
-# Fewest pulses in the window.
 MIN_PULSES = 3
-# Channels of ds004977, units factor of its LFP channel, smallest SD of the data (uV),
-# largest onset error (s) of the artifact, and smallest artifact (uV).
 N_DS004977_CHANNELS = 273
 LFP_FACTOR = 0.001
 MIN_SD = 10
@@ -84,7 +79,7 @@ def test_ds003708_window_matches_events_tsv() -> None:
 
     dataset, stem = DS003708
     onsets, _ = _stim_onsets(dataset, stem)
-    tmin = float(np.sort(onsets)[1]) - 1.0  # the first pulse is isolated
+    tmin = float(np.sort(onsets)[1]) - 1.0
     trials = read(openneuro_url(dataset, stem + "_ieeg.mefd"), tmin=tmin, tmax=tmin + 20.0)
     source = trials.provenance.source
     assert source["format"] == "mef"
@@ -92,7 +87,6 @@ def test_ds003708_window_matches_events_tsv() -> None:
     assert trials.sfreq == DS003708_SFREQ
     assert trials.data.shape[1:] == (89, 40960)
     assert np.isfinite(trials.data).all()
-    # Only the blocks under the window are transferred
     assert source["data_bytes_read"] < MAX_DATA_BYTES
     assert source["bytes_read"] < MAX_BYTES
 
@@ -104,7 +98,6 @@ def test_ds003708_window_matches_events_tsv() -> None:
     assert len(inside) >= MIN_PULSES
     assert match["hits"] == len(inside)
     assert match["false_alarms"] == 0
-    # events.tsv onsets are sample numbers divided by the sampling frequency
     assert np.median(np.abs(match["errors"])) <= 1.0 / trials.sfreq + 1e-6
 
 
@@ -130,12 +123,10 @@ def test_ds004977_header_units_and_censoring() -> None:
     assert data.shape == (4, 4800)
     assert np.isfinite(data).all()
     assert (data.std(axis=1) > MIN_SD).all()
-    # The stimulation artifact (tens of mV near the site) starts at the events.tsv onset
     jump = int(np.argmax(np.abs(np.diff(data[0])))) + 1
     assert abs(t0 + jump / sfreq - first) < MAX_ONSET_ERROR
     assert np.abs(data[0]).max() > MIN_ARTIFACT
 
-    # Outside the uncensored span the recording is zeros
     censored, *_ = read_mef(url, tmin=100.0, tmax=105.0, picks=picks)
     assert censored.shape == (4, 24000)
     assert (censored == 0).all()

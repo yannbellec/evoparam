@@ -34,8 +34,6 @@ __all__ = [
     "normalize_site",
 ]
 
-# Target column -> recognised source columns, first match wins (case-insensitive).
-# The target name itself comes last: an already harmonised table keeps its values.
 SOURCES = {
     "stim_site": ("electrical_stimulation_site", "stim_site", "site", "electrodes_involved_onset"),
     "stim_current_mA": (
@@ -57,7 +55,6 @@ SOURCES = {
     "condition": ("trial_type", "condition"),
 }
 
-# Fields checked by the validator, in report order.
 STIM_FIELDS = (
     "stim_site",
     "stim_current_mA",
@@ -75,7 +72,6 @@ POLARITIES = (
     "alternating",
 )
 
-# Unit name (lower case) -> factor to the target unit.
 _CURRENT = {
     "a": 1e3,
     "amp": 1e3,
@@ -109,8 +105,6 @@ _WIDTH = {
 }
 _FREQUENCY = {"hz": 1.0, "khz": 1e3}
 
-# Quantity target -> (unit table, target unit, unit of unit-less values below the threshold,
-# threshold, unit of the other unit-less values).
 _QUANTITIES = {
     "stim_current_mA": (_CURRENT, "mA", "A", 0.1, "mA"),
     "stim_pulse_width_us": (_WIDTH, "us", "s", 0.01, "us"),
@@ -293,7 +287,7 @@ def _parse_quantity(
         return np.full(len(values), np.nan)
 
     out = np.full(len(values), np.nan)
-    unitless = []  # positions of numbers without a unit
+    unitless = []
     inline = False
     for pos, value in enumerate(values):
         if _is_missing(value):
@@ -511,7 +505,6 @@ def harmonize_stim_events(
         else:
             out[target] = _parse_quantity(out[column].tolist(), column, target, sidecar, report)
 
-    # Pulse count: nullable integers (missing when not stated)
     column = chosen["stim_n_pulses"]
     counts = [None] * n_rows
     if column is not None:
@@ -521,7 +514,6 @@ def harmonize_stim_events(
     # Polarity
     _add_polarity(out, chosen["stim_polarity"], parameters, report)
 
-    # Charge per phase (µC) = current (mA) × pulse width (µs) / 1000
     out["stim_charge_uC"] = out["stim_current_mA"] * out["stim_pulse_width_us"] / 1000.0
 
     # Condition

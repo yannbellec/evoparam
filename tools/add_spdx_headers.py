@@ -43,10 +43,6 @@ EXCLUDED = (
     "docs/generated",
 )
 UPSTREAM = "the upstream project and commit named in NOTICE"
-# file → changes made to the inherited code (S20: tools/check_no_inherited_code.py --inherited
-# <export of the first commit> finds evoparam/utils/_modutils.py with 8-line windows; with
-# --window 3 it adds evoparam/plots/_signals.py; the shape
-# equations of evoparam/shapes/components.py come from the inherited shape functions)
 INHERITED = {
     "evoparam/utils/_modutils.py": "moved from core/modutils.py into utils/ (spec §4.5); "
     "module docstring rewritten; functions unchanged",
@@ -61,8 +57,8 @@ INHERITED = {
 # file → licence of the third-party code it derives from (named, with its licence text, in
 # NOTICE); its SPDX header names both licences
 DERIVED = {
-    "evoparam/models/_trf.py": "BSD-3-Clause",  # SciPy's trust-region reflective solver
-    "evoparam/models/_fast.py": "BSD-3-Clause",  # the same solver; Cephes' erfc (SciPy)
+    "evoparam/models/_trf.py": "BSD-3-Clause",
+    "evoparam/models/_fast.py": "BSD-3-Clause",
 }
 
 

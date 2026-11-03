@@ -43,7 +43,6 @@ if TYPE_CHECKING:
 
     from evoparam.shapes._base import ComponentFeatures
 
-# diagnostics of the fitting API (spec §9.8: child logger named after the module)
 logger: logging.Logger = logging.getLogger("evoparam.models")
 
 __all__ = [
@@ -58,20 +57,14 @@ __all__ = [
 
 FEATURES_WITH_SE = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 
-# The lag-1 autocorrelation of the residual is reported from more than this many samples.
 _MIN_LAG_SAMPLES = 3
-# The expanded percentile interval of a bootstrap needs two trials or more (t_{n-1}).
 _MIN_TRIALS_T = 2
-# The fewest finite bootstrap draws a standard error and an interval are computed from.
 _MIN_BOOTSTRAP_DRAWS = 10
-# A time axis needs two samples for its sampling step (masked support of a component).
 _MIN_MASK_SAMPLES = 2
-# A curve needs three points for an interior extremum.
 _MIN_EXTREMUM_POINTS = 3
 
 
 ###################################################################################################
-## Building the result
 
 
 def _features(
@@ -199,7 +192,6 @@ def _component_uncertainty(
         step = xp[i] - xm[i]
         if step <= 0:
             continue
-        # a change of the amplitude alone scales the unit features
         same = None if i < len(params) else unit
         fp = _feature_vector(shape, struct.tw, xp[:-1], xp[-1], settings, sfreq, unit=same)
         fm = _feature_vector(shape, struct.tw, xm[:-1], xm[-1], settings, sfreq, unit=same)
@@ -338,7 +330,6 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
-    # spec §5.5.9: a long window searched on a decimated copy says so in its provenance
     extra = {"decimated_search": core["decimated_search"]} if "decimated_search" in core else {}
     provenance = _with_plugins(
         Provenance().with_step(
@@ -434,9 +425,6 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
     )
     background = {"name": bg.name, **{k: float(v) for k, v in bg_values.items()}}
     if hasattr(bg, "t_ref"):
-        # the time origin of the background's basis (the first sample of the fit window
-        # unless the background sets one), so that evaluate_fit gives the fitted curve on
-        # any other time axis
         background["t_ref"] = float(bg._t_ref(struct.tw))
 
     classical = {}
@@ -472,7 +460,6 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
             "flagged_pairs": diag["flagged_pairs"],
             "param_names": diag["param_names"],
             "best_rejected_delta": core["best_rejected_delta"],
-            # the fall of the criterion a component needed (fixed delta, or calibrated)
             "acceptance": dict(core.get("acceptance") or {}),
             "sigma": core["sigma"],
             "rho": core["rho"],
@@ -490,8 +477,6 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
             "duration_s": elapsed(start),
         },
     )
-    # fit.components holds the components sorted by latency (ResponseFit): the engine's
-    # component of each, for the methods that refit the engine's structure
     order = sorted(range(len(comps)), key=lambda k: comps[k].latency)
     if settings.uncertainty == "bootstrap":
         fit = _bootstrap(fit, core, trials, settings, sfreq, order)
@@ -539,8 +524,6 @@ def _bootstrap(fit: Any, core: Any, trials: Any, settings: Any, sfreq: float, or
             params = boot.comp_params(theta, k)
             features = _feature_vector(shape, struct.tw, params, beta[k], settings, sfreq)
             draws[k].append(np.concatenate((params, [beta[k]], features)))
-    # expanded percentile interval (Hesterberg 2015): the plain percentile interval of an
-    # average of n trials is too narrow by sqrt((n - 1) / n) and uses z instead of t_{n-1}
     tail = 100 * (1 - settings.ci_level) / 2
     if n >= _MIN_TRIALS_T:
         q = np.sqrt(n / (n - 1)) * student_t.ppf(0.5 + settings.ci_level / 2, n - 1)
@@ -585,7 +568,6 @@ def masked_fraction(comp: Any, times: Any, mask: Any) -> float | None:
         return None
     support = (times >= onset) & (times <= offset)
     if not support.any():
-        # a support narrower than one sample: the masked sample nearest to the onset
         return 1.0
     return float(mask[support].mean())
 
@@ -750,7 +732,6 @@ class _FixedStructure(_engine._Structure):
 ###################################################################################################
 ## Estimator
 
-# Fields that are not settings of the preset: the preset itself and the random seed.
 _NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
 
 
@@ -843,7 +824,7 @@ def evaluate_fit(fit: Any, times: Any, *, components: Any = None, background: bo
         if components is None or k in components:
             total += _amplitude(fit, k) * get_shape(comp.shape).evaluate(times, comp.params)
     if background and fit.background:
-        bg: Any = get_background(fit.background["name"])  # basis: a built-in background
+        bg: Any = get_background(fit.background["name"])
         t_ref = fit.background.get("t_ref")
         bg_times = times
         if (
@@ -922,9 +903,6 @@ def fitted_peak(
     out = {"latency": np.nan, "amplitude": np.nan}
     if fit.status != "ok" or not fit.background:
         return out
-    # from the first fitted sample: before it the background was not fitted
-    # (evaluate_fit holds it there), and a held value next to a falling tail would make a
-    # trough at the window's start
     start = max(window[0], fit.background.get("t_ref", window[0]))
     grid = np.arange(start, window[1] + step / 2, step)
     if len(grid) < _MIN_EXTREMUM_POINTS:
@@ -958,7 +936,6 @@ class ResponseModel(BaseEstimatorMixin):
     """
 
     if TYPE_CHECKING:
-        # set from the keywords by __init__ (scikit-learn convention)
         preset: Any
         sfreq: float | None
         tmin: float | None
@@ -966,7 +943,7 @@ class ResponseModel(BaseEstimatorMixin):
         random_state: Any
         _overrides_record: list[str]
 
-    def __init__(  # noqa: PLR0913  (spec §5.5.8 fixes 30 parameters, plus 13 keywords; DECISIONS.md §7.2)
+    def __init__(  # noqa: PLR0913
         self,
         preset: Any = None,
         *,
@@ -1049,7 +1026,7 @@ class ResponseModel(BaseEstimatorMixin):
         overrides.update({k: v for k, v in extra.items() if v is not None})
         return resolve_settings(self.preset, **overrides)
 
-    def fit_waveform(  # noqa: PLR0913  (spec §5.5.8 fixes 7 parameters, plus random_state, noise_ref, unit and on_error; DECISIONS.md §7.2)
+    def fit_waveform(  # noqa: PLR0913
         self,
         times: Any,
         y: Any,
@@ -1085,9 +1062,6 @@ class ResponseModel(BaseEstimatorMixin):
             raise DataError("times and y must have the same shape.")
         if settings.fit_window is None:
             raise SettingsError("A fit window is needed (fit_window=, window= or a preset).")
-        # the end of an epoch is excluded (tmax), so a window that ends at the epoch end
-        # lies less than one sample beyond the last one: allowed (the fit uses the samples
-        # inside the window)
         step = float(np.median(np.diff(times))) if times.size > 1 else 0.0
         if settings.fit_window[0] < times[0] - step * (1 + 1e-9) or settings.fit_window[1] > times[
             -1
@@ -1127,7 +1101,7 @@ class ResponseModel(BaseEstimatorMixin):
             )
         except (SettingsError, DataError):
             raise
-        except Exception as exc:  # never NaN with status "ok"
+        except Exception as exc:
             if on_error == "raise":
                 raise FitError(
                     f"fit failed on {unit or 'the waveform'}: {type(exc).__name__}: {exc}"
@@ -1184,7 +1158,6 @@ class ResponseModel(BaseEstimatorMixin):
             else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
         )
 
-        # one seed for every channel, drawn when none is given and recorded (REQ-295)
         seed = _draw_seed() if self.random_state is None else None
 
         def one(ch: Any) -> Any:
@@ -1212,7 +1185,7 @@ class ResponseModel(BaseEstimatorMixin):
         else:
             fits = [one(ch) for ch in progress(index, total=len(index), desc="fit")]
         for fit in fits:
-            fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
+            fit.units = evoked.units
         logger.info(
             "fit of %d channel(s)%s: %s, %.2f s",
             len(fits),
@@ -1224,7 +1197,6 @@ class ResponseModel(BaseEstimatorMixin):
         )
         resolved = self.settings(fit_window=window, baseline=baseline, random_state=seed)
         settings = _settings_dict(resolved, self._explicit(fit_window=window, baseline=baseline))
-        # the noise reference the fits used (the plus-minus average needs the trials)
         used = {fit.diagnostics.get("noise_reference", "baseline") for fit in fits}
         settings["noise_reference"] = (
             "plusminus"
@@ -1311,7 +1283,7 @@ class ResponseModel(BaseEstimatorMixin):
             for row in evoked.data
         ]
         for fit in fits:
-            fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
+            fit.units = evoked.units
         return GroupFit.from_fits(
             fits,
             list(evoked.ch_names),
@@ -1320,7 +1292,7 @@ class ResponseModel(BaseEstimatorMixin):
             provenance=evoked.provenance,
         )
 
-    def fit(self, X: Any, y: Any = None) -> "ResponseModel":  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "ResponseModel":  # noqa: N803, ARG002
         """Fit every channel.
 
         Learned: ``fit_`` (GroupFit), ``components_`` (table), ``times_``, ``n_features_in_``
@@ -1332,7 +1304,6 @@ class ResponseModel(BaseEstimatorMixin):
         self.fit_: GroupFit = self._fit_container(container)
         self.components_: Any = self.fit_.to_dataframe()
         self.times_: NDArray[Any] = np.array(container.times, float)
-        # the largest number of residual evaluations of one waveform (at least 1)
         self.n_iter_: int = max(
             [1] + [int(f.diagnostics.get("n_evaluations") or 0) for f in self.fit_.fits]
         )
@@ -1345,11 +1316,11 @@ class ResponseModel(BaseEstimatorMixin):
             return self.fit_
         return self._fit_container(self._as_container(x, reset=False))
 
-    def fit_transform(self, X: Any, y: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
+    def fit_transform(self, X: Any, y: Any = None) -> NDArray[Any]:  # noqa: N803
         """Fit X, then return its feature matrix (see :meth:`transform`)."""
         return self.fit(X, y).transform()
 
-    def predict(self, X: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
+    def predict(self, X: Any = None) -> NDArray[Any]:  # noqa: N803
         """Fitted curves over the time axis, (n_waveforms, n_times).
 
         NaN outside the fit window and for a waveform without a model. X=None: the waveforms of
@@ -1366,7 +1337,7 @@ class ResponseModel(BaseEstimatorMixin):
                 out[i, inside[:n]] = fit.model[:n]
         return out
 
-    def transform(self, X: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any = None) -> NDArray[Any]:  # noqa: N803
         """Feature matrix (n_waveforms, 3).
 
         Latency, amplitude and width of the largest component of each waveform (NaN without
@@ -1382,11 +1353,11 @@ class ResponseModel(BaseEstimatorMixin):
                 rows.append([np.nan] * 3)
         return np.array(rows, dtype=float).reshape(-1, 3)
 
-    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002  (scikit-learn API)
+    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002
         """Return the names of the output features."""
         return np.array(["latency", "amplitude", "fwhm"])
 
-    def score(self, X: Any = None, y: Any = None) -> float:  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def score(self, X: Any = None, y: Any = None) -> float:  # noqa: N803, ARG002
         """Mean r2 over the waveforms that were fitted (of ``fit``, or of X)."""
         values = [f.gof.r2 for f in self._group(X).fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan
@@ -1396,7 +1367,7 @@ class ResponseModel(BaseEstimatorMixin):
 ## Functions
 
 
-def fit_response(  # noqa: PLR0913  (spec §5.5.8 signature, plus units; DECISIONS.md §8)
+def fit_response(  # noqa: PLR0913
     times: Any,
     y: Any,
     *,
@@ -1451,7 +1422,7 @@ def _from_mne(data: Any) -> Any:
 
 
 @verbose
-def fit(  # noqa: PLR0913  (spec §5.5.8 fixes 14 parameters; DECISIONS.md §7.2)
+def fit(  # noqa: PLR0913
     data: Any,
     preset: Any = None,
     *,
@@ -1466,7 +1437,7 @@ def fit(  # noqa: PLR0913  (spec §5.5.8 fixes 14 parameters; DECISIONS.md §7.2
     existence: bool = False,
     n_jobs: int = 1,
     random_state: Any = None,
-    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
+    verbose: Any = None,  # noqa: ARG001
     **overrides: Any,
 ) -> "GroupFit":
     """Fit evoked responses with a preset: the one-call entry point.
@@ -1499,7 +1470,6 @@ def fit(  # noqa: PLR0913  (spec §5.5.8 fixes 14 parameters; DECISIONS.md §7.2
     )
     data = _from_mne(data)
     if isinstance(data, list):
-        # MNE Evoked objects, one condition each (their comment is the condition label)
         groups = [
             (evoked.provenance.source.get("comment") or str(k), evoked)
             for k, evoked in enumerate(data)
@@ -1543,11 +1513,8 @@ def _model_for_fit(
     take are set on the model.
     """
     recorded_version = overrides.pop("package_version", None)
-    # what the fits used (noise_source="auto" decides it again from the data): recorded, not
-    # a setting, so that ``fit(data, **result.settings)`` takes it back (REQ-331)
     overrides.pop("noise_reference", None)
     if recorded_version is not None and recorded_version != __version__:
-        # settings of a result made by another version (REQ-331: func(data, **settings))
         message = (
             f"evoparam.fit: the settings were recorded by evoparam "
             f"{recorded_version}; this is {__version__}."
@@ -1555,12 +1522,8 @@ def _model_for_fit(
         _engine.logger.warning(message)
         _warn(message, UserWarning, stacklevel=3)
     if "fit_window" in overrides:
-        # the name of the preset field (spec §6.3) and of FitSettings, for ``window``
         given = overrides.pop("fit_window")
         window = given if window is None else window
-    # Settings that the constructor does not take (preset_note, freq_min, freq_max) are
-    # read by ResponseModel.settings() from the model's attributes, so that the settings
-    # of a result can be passed back as they are (REQ-331).
     accepted = set(inspect.signature(ResponseModel.__init__).parameters)
     extra = {
         k: overrides.pop(k)

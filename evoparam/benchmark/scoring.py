@@ -85,12 +85,10 @@ __all__ = [
 ]
 
 RESULT_SCHEMA = "evoparam-benchmark-result/1"
-# T4 (spec §8): the early response is scored up to 50 ms after the pulse, the N1 from 9 ms
 _T4_END = 0.05
 _N1_START = 0.009
-_MIN_CORRELATION_PAIRS = 3  # pairs for a correlation
-_MIN_SD_VALUES = 2  # values for a standard deviation
-# The metrics shown first in reports and on the leaderboard, per task.
+_MIN_CORRELATION_PAIRS = 3
+_MIN_SD_VALUES = 2
 HEADLINE = {
     "T1": ["auc", "f1", "precision", "recall", "fpr_at_0.05", "ks_uniform"],
     "T2": [
@@ -850,7 +848,7 @@ def score(
         suite = load_suite(suite, hidden_seeds=hidden_seeds)
     elif hidden_seeds is not None:
         suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
-    suite = cast("Suite", suite)  # a Suite from here on
+    suite = cast("Suite", suite)
     if inputs is None:
         inputs = [make_inputs(cell, tasks=[task])[task] for cell in suite.cells(task, split=split)]
     outputs, hashes, missing = {}, {}, []

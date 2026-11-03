@@ -12,7 +12,6 @@ from evoparam.stats import reml, variance_components
 
 pd = pytest.importorskip("pandas")
 
-# Subjects, observations (one excluded), and the variance at the boundary.
 N_SUBJECTS = 30
 N_OBS = 599
 BOUNDARY = 0.05
@@ -71,7 +70,6 @@ def test_one_level_matches_dense_computation() -> None:
     assert np.allclose(fast["blup"][0], blup, atol=1e-9)
     assert np.allclose(fast["blup_se"][0], np.sqrt(pev), atol=1e-9)
     assert fast["loglik"] == pytest.approx(loglik, rel=1e-9)
-    # the REML maximum: nudging either variance lowers the restricted likelihood
     for factor in (0.9, 1.1):
         for which in (0, 1):
             v = list(fast["variances"]) + [fast["residual"]]
@@ -88,7 +86,7 @@ def test_nested_levels_and_known_sampling_variances() -> None:
     rng = np.random.default_rng(1)
     n_sub, n_ch = 40, 25
     subject = np.repeat(np.arange(n_sub), n_ch)
-    channel = np.tile(np.arange(n_ch), n_sub)  # names repeat across subjects
+    channel = np.tile(np.arange(n_ch), n_sub)
     se = rng.uniform(0.5, 2.0, subject.size)
     y = (
         10
@@ -155,7 +153,7 @@ def test_boundary_and_errors() -> None:
 
     rng = np.random.default_rng(3)
     subject = np.repeat(np.arange(20), 10)
-    y = rng.normal(size=200)  # no subject variance
+    y = rng.normal(size=200)
     out = reml(y, [subject])
     assert out["variances"][0] < BOUNDARY
     with pytest.raises(SettingsError):
@@ -173,7 +171,7 @@ def test_shrunken_unit_estimates_match_henderson_equations() -> None:
 
     rng = np.random.default_rng(4)
     n_sub, n_ch = 12, 6
-    sizes = rng.integers(1, 6, n_sub * n_ch)  # trials per channel, unbalanced
+    sizes = rng.integers(1, 6, n_sub * n_ch)
     pair = np.repeat(np.arange(n_sub * n_ch), sizes)
     subject, channel = pair // n_ch, pair % n_ch
     age = rng.uniform(5, 30, n_sub)
@@ -208,11 +206,9 @@ def test_shrunken_unit_estimates_match_henderson_equations() -> None:
     assert np.allclose(sol[:2], out["beta"], rtol=1e-8)
     assert np.allclose(sol[2:], np.concatenate(out["blup"]), atol=1e-8)
 
-    # subject s: mean design row of its observations, plus u_s
     l_sub = np.hstack(
         [zs.T @ xmat / zs.sum(0)[:, None], np.eye(n_sub), np.zeros((n_sub, n_sub * n_ch))]
     )
-    # channel c of subject s: mean design row, plus u_s and v_sc
     l_ch = np.hstack(
         [zc.T @ xmat / zc.sum(0)[:, None], (zc.T @ zs > 0).astype(float), np.eye(n_sub * n_ch)]
     )
@@ -221,7 +217,6 @@ def test_shrunken_unit_estimates_match_henderson_equations() -> None:
         se_dense = np.sqrt(np.einsum("ij,jk,ik->i", lmat, cmat, lmat))
         assert np.allclose(out["unit_mean_se"][level], se_dense, atol=1e-8)
         assert out["n_obs"][level].sum() == y.size
-    # shrinkage: 1 - Var(u | y, beta) / sigma^2, the conditional part of Henderson's inverse
     zr = zmat * np.sqrt(r_inv)[:, None]
     cond = np.diag(np.linalg.inv(zr.T @ zr + np.diag(1 / gmat)))
     assert np.allclose(np.concatenate(out["shrinkage"]), 1 - cond / gmat, atol=1e-8)
@@ -240,7 +235,6 @@ def test_one_level_shrinkage_is_the_empirical_bayes_weight() -> None:
     mu = out["beta"][0]
     assert np.allclose(out["shrinkage"][0], shrink_b, atol=1e-10)
     assert np.allclose(out["unit_mean"][0], mu + shrink_b * (y - mu), atol=1e-10)
-    # the classical EB standard error: sqrt(tau^2 (1 - B) + (1 - B)^2 Var(mu_hat))
     var_mu = 1.0 / np.sum(1.0 / (tau2 + se**2))
     assert np.allclose(
         out["unit_mean_se"][0],

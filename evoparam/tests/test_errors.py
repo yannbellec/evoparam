@@ -21,7 +21,6 @@ from evoparam.errors import DataError, FitError, SettingsError
 from evoparam.models import ResponseModel
 from evoparam.models import engine as _engine
 
-# Channel whose fit fails, and the most lines with numpy.errstate.
 FAILED_CHANNEL = 2
 MAX_ERRSTATE_LINES = 3
 
@@ -144,17 +143,12 @@ def test_errstate_at_most_three_lines_in_the_engine() -> None:
 
 
 ###################################################################################################
-## REQ-307 (ii) on the other unit functions: fit_trials, test_response, remove_artifact
 #
-# The same injection as for fit_group: the work on channel C3 raises (from inside the
-# function's numerical path); the unit's result carries status "failed" and the message,
-# exactly one WARNING record names C3, the other channels are "ok"; on_error="raise"
-# propagates a FitError naming C3; a data error raised in the same place propagates.
 
 
-C3 = 2  # the index of the failing channel
-WINDOW = (-0.002, 0.008)  # the artifact window of remove_artifact
-TRIALS_NDIM = 3  # trials x channels x times
+C3 = 2
+WINDOW = (-0.002, 0.008)
+TRIALS_NDIM = 3
 
 
 @pytest.fixture
@@ -268,7 +262,6 @@ def test_failed_unit_is_recorded_by_every_unit_function(
         window = (trials.times >= WINDOW[0]) & (trials.times <= WINDOW[1])
         np.testing.assert_array_equal(result.cleaned.data[:, 2], trials.data[:, 2])
         assert result.cleaned.masks[:, 2][:, window].all()
-        # the other channels are cleaned as when nothing fails
         monkeypatch.undo()
         clean = call()
         keep = [0, 1, 3]

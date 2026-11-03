@@ -8,7 +8,7 @@ pages are published from the ``gh-pages`` branch.
 import sphinx_bootstrap_theme
 
 project = "evoparam"
-copyright = "the evoparam developers"  # noqa: A001  (Sphinx setting)
+copyright = "the evoparam developers"  # noqa: A001
 extensions = ["sphinx_gallery.gen_gallery", "sphinx.ext.mathjax"]
 exclude_patterns = ["_build"]
 templates_path = ["_templates"]
@@ -29,8 +29,6 @@ html_sidebars = {"**": []}
 html_show_sourcelink = False
 html_title = "evoparam"
 
-# The tutorials written for newcomers (plot_*); the preset and integration walkthroughs
-# stay in the full documentation (docs/).
 sphinx_gallery_conf = {
     "examples_dirs": ["../docs/tutorials"],
     "gallery_dirs": ["auto_tutorials"],

@@ -8,13 +8,10 @@ from evoparam.data import TrialSet
 from evoparam.errors import DataError, EventError
 from evoparam.io.epochs import epoch, epoch_data
 
-# Values at 1 s of the ramps (sample 100) and at 5 s of the negative ramp (sample -500).
 AT_ONE_SECOND = 100
 AT_FIVE_SECONDS = -500
-# Trials kept and samples of the window [-0.1, 0.2) at 100 Hz.
 N_KEPT = 3
 N_TIMES = 30
-# Values at 10.5 s and 12 s of the ramp sampled from t0 = 10 s.
 AT_FIRST_ONSET = 50
 AT_SECOND_ONSET = 200
 
@@ -34,7 +31,6 @@ def test_epoch_data() -> None:
     assert epochs[0, 0, 10] == AT_ONE_SECOND
     assert epochs[1, 1, 10] == AT_FIVE_SECONDS
 
-    # With an offset clock, and 1d data
     times, epochs, kept = epoch_data(data[0], sfreq, [11.0], -0.1, 0.2, t0=10.0)
     assert epochs.shape == (1, 31)
     assert epochs[0, 10] == AT_ONE_SECOND
@@ -49,7 +45,6 @@ def test_epoch_returns_a_trialset() -> None:
     assert isinstance(trials, TrialSet)
     trials.validate()
 
-    # Window [-0.1, 0.2): 30 samples, onset sample at t = 0
     assert trials.n_trials == N_KEPT
     assert trials.n_times == N_TIMES
     assert np.allclose(trials.times, np.arange(-10, 20) / sfreq)

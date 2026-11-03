@@ -12,7 +12,6 @@ from evoparam.errors import DataError
 
 pd = pytest.importorskip("pandas")
 
-# Sampling frequency of the exported TrialSet (Hz).
 SFREQ = 1000.0
 
 
@@ -70,7 +69,6 @@ def test_trialset_to_xarray() -> None:
     assert np.array_equal(arr["mask"].values, ts.masks)
     assert arr.attrs["sfreq"] == SFREQ
     assert arr.attrs["units"] == ts.units
-    # Selection by label works as in xarray
     assert np.array_equal(arr.sel(channel="b").values, ts.data[:, 1])
 
 
@@ -129,7 +127,6 @@ def test_hierarchical_to_arviz_eb() -> None:
     channel = channel[channel["component"] == "N1"]
     draws = np.asarray(posterior["N1_latency_channel"])
     assert draws.shape == (1, 4000, len(channel))
-    # The draws follow the normal approximation of the table: mean and SD
     finite = np.isfinite(channel["latency"].to_numpy(dtype=float))
     assert np.allclose(
         draws.mean(axis=(0, 1))[finite],
@@ -142,7 +139,6 @@ def test_hierarchical_to_arviz_eb() -> None:
     ]
     assert "N1_amplitude_subject" in posterior
     assert "normal" in data.attrs["approximation"]
-    # ArviZ summaries work on it
     assert az.summary(data) is not None
 
 

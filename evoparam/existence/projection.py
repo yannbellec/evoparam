@@ -50,7 +50,6 @@ from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._parallel import parallel_map
 
-# Fewest trials of the projection test
 _MIN_TRIALS = 5
 
 
@@ -58,7 +57,6 @@ __all__ = ["projection_test", "PROFILES", "PAIRS"]
 
 PROFILES = ("published", "normalised")
 PAIRS = ("signflip", "disjoint", "half")
-# Sign patterns of the "signflip" set: every pattern up to this many, a random draw beyond
 MAX_FLIPS = 4096
 
 
@@ -120,11 +118,10 @@ def _one_channel(
     ``rng`` when None).
     """
     n, n_t = v.shape
-    # Cumulative Gram matrices over the prefix [t0, t]
     outer = np.einsum("kt,lt->tkl", v, v)
-    gram = np.cumsum(outer, axis=0)  # times x n x n
+    gram = np.cumsum(outer, axis=0)
     norms = np.sqrt(np.clip(np.einsum("tkk->tk", gram), 1e-300, None))
-    proj = gram / norms[:, None, :]  # P_kl = <V_k, V_l> / ||V_l||
+    proj = gram / norms[:, None, :]
     off = ~np.eye(n, dtype=bool)
     mean_proj = proj[:, off].mean(axis=1)
     curve = mean_proj / np.sqrt(np.arange(1, n_t + 1)) if profile == "normalised" else mean_proj
@@ -132,7 +129,6 @@ def _one_channel(
     if pairs == "signflip":
         stat, p = float(curve[end]), _signflip_p(proj, off, curve[end], profile, order)
     else:
-        # Significance at the end: each trial in one pair, or one projection per unordered pair
         if pairs == "half":
             rows, cols = _half_pairs(n)
         else:
@@ -141,7 +137,6 @@ def _one_channel(
             rows, cols = order[0 : n - 1 : 2], order[1:n:2]
         values = proj[end, rows, cols]
         stat, p = ttest_1samp(values, 0.0, alternative="greater")
-    # Canonical shape and per-trial scalings
     seg = v[:, : end + 1]
     _, s, vt = np.linalg.svd(seg, full_matrices=False)
     shape = vt[0] * np.sign(vt[0][np.argmax(np.abs(vt[0]))])
@@ -168,7 +163,7 @@ def projection_test(
     data: Any,
     times: Any,
     window: Any,
-    baseline: Any,  # noqa: ARG001  (signature shared by the existence tests; this one uses no baseline)
+    baseline: Any,  # noqa: ARG001
     *,
     rng: np.random.Generator | None = None,
     profile: str = "published",
@@ -209,7 +204,6 @@ def projection_test(
         for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
     }
     extra = []
-    # the random pairs of every channel, drawn in channel order (independent of n_jobs)
     orders = [
         None
         if pairs == "half"
@@ -229,8 +223,6 @@ def projection_test(
         extra.append(info)
     out["duration_ci"] = np.full((n_ch, 2), np.nan)
     out["extra"] = extra
-    # The statistic over time: the mean projection profile, whose maximum is the response
-    # end; the method has no null band over time (its test is at the end only)
     out["curve"] = np.array([info["profile"] for info in extra])
     out["curve_times"] = tw
     out["null_band"] = np.full(out["curve"].shape + (2,), np.nan)

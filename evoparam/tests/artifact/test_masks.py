@@ -11,7 +11,6 @@ from evoparam.artifact import remove_artifact
 
 from .helpers import make_overlay
 
-# Baseline (s) away from the artifact, and the largest relative RMS change there.
 BASELINE_START = -0.5
 BASELINE_END = -0.05
 MAX_RMS_CHANGE = 0.02
@@ -56,7 +55,6 @@ def test_local_methods_change_only_the_window(method: Any, kwargs: Any) -> None:
     masks = result.cleaned.masks
     replaced = np.zeros_like(changed) if masks is None else masks
     if method == "interpolate":
-        # Replaced samples are exactly the masked samples
         assert np.array_equal(replaced, np.broadcast_to(inside, changed.shape))
     else:
         assert not replaced.any()
@@ -81,10 +79,8 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(
     """Methods that act on every sample may change the baseline's RMS level by <= 2 %."""
 
     if method == "subspace":
-        # A spatially fixed artifact (one stimulation site) on 32 channels
         noisy, _ = make_overlay(n_channels=32, channel_jitter=False)
     elif method == "period_template":
-        # A train method on a recording without train or response: only noise is filtered
         _, noisy = make_overlay(n_channels=8, amplitude=0.0)
     else:
         noisy, _ = make_overlay(n_channels=12)

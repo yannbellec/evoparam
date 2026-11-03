@@ -11,7 +11,7 @@ tells what happened (0 success, 3 partial, 4 missing package, 5 input error, 6
 reproduction mismatch).
 
 This tutorial runs the commands with :mod:`subprocess`, as a shell script would.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # A simulated BIDS dataset
@@ -112,6 +112,6 @@ print("identical:", result["identical"])
 # Methods paragraph
 # -----------------
 
-from evoparam import load_object, reports  # noqa: E402  (sphinx-gallery section)
+from evoparam import load_object, reports  # noqa: E402
 
 print(reports.methods_text(load_object(container)))

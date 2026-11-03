@@ -191,7 +191,6 @@ def _t1_rows(ti: Any, significant: Any, p_value: Any, score: Any) -> list[dict[s
 
 
 ###################################################################################################
-## T1 / T2: published rules, projection, evoparam
 
 
 def _rule(inputs: Any, settings: Any) -> dict[Any, Any]:

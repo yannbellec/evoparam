@@ -37,22 +37,14 @@ from evoparam.version import __version__
 
 from ._model import ChannelTemplate, fit_trial, fit_trials_batch
 
-# Fewest samples of a component's own support before the support falls back to its peak
 _MIN_SUPPORT = 4
-# Fewest trials for leave-one-trial-out ridge selection
 _MIN_LOTO_TRIALS = 3
-# Fewest baseline samples of a trial to build null segments from
 _MIN_NOISE_SAMPLES = 4
-# Fewest values for a standard deviation of shifts (jitter, null jitter, bootstrap)
 _MIN_SD_VALUES = 3
-# The F quantile of the jitter refusal needs more than this many trials on both sides
 _F_MIN_TRIALS = 2
-# Fewest trusted trials for a trend (habituation) fit
 _MIN_TREND_TRIALS = 3
-# Fewest trials per state, and states, for the state-dependence tests
 _MIN_STATE_TRIALS = 2
 _MIN_STATES = 2
-# Fewest doses for a dose-response fit, and for the "auto" model to choose the Hill model
 _MIN_DOSES = 2
 _HILL_MIN_DOSES = 4
 
@@ -79,9 +71,7 @@ NULL_REPEATS = 5
 RIDGE_GRID = (0.0, 0.01, 0.1, 1.0, 10.0)
 RIDGE_CV = ("loto", "split")
 NULL_RULES = ("ar", "segments", "spec")
-# Order of the autoregressive noise model of null_rule="ar" (fewer with a short baseline)
 NULL_AR_ORDER = 8
-# Simulated noise segments per trial of null_rule="ar" (the null SD to about 2.5 % with 40 trials)
 NULL_AR_REPEATS = 20
 TRIAL_MODELS = ("all", "anchored", "selected")
 MODALITY_PRESETS = {
@@ -138,8 +128,6 @@ class TrialFitSet:
         self.table.to_csv(os.path.join(path, "table.csv"), index=False)
         from evoparam.data.serialize import _Encoder
 
-        # settings and provenance in the typed encoding of the containers (tuples and NaN
-        # come back as they were)
         encoder = _Encoder(None)
         content = {
             "n_fits": len(self.fits),
@@ -189,9 +177,7 @@ class TrialFitSet:
 ## Helpers
 
 
-def _shape_for(
-    comp: Any, settings: Any
-) -> Any:  # a ComponentShape (shapes is reached through models only)
+def _shape_for(comp: Any, settings: Any) -> Any:
     """Return the shape of ``comp`` with the width limits of the channel fit's settings."""
     name = comp.shape
     fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
@@ -224,7 +210,6 @@ def _template_for(
         shifts = np.array([factor * w for w in widths], float)
     else:
         shifts = np.full(len(picks), float(max_shift))
-    # A trial's component must not reach its neighbour: at most half the distance
     lats = [fit.components[k].latency for k in picks]
     for i in range(len(picks)):
         if moving is not None and i not in moving:
@@ -239,7 +224,6 @@ def _template_for(
                 f"max_shift of component {picks[i]} clipped to half the distance to "
                 "its neighbour.",
                 UserWarning,
-                # _fit_unit, _fit_channel, fit_trials, then its caller (as before the move)
                 stacklevel=5,
             )
             shifts[i] = 0.5 * min(gaps)
@@ -288,7 +272,6 @@ def _fit_all(
 ) -> Any:
     """Return the fit of every trial: one vectorised solve, or one fit per trial."""
     if mode == "shift_scale" and not ridge:
-        # every trial at once (the same model, a vectorised solver)
         return fit_trials_batch(template, data, valid=valid, support=support, movable=movable)
     return [
         fit_trial(
@@ -409,24 +392,19 @@ def _null_jitter(
         segments = [model + e for e in _ar_noise(noise, len(trials) * repeats, n_win, rule.seed)]
     for x in noise if rule.noise != "ar" else ():
         noise_all = x
-        # Several segments of each trial's baseline (circular offsets): the null SD is then
-        # estimated from more values than the trial SD it is compared with
         for offset in np.linspace(0, len(noise_all), repeats, endpoint=False).astype(int):
             idx = (offset + np.arange(n_win)) % len(noise_all)
             segments.append(model + noise_all[idx] - noise_all.mean())
-    # only the reported components move: the others stay at their channel values
     results = fit_trials_batch(
         template, np.array(segments), tol=1e-6, support=support, movable=report
     )
     shifts = []
     for res in results:
         bound = res["at_bound_k"][report].any() if report is not None else res["at_bound"]
-        # the same trust rule as the real trials, so that both SDs describe the same set
         if res["converged"] and not bound and np.nan_to_num(res["r2"], nan=-1) >= r2_min:
             shifts.append(res["shift"])
     if len(shifts) < _MIN_SD_VALUES:
         return np.full(len(picks), np.nan), 0
-    # Repeats from one trial's baseline are not independent: count trials, not repeats
     return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / repeats))
 
 
@@ -447,7 +425,7 @@ def _ar_noise(noise: Any, n_seg: int, n_win: int, seed: Any) -> FloatArray:
     target = np.concatenate([xi[order:] for xi in x])
     coef = np.linalg.lstsq(lagged, target, rcond=None)[0]
     roots = np.roots(np.concatenate([[1.0], -coef]))
-    if roots.size and np.max(np.abs(roots)) >= 1.0:  # not stationary: white noise of that SD
+    if roots.size and np.max(np.abs(roots)) >= 1.0:
         coef = np.zeros(order)
     innov = target - lagged @ coef
     rng = np.random.default_rng(seed if isinstance(seed, (int, np.integer)) else 0)
@@ -478,8 +456,6 @@ def _prestim(
     mirrored = np.concatenate([seg, seg[:, ::-1]], axis=-1)
     sos = butter(4, band, btype="bandpass", fs=sfreq, output="sos")
     phase2 = np.angle(hilbert(sosfiltfilt(sos, mirrored, axis=-1), axis=-1))[:, seg.shape[1] - 1]
-    # Autoregressive forward prediction of the filtered signal, one cycle past the end
-    # (order 8, least squares; all trials at once)
     order = 8
     n_seg = causal.shape[1]
     lagged = np.stack([causal[:, order - j - 1 : n_seg - j - 1] for j in range(order)], axis=-1)
@@ -509,11 +485,10 @@ def _prestim(
 
 
 ###################################################################################################
-## Main entry point
 
 
 @verbose
-def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, trial_model, null_rule, ridge_cv and on_error; DECISIONS.md §7.2)
+def fit_trials(  # noqa: PLR0913
     ts: Any,
     group_fit: Any = None,
     *,
@@ -633,7 +608,7 @@ def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, 
     fits, rows = [], []
     channel = functools.partial(_fit_channel, on_error=on_error)
     for frame, trial_fit in parallel_map(channel, units, n_jobs, desc="fit_trials"):
-        if trial_fit.status == "ok":  # a failed channel has no trial rows
+        if trial_fit.status == "ok":
             rows.append(frame)
         fits.append(trial_fit)
     table = concat_tables(rows) if rows else new_table({})
@@ -646,9 +621,6 @@ def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, 
         len(set(skipped)),
         _time.perf_counter() - start,
     )
-    # REQ-294: the record continues the group fit's when the group fit was made from these
-    # trials (its steps start with theirs: read, cleaning, ..., fit, existence test), else
-    # the trials'; one fit_trials step, with every keyword argument that changes the result
     step_settings = {k: v for k, v in settings.items() if k != "covariate_tables"}
     step_settings.update(
         {
@@ -850,7 +822,6 @@ def _set_settings(table: Any, options: _Options, by: Any) -> dict[str, Any]:
         "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()},
     }
     if "prestim" in covariates:
-        # the band and window of the pre-stimulus phases (read by prestimulus_dependence)
         settings["prestim_band"] = [float(f) for f in options.prestim_band]
         settings["prestim_window"] = [float(t) for t in options.prestim_window]
     return settings
@@ -895,7 +866,7 @@ def _fit_channel(unit: _Unit, on_error: str = "raise") -> tuple[Any, "TrialFit"]
         return _fit_unit(unit)
     except PROPAGATE:
         raise
-    except Exception as exc:  # the failure of this channel only
+    except Exception as exc:
         name, label = unit.name, unit.label
         where = f"{name} ({label})" if label else str(name)
         if on_error == "raise":
@@ -948,13 +919,8 @@ def _fit_unit(unit: _Unit) -> tuple[Any, "TrialFit"]:
         unit.times,
         unit.options,
     )
-    # trial_model "anchored" and "all": the trial model keeps every component of the
-    # channel (a complete model) and only the chosen ones are reported; "selected"
-    # (spec): the model has the chosen components only
     every = list(range(len(fit.components))) if o.trial_model != "selected" else list(picks)
     report = [every.index(k) for k in picks]
-    # "anchored": the other components stay at their channel latency (scale only),
-    # so max_shift is clipped against the moving components only
     movable = report if o.trial_model == "anchored" else None
     with warnings.catch_warnings():
         warnings.simplefilter("ignore" if o.verbose is False else "default")
@@ -1011,7 +977,7 @@ def _fit_unit(unit: _Unit) -> tuple[Any, "TrialFit"]:
                 f"{limit:.2f} x the noise-only jitter "
                 f"{jit_null[target]:.4f} s; realignment refused.",
                 UserWarning,
-                stacklevel=4,  # _fit_unit, _fit_channel, fit_trials, then its caller
+                stacklevel=4,
             )
         else:
             realigned = _realigned(times, trials, m.shift[:, j], m.trusted, name, unit.context)
@@ -1086,8 +1052,6 @@ def _measures(results: Any, fit: Any, picks: Any, report: Any, r2_min: float) ->
     scale = np.array([r["scale"] for r in results])[:, report]
     r2 = np.array([r["r2"] for r in results])
     converged = np.array([r["converged"] for r in results])
-    # Trust looks at the reported components only: a neighbour held by a tight bound
-    # does not make the trial's N1 untrustworthy
     at_bound = np.array([r["at_bound_k"][report].any() for r in results])
     trusted = converged & (np.nan_to_num(r2, nan=-1) >= r2_min) & ~at_bound
     peaks = np.array(
@@ -1441,7 +1405,7 @@ def state_dependence(trial_fit: Any, *, column: str = "state", reference: Any = 
                         kruskal(*[v["amplitude"].to_numpy(float) for v in usable]).pvalue
                     )
                     p_lat = float(kruskal(*[v["latency"].to_numpy(float) for v in usable]).pvalue)
-                except ValueError:  # all values identical
+                except ValueError:
                     pass
         for state, v in groups.items():
             amp, lat = v["amplitude"].to_numpy(float), v["latency"].to_numpy(float)

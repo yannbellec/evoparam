@@ -11,7 +11,6 @@ from evoparam.artifact import remove_artifact
 
 from .helpers import make_overlay
 
-# Largest difference of a rerun (identical results).
 EXACT = 1e-12
 
 ###################################################################################################

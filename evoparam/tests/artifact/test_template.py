@@ -12,7 +12,6 @@ from evoparam.errors import ArtifactError, SettingsError
 
 from .helpers import make_overlay
 
-# Residual reduction (dB) required (REQ-061), and the latency tolerance (s) of the response.
 MIN_REDUCTION_DB = 20
 LATENCY_TOLERANCE = 0.0005
 
@@ -32,7 +31,6 @@ def residual_db(noisy: Any, truth: Any, cleaned: Any, window: Any = WINDOW) -> A
 @pytest.mark.parametrize("template", ["global", "local"])
 def test_req061_template_reduces_window_residual_by_20_db(template: Any) -> None:
 
-    # Template SNR >= 10: 20 trials, artifact thousands of uV, noise 5 uV
     noisy, truth = make_overlay(onset=0.012, n_trials=20)
     result = remove_artifact(noisy, method="template", template=template, window=WINDOW)
     assert residual_db(noisy, truth, result.cleaned) >= MIN_REDUCTION_DB
@@ -41,13 +39,10 @@ def test_req061_template_reduces_window_residual_by_20_db(template: Any) -> None
 @pytest.mark.parametrize("onset", [0.008, 0.012, 0.020])
 def test_req061_responses_after_the_window_are_untouched(onset: Any) -> None:
 
-    # Artifact without a tail: it ends inside the window, so after the window the cleaned
-    # data must equal the truth plus noise, and the response must not move
     noisy, truth = make_overlay(onset=onset, art_tail=0.0)
     result = remove_artifact(noisy, method="template", window=WINDOW)
     after = noisy.times > WINDOW[1]
     assert np.array_equal(result.cleaned.data[..., after], noisy.data[..., after])
-    # Peak latency and amplitude of the mean response are those of the truth
     mean_clean = result.cleaned.data.mean(axis=0)
     mean_truth = truth.data.mean(axis=0)
     win = (noisy.times > onset) & (noisy.times < onset + 0.04)
@@ -79,7 +74,7 @@ def test_user_template_and_estimate() -> None:
 def test_small_groups_raise_or_fall_back() -> None:
 
     noisy, truth = make_overlay(n_trials=10)
-    noisy.metadata.loc[:1, "stim_site"] = "C3-C4"  # a group of 2 pulses
+    noisy.metadata.loc[:1, "stim_site"] = "C3-C4"
     with pytest.raises(ArtifactError, match="at least 3"):
         remove_artifact(noisy, method="template", window=WINDOW)
     with pytest.warns(UserWarning, match="interpolated"):
@@ -91,7 +86,6 @@ def test_small_groups_raise_or_fall_back() -> None:
 
 def test_response_inside_window_warns() -> None:
 
-    # The response starts inside the window: the template contains it
     noisy, _ = make_overlay(
         onset=0.0, amplitude=-3000.0, width=0.02, art_amplitude=200.0, art_tail=0.0
     )
@@ -114,7 +108,7 @@ def test_saturated_pulses_left_out_of_template() -> None:
     noisy, truth = make_overlay(n_trials=12)
     inside = np.flatnonzero((noisy.times >= WINDOW[0]) & (noisy.times <= WINDOW[1]))
     data = noisy.data.copy()
-    data[0, :, inside] = 9e4  # a clipped pulse
+    data[0, :, inside] = 9e4
     sat = np.zeros(data.shape, dtype=bool)
     sat[0, :, inside] = True
     from dataclasses import replace

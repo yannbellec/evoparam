@@ -11,7 +11,6 @@ from evoparam.errors import SettingsError
 
 from .helpers import make_overlay
 
-# Segment (s) of the slow recovery, end (s) of the pursuit segment, and the improvement (dB).
 TAIL_START = 0.008
 TAIL_END = 0.025
 PURSUIT_END = 0.02

@@ -119,7 +119,7 @@ def _grep_as_written() -> Any:
         if rel.startswith("tests/") or rel == "io/_fetch.py" or not path.is_file():
             continue
         raw = path.read_bytes()
-        if "__pycache__" in path.parts or b"\0" in raw:  # grep -I: compiled or binary files
+        if "__pycache__" in path.parts or b"\0" in raw:
             continue
         for n, line in enumerate(raw.decode("utf-8", errors="replace").splitlines(), 1):
             if re.search(r"pickle|urllib|requests|httpx", line) and not re.search(

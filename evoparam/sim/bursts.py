@@ -58,7 +58,7 @@ def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> di
     missing = keys - set(burst)
     if missing:
         raise SettingsError(f"simulate_bursts: burst {burst} lacks {sorted(missing)}.")
-    out: dict[str, Any] = {key: float(burst[key]) for key in keys}  # floats, and the channel
+    out: dict[str, Any] = {key: float(burst[key]) for key in keys}
     if not 0 < out["freq"] < sfreq / 2:
         raise SettingsError(f"simulate_bursts: freq {out['freq']} Hz must be in (0, sfreq/2).")
     if not out["duration"] > 0:
@@ -74,7 +74,7 @@ def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> di
     return out
 
 
-def simulate_bursts(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def simulate_bursts(  # noqa: PLR0913
     n_trials: int = 30,
     *,
     n_channels: int = 1,

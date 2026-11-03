@@ -10,7 +10,6 @@ import pytest
 from evoparam.data import TrialSet
 from evoparam.existence import test_response as run_test
 
-# Time limit (s) of the existence test on 100 channels.
 MAX_SECONDS = 20
 
 pytestmark = pytest.mark.skipif(

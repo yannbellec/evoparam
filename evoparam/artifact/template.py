@@ -17,14 +17,10 @@ if TYPE_CHECKING:
 
 __all__ = ["estimate_artifact_template"]
 
-# Fewest pulses from which a group template is estimated.
 MIN_PULSES = 3
 
-# Correlation between a template and the mean response just after the window above which
-# the template probably contains response, not only artifact.
 RESPONSE_CORRELATION_WARN = 0.5
 
-# Fewest unmasked pulse waveforms from which a basis is learned.
 _MIN_LEARN_WAVES = 2
 
 
@@ -222,7 +218,6 @@ def subtract_template(
     alpha, residual, fit_r2 = _scaled_fit(raw, per_trial, scale=scale)
     data[:, :, inds] = residual
 
-    # Response protection: a template that looks like the response just after it
     correlation = 0.0
     if len(after) == n_window and templates:
         correlation = _response_correlation(ts.data[:, :, after].mean(axis=0), templates)

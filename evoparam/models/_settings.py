@@ -17,21 +17,10 @@ LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
 SHAPE_CHOICES = ("bic", "hqc", "aic", "penalised")
-# ``delta`` value of the calibrated acceptance (a preset or a user asks for it with
-# delta="calibrated"; the default is the fixed 10 of spec §5.5.4)
 CALIBRATED = "calibrated"
-# the fall of the criterion a component needs when the acceptance is calibrated but cannot
-# be (a noise model other than "ar", a selection other than "bic"): spec §5.5.4
 FIXED_DELTA = 10.0
-# "ar": residuals whitened by an AR model of the baseline (default, measured better: K1);
-# "neff": spec §5.5.3 step 1 (residuals over sigma_n, n_eff = n (1 - rho) / (1 + rho));
-# "white": residuals over sigma_n with the raw sample count n
 NOISE_MODELS = ("ar", "neff", "white")
-# "parameterised": latencies ordered inside every optimisation, mu_{k+1} = mu_k + exp(v_k)
-# (spec §5.5.3 step 5); "sorted": free latencies, components sorted after each step
 LATENCY_ORDERS = ("parameterised", "sorted")
-# "spec": candidates tried strongest first, the first accepted is kept (spec §5.5.3 step 4);
-# "beam": the first qualifying candidates compared, split proposals, background restarts
 CANDIDATE_SEARCHES = ("spec", "beam")
 
 
@@ -50,22 +39,9 @@ class FitSettings:
     fit_window: tuple[float, float] | None = None
     baseline: tuple[float, float] | None = None
     selection: str = "bic"
-    # the fall of BIC a component needs (spec §5.5.4: 10, the default and every preset's),
-    # or "calibrated": calibrated on each fit's noise model at the false-response rate
-    # ``alpha`` (models/_calibration.py; noise_model "ar" and selection "bic"; otherwise
-    # FIXED_DELTA). Measured: CHANGELOG, "Calibrated acceptance" and "Calibrated
-    # acceptance: the change of the noise spectrum"
     delta: float | str = 10.0
     alpha: float = 0.04
-    # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
-    # forward search, spec §5.5.3 step 4; every preset), "hqc" (every component of the
-    # final model refitted with every allowed shape, the lowest Hannan-Quinn criterion
-    # kept, 2 ln ln n per parameter), "aic" (the same with the AIC), "penalised" (default:
-    # as "hqc", a skewed component estimated with a prior on its asymmetry and weights on
-    # its top, models/_penalised.py; REQ-106, DECISIONS §5.4)
     shape_choice: str = "penalised"
-    # flag a component that a pair of overlapping components would explain as well
-    # ("merged:k,k+1", REQ-111; engine._resolution_warnings); every preset sets False
     resolution_check: bool = True
     n_components: int | None = None
     overlap_c: float = 0.5
@@ -87,31 +63,15 @@ class FitSettings:
     freq_min: float | None = None
     freq_max: float | None = None
     noise_model: str = "ar"
-    latency_order: str = "parameterised"  # spec §5.5.3 step 5 ("sorted": not better)
-    # "beam" (measured more robust and faster than "spec", §5.5.3 step 4; see CHANGELOG)
+    latency_order: str = "parameterised"
     candidate_search: str = "beam"
-    # True: refuse every model with two overlapping components of opposite signs (a
-    # cancelling pair). Default False: such a final state is refitted from the extrema of
-    # the data (``reseed``) and, when it stays, its components are marked not resolvable;
-    # measured better on ECAP simulations (CHANGELOG, "Defaults settled by measurement")
     reject_cancelling: bool = False
-    # "order": every extremum is a candidate, detection_threshold only orders them (REQ-104);
-    # "select": only the extrema >= detection_threshold are candidates (§5.5.3 step 3)
     threshold_role: str = "order"
     n_folds: int = 5
-    # after the greedy path, refit a state holding a cancelling pair (opposite components
-    # overlapping) or a nearly singular design from starts on the extrema of the data, and
-    # keep it when it fits better; "always": for every state (slower; better on ERPs)
     reseed: Any = True
-    # noise scale and AR model of the whitening: "baseline" (spec §5.5.3 step 1),
-    # "plusminus" (the trials averaged with alternating signs over the whole epoch, when the
-    # fit has at least 10 trials) or "auto": plus-minus when the baseline holds fewer than
-    # 30 independent samples (n (1 - rho) / (1 + rho)), the baseline otherwise
     noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None
-    # the preset's peak decisions read on the fitted curve (Preset.detections; for the
-    # methods text and the caller, the fit does not use them)
     detections: dict[str, Any] | None = None
     random_state: Any = None
 
@@ -124,8 +84,6 @@ class FitSettings:
             object.__setattr__(self, "shapes", (self.shapes,))
         object.__setattr__(self, "shapes", tuple(self.shapes))
         if self.windows is not None:
-            # a ComponentWindows (evoparam.models.windows), any mapping of windows, or the
-            # lists of a settings record read back from JSON
             object.__setattr__(self, "windows", {k: tuple(v) for k, v in self.windows.items()})
         if not self.shapes:
             raise SettingsError("shapes: at least one shape is needed.")
@@ -232,8 +190,6 @@ def resolve_settings(preset: Any = None, **overrides: Any) -> "FitSettings":
         raise SettingsError(f"Unknown setting(s) {unknown}.")
     values = {}
     if isinstance(preset, dict) and set(preset) == {"name", "version"}:
-        # the preset as recorded in a result's settings (REQ-331): the same preset, which
-        # must still have the recorded version
         recorded = preset
         preset = recorded["name"]
         if (

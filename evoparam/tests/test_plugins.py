@@ -20,7 +20,6 @@ from evoparam.errors import EvoparamVersionError, SettingsError
 from evoparam.io.readers import READERS, read
 from evoparam.shapes import BACKGROUNDS, SHAPES
 
-# Tolerances (s) of the plug-in component's latency and FWHM.
 LATENCY_TOLERANCE = 0.003
 FWHM_TOLERANCE = 0.005
 
@@ -88,7 +87,6 @@ def test_dummy_shape_preset_and_reader(site: Any, tmp_path: Any) -> None:
     assert presets.PRESETS.plugins() == {"dummy_lorentz": origin}
     assert READERS.plugins() == {"dummy": origin}
 
-    # the shape fits a simulated Lorentzian
     from evoparam.models import fit_response
 
     times = np.arange(-0.1, 0.5, 1e-3)
@@ -110,12 +108,10 @@ def test_dummy_shape_preset_and_reader(site: Any, tmp_path: Any) -> None:
     assert abs(comp.fwhm - 0.030) < FWHM_TOLERANCE
     assert result.provenance.environment["plugins"]["lorentzian"] == origin
 
-    # the preset resolves
     preset = presets.get("dummy_lorentz")
     assert preset.shapes == ("lorentzian",)
     assert preset.parent == "ccep"
 
-    # the reader opens a file
     data = rng.normal(size=(5, 2, 300))
     path = tmp_path / "rec.dummy"
     with open(path, "wb") as fobj:
@@ -149,13 +145,11 @@ def test_cli_info_lists_the_plugins(site: Any, capsys: Any) -> None:
 
 def test_name_collisions_raise(site: Any) -> None:
 
-    # with a built-in
     _install(site, entry_points="[evoparam.shapes]\ngaussian = evoparam_dummy:Lorentzian\n")
     with pytest.raises(SettingsError, match="built-in"):
         SHAPES.reload()
     shutil.rmtree(os.path.join(site, "evoparam_dummy-0.1.0.dist-info"))
 
-    # between two distributions
     shutil.copytree(os.path.join(site, "evoparam_dummy"), os.path.join(site, "evoparam_other"))
     _install(
         site, entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_dummy:DUMMY_LORENTZ\n"
@@ -264,7 +258,6 @@ def test_reproduce_reports_a_missing_plugin(site: Any, tmp_path: Any) -> None:
         present = evoparam.reproduce(path, data=evoked)
     assert present.missing_plugins == {}
 
-    # a fit with a plugin shape and a built-in preset replays without the plugin preset
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         shaped = evoparam.fit(evoked, "ccep", shapes=("lorentzian",), existence=False)
@@ -280,7 +273,6 @@ def test_reproduce_reports_a_missing_plugin(site: Any, tmp_path: Any) -> None:
     assert "pip install 'evoparam-dummy==0.1.0'" in report.missing_plugins["lorentzian"]["message"]
     assert not report.identical
 
-    # the preset itself came from the missing plugin: the error names the plugin
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         with pytest.raises(EvoparamVersionError, match="pip install 'evoparam-dummy==0.1.0'"):

@@ -41,7 +41,6 @@ def _osf(root: pathlib.Path, base: str, participant: str = "1", fdt: bool = True
         ),
         encoding="utf-8",
     )
-    # two pages of participants (the second through links.next)
     (root / "subjects1.json").write_text(
         json.dumps(
             {
@@ -105,7 +104,7 @@ def osf(tmp_path: pathlib.Path, monkeypatch: Any) -> Any:
 
         def local(url: str, **kwargs: Any) -> Any:
             api = "https://api.osf.io/"
-            if url.startswith(api):  # the first page: a static file of the local server
+            if url.startswith(api):
                 url = base + url[len(api) :].rstrip("/") + ".json"
             return real(url, **kwargs)
 
@@ -123,11 +122,10 @@ def test_fetch_erpcore_downloads_and_checks(osf: Any, tmp_path: pathlib.Path) ->
     assert path == str(target / "1_P3_epoch_interp_ar.set")
     assert (target / "1_P3_epoch_interp_ar.set").read_bytes() == SET
     assert (target / "1_P3_epoch_interp_ar.fdt").read_bytes() == FDT
-    assert not (target / "1_P3_shifted_ds.set").exists()  # not one of the epoched files
-    # a second call finds the files and checks them again against OSF without downloading
+    assert not (target / "1_P3_shifted_ds.set").exists()
     before = len(stats.requests)
     assert fetch.fetch_erpcore("P3", 1, folder=str(tmp_path / "erpcore")) == path
-    assert len(stats.requests) > before  # the listing is read again (no registry hashes)
+    assert len(stats.requests) > before
     assert not any("/data/" in str(request[1]) for request in stats.requests[before:])
 
 
@@ -168,7 +166,7 @@ def test_fetch_erpcore_from_the_registry_without_connecting(
         "N170/7/7_N170_epoch_interp_ar.set": "0" * 64,
     }
     monkeypatch.setattr(fetch, "_registry_files", lambda _dataset: registry)
-    monkeypatch.setenv("EVOPARAM_OFFLINE", "1")  # any connection would raise
+    monkeypatch.setenv("EVOPARAM_OFFLINE", "1")
     path = fetch.fetch_erpcore("P3", 7, folder=str(tmp_path))
     assert path == str(target / "7_P3_epoch_interp_ar.set")
     monkeypatch.setenv("EVOPARAM_ERPCORE", str(tmp_path))

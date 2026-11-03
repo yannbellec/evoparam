@@ -38,12 +38,10 @@ def test_fetch_openneuro_file_with_sha256(tmp_path: Any, monkeypatch: Any) -> No
         assert path == os.path.join(folder, "dsTEST", "sub-01", "events.tsv")
         assert pathlib.Path(path).read_bytes() == content
 
-        # Present: not downloaded again, but checked
         n_requests = len(stats.requests)
         assert fetch_openneuro_file("dsTEST", "sub-01/events.tsv", folder, sha256=good) == path
         assert len(stats.requests) == n_requests
 
-        # A file that does not match is deleted
         with open(path, "ab") as file:
             file.write(b"x")
         with pytest.raises(ReaderError, match="does not match"):
@@ -86,7 +84,6 @@ def test_spurious_s3_not_found_is_retried(monkeypatch: Any) -> None:
 
     assert fetch_module._with_retries("u", once) == b"data"
     assert delays == [0.5]
-    # A missing key is not retried
     missing = b'<?xml version="1.0"?><Error><Code>NoSuchKey</Code></Error>'
 
     def gone():

@@ -25,7 +25,6 @@ from evoparam.version import __version__
 
 __all__ = ["main", "run_fit", "EXIT_CODES"]
 
-# Dimensions of the data of one trial in an .npz input ([n_channels, n_times]).
 _ONE_TRIAL_NDIM = 2
 
 EXIT_CODES = {
@@ -54,7 +53,7 @@ class _Outcome:
         self.outputs, self.warnings = [], []
         self.n_units = {"ok": 0, "no_response": 0, "failed": 0, "skipped": 0}
         self.code = 0
-        self.extra: Any  # set by the command (the document of a run, or None)
+        self.extra: Any
 
 
 def _log(args: Any, message: Any) -> None:
@@ -328,8 +327,6 @@ def run_fit(
     handler = _Forward(log)
     logger.addHandler(handler)
     try:
-        # INFO at least, so that the steps reach ``log``; a lower level set by the caller
-        # (DEBUG) is kept
         with verbose("info" if logger.getEffectiveLevel() > logging.INFO else None):
             result = run()
     finally:
@@ -356,7 +353,6 @@ def cmd_fit(args: Any, outcome: Any) -> None:
     preset = _preset(args)
     ts, datatype = _read(args, preset)
     log = _verbose_log(args)
-    # --verbose debug: the DEBUG records of the run reach the log too
     with verbose("debug" if log is not None and args.verbose == "debug" else None):
         results, notes = run_fit(
             ts,
@@ -374,7 +370,6 @@ def cmd_fit(args: Any, outcome: Any) -> None:
         for fit in getattr(trial_fits, "fits", []) if not isinstance(trial_fits, GroupFit) else []:
             failed_trials += int(np.sum(~np.asarray(fit.converged, bool)))
     if failed_trials:
-        # a trial whose fit did not converge is a failed trial (exit code 3, spec §10.5)
         outcome.warnings.append(f"{failed_trials} trial fit(s) did not converge")
     out = args.out
     root, subject, entities = _target(args)
@@ -388,8 +383,6 @@ def cmd_fit(args: Any, outcome: Any) -> None:
         trials=ts,
         **entities,
     )
-    # the group fit is saved by write_bids_derivatives next to its table
-    # (<stem>_desc-evoparam_responses.evoparam), as every result of the run
     outcome.outputs += written
     _log(args, methods_text(results))
     if outcome.n_units.get("failed") or failed_trials:
@@ -454,11 +447,10 @@ def cmd_clean(args: Any, outcome: Any) -> None:
     folder = os.path.dirname(next(p for p in written if p.endswith("_artifact.json")))
     stem = os.path.basename(next(p for p in written if p.endswith("_artifact.json")))
     stem = stem[: -len("_artifact.json")]
-    # the cleaned epochs: FIF when mne is installed, else npz (spec §10.5); and the exact
     # container
     try:
         require("mne", extra="mne", caller="evoparam.cli.cmd_clean")
-        import mne  # noqa: F401  (availability check: without mne the cleaned epochs go to npz)
+        import mne  # noqa: F401
 
         path = os.path.join(folder, f"{stem}_epo.fif")
         result.cleaned.to_mne().save(path, overwrite=True, verbose="error")
@@ -554,7 +546,6 @@ def cmd_detect_events(args: Any, outcome: Any) -> None:
         i for i, n in enumerate(names) if not args.channels or fnmatch.fnmatch(n, args.channels)
     ]
     events = detect_events(data[picks], sfreq=sfreq, ch_names=[names[i] for i in picks])
-    # A BIDS events file starts with onset and duration (s).
     events = events.copy()
     if "onset" not in events.columns:
         events.insert(0, "onset", events["onset_time"].to_numpy(float))
@@ -601,7 +592,6 @@ def cmd_migrate(args: Any, outcome: Any) -> None:
     from evoparam.reports import migrate
 
     if args.out:
-        # a migrated copy; the original is left as it is
         outcome.outputs.append(save_object(load_object(args.input), args.out, overwrite=True))
         return
     outcome.extra = migrate(args.input)
@@ -652,9 +642,6 @@ def cmd_info(args: Any, outcome: Any) -> None:
         except metadata.PackageNotFoundError:
             return None
 
-    # numerical backends: the fitting engine (NumPy/SciPy; the GPU backends of spec §9.1
-    # are not in this version) and the engines of the hierarchical model, with whether the
-    # packages they need are installed
     backends = {
         "fit": {"numpy": True},
         "hierarchical": {
@@ -713,7 +700,7 @@ def cmd_validate_bids(args: Any, outcome: Any) -> None:
     from evoparam.io import format_stim_report, validate_stim_metadata
 
     table = validate_stim_metadata(args.input, subject=args.sub)
-    rows = table.astype(object).where(table.notna(), None)  # JSON has no NaN
+    rows = table.astype(object).where(table.notna(), None)
     outcome.extra = {
         "fields": rows.to_dict("records"),
         "counts": {k: int(v) for k, v in table["status"].value_counts().items()},
@@ -723,7 +710,6 @@ def cmd_validate_bids(args: Any, outcome: Any) -> None:
     missing = table[table["status"] == "missing"]
     outcome.warnings += [f"missing: {r.events_file} {r.field}" for r in missing.itertuples()]
     if args.strict and len(missing):
-        # the report is printed first; the error gives the exit code 5 (input error)
         raise ReaderError(f"{len(missing)} stimulation metadata field(s) missing (--strict).")
 
 
@@ -738,10 +724,8 @@ def cmd_benchmark(args: Any, outcome: Any) -> None:
 
     log = (lambda message: _log(args, message)) if args.verbose in ("info", "debug") else None
     if args.action == "run" and args.suite in ("perf", "ci"):
-        # the performance workloads P1-P6 (spec §9.1, REQ-290)
         from evoparam.benchmark import timing
 
-        # --tasks selects workloads here (for example --task P1,P6)
         document = timing.run_suite(
             args.suite, only=_csv(args.tasks), log=log or (lambda line: _log(args, line))
         )
@@ -1058,7 +1042,7 @@ def _read_config(path: Any) -> Any:
     """
     if path.lower().endswith(".toml"):
         try:
-            import tomllib  # type: ignore[import-not-found, unused-ignore]  # Python >= 3.11
+            import tomllib  # type: ignore[import-not-found, unused-ignore]
         except ImportError:  # Python 3.10
             from evoparam.utils._optional import require
 
@@ -1080,7 +1064,7 @@ def _apply_config(_parser: Any, args: Any, argv: Any) -> Any:
     config = _read_config(args.config)
     given = {a.split("=")[0].lstrip("-").replace("-", "_") for a in argv if a.startswith("--")}
     flat = {k: v for k, v in config.items() if not isinstance(v, dict)}
-    for table in ("evoparam", args.command):  # [evoparam] then [<command>] tables
+    for table in ("evoparam", args.command):
         if isinstance(config.get(table), dict):
             flat.update(config[table])
     for key, value in flat.items():
@@ -1149,7 +1133,7 @@ def _run(args: Any, outcome: Any) -> tuple[int, str]:
     except EvoparamError as err:
         code, status = EXIT_CODES["error"], "error"
         print(f"evoparam: {err}", file=sys.stderr)
-    except Exception as err:  # noqa: BLE001  (every other failure is a runtime error with exit code 1)
+    except Exception as err:  # noqa: BLE001
         code, status = EXIT_CODES["error"], "error"
         print(f"evoparam: {type(err).__name__}: {err}", file=sys.stderr)
     return code, status

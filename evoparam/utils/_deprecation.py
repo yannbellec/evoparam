@@ -16,7 +16,6 @@ from evoparam.errors import warn
 
 __all__ = ["EvoparamDeprecationWarning", "shim", "resolve", "minor_gap", "version_tuple"]
 
-# Numbers of a version read: major, minor, patch.
 _VERSION_PARTS = 3
 
 
@@ -79,5 +78,5 @@ def shim(old: str, new: str, since: str, remove_in: str) -> Any:
         warn(text, EvoparamDeprecationWarning, stacklevel=2)
         return target(*args, **kwargs)
 
-    forward.__deprecated__ = text  # type: ignore[attr-defined]  # read by the tests and docs
+    forward.__deprecated__ = text  # type: ignore[attr-defined]
     return forward

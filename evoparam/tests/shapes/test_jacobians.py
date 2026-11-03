@@ -24,7 +24,6 @@ from evoparam.tests.shapes.helpers import (
     sample_params,
 )
 
-# Largest fraction of parameter draws where the Jacobian check is undefined.
 MAX_UNDEFINED = 0.2
 
 N_SETS = 100
@@ -77,7 +76,6 @@ def _kinks(shape: Any, params: Any, steps: Any) -> Any:
     """Times at which the curve is not smooth, with the half-width to leave out."""
 
     if isinstance(shape, shapes.Template):
-        # A step h in shift moves an edge by h, a step h in stretch by h·|edge|.
         stretch = params[1] if shape.stretch else 1.0
         edges = shape.template_times[[0, -1]]
         moves = [steps[0] + (steps[1] * abs(edge) if shape.stretch else 0.0) for edge in edges]
@@ -158,7 +156,7 @@ def test_basis_jacobian_matches_finite_differences(case: Any) -> None:
     for row in range(20):
         for j in range(background.n_linear):
             errors = _column_errors(
-                lambda p: background.basis(TIMES, p)[j],  # noqa: B023  (called within this iteration only)
+                lambda p: background.basis(TIMES, p)[j],  # noqa: B023
                 d_basis[row, j],
                 nonlinear[row],
                 bounds,

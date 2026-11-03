@@ -34,14 +34,10 @@ __all__ = [
 NOISE_KINDS = ("white", "ar1", "pink", "real", "line")
 BROADBAND = ("white", "ar1", "pink", "real")
 
-# Licences under which real baselines may be injected (spec REQ-256).
 ALLOWED_LICENSES = ("CC0", "CC-BY", "CC-BY-SA")
 
-# Attempts at finding a segment without masked or missing samples.
 _MAX_TRIES = 100
-# fewest samples of one realisation
 _MIN_TIMES = 2
-# leading entries of ``size`` from which its last one counts the channels (real noise)
 _CHANNELS_NDIM = 2
 
 
@@ -105,8 +101,6 @@ def _powerlaw(rng: np.random.Generator, shape: Any, sfreq: float, chi: Any) -> A
     freqs = sp_fft.rfftfreq(n_fft, 1.0 / sfreq)
     gain = np.zeros(freqs.size)
     gain[1:] = freqs[1:] ** (-chi / 2.0)
-    # Variance of irfft(gain · rfft(white)) for unit white noise: sum of |gain|² over the
-    # full two-sided spectrum divided by n_fft.
     weights = np.full(freqs.size, 2.0)
     weights[0] = 1.0
     if n_fft % 2 == 0:
@@ -139,7 +133,6 @@ def _line(
 
 
 ###################################################################################################
-## Licences and real noise
 
 
 def normalize_license(text: Any) -> Any:
@@ -235,7 +228,6 @@ def _real(
     record = check_license(dataset)
     if source.units != units and (UNITS.get(source.units) is None or UNITS.get(units) is None):
         raise SettingsError(f"real noise: cannot convert {source.units} to {units}.")
-    # both known (checked above)
     factor = (
         1.0
         if source.units == units
@@ -272,7 +264,6 @@ def _real(
             f"samples at {sfreq} Hz; {n_times} are needed per segment."
         )
     size = shape[:-1]
-    # with two leading entries or more, the last one is the number of channels
     with_channels = len(size) >= _CHANNELS_NDIM
     n_channels = size[-1] if with_channels else 1
     n_segments = int(np.prod(size[:-1])) if with_channels else int(np.prod(size))
@@ -458,7 +449,7 @@ def make_noise(
 ) -> FloatArray | tuple[FloatArray, dict[str, Any]]: ...
 
 
-def make_noise(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def make_noise(  # noqa: PLR0913
     n_times: int,
     sfreq: float,
     kind: str = "pink",

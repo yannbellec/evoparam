@@ -10,7 +10,6 @@ import pathlib
 import numpy as np
 import pytest
 
-# Jaccard index of the channels left by our CARLA and the published one.
 MIN_JACCARD = 0.8
 
 ROOT = pathlib.Path(__file__).parents[3]

@@ -13,7 +13,6 @@ from evoparam.data import Evoked
 from evoparam.errors import SettingsError
 from evoparam.models import ResponseModel
 
-# Fewest samples of a waveform: two give the sampling rate.
 MIN_SAMPLES = 2
 
 
@@ -81,7 +80,6 @@ def report(
         from evoparam.plots import plot_fit
 
         fig = plot_fit(fit, evoked, channel="signal", shade=shade, shade_color=shade_color)
-        # show the fit window and a little before it, where the response is
         start, end = (1000 * v for v in fit.window)
         fig.axes[0].set_xlim(min(start, 0.0) - 0.1 * (end - start), end + 0.1 * (end - start))
         fig.axes[0].set_ylabel(f"amplitude ({units.replace('u', 'µ', 1)})")

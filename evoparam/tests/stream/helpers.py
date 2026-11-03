@@ -10,8 +10,8 @@ from evoparam.data import TrialSet
 from evoparam.models import fit as fit_models
 
 SFREQ = 2048.0
-TIMES = np.arange(-1024, 2048) / SFREQ  # -0.5 to 1 s, a sample at t = 0
-N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
+TIMES = np.arange(-1024, 2048) / SFREQ
+N1 = (-40.0, 0.03, 0.02)
 
 
 def no_pulses(_samples: Any, _first: Any) -> Any:

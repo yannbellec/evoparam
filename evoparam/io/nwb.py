@@ -46,9 +46,6 @@ def _open(path: Any) -> Any:
     else:
         if not os.path.exists(path):
             raise ReaderError(f"NWB file not found: {path}")
-        # opened here with h5py's default chunk cache (1 MiB per dataset): given a path,
-        # hdmf opens the file with a larger cache, which added about 35 MB to a read of
-        # epochs scattered over a 1 GB series (REQ-317); NWBHDF5IO.close closes this file
         h5py = require("h5py", extra="nwb", caller="evoparam.io.read_nwb")
         handle = h5py.File(path, "r")
         io = pynwb.NWBHDF5IO(file=handle, mode="r", load_namespaces=True)
@@ -193,8 +190,6 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
     found = _given_events(events, pd)
     if found is not None:
         return found
-    # (1) ndx-events EventsTable, (2) trials, (3) TimeIntervals under /intervals,
-    # (4) StimTable of ndx-electrical-stim, (5) intracellular stimulus series
     for source in (
         _events_table_source,
         _trials_source,
@@ -336,7 +331,7 @@ def _read_epochs(
     return out
 
 
-def read_nwb(  # noqa: PLR0913  (spec §5.1 fixes 7 parameters, plus select and units; DECISIONS.md §7.2)
+def read_nwb(  # noqa: PLR0913
     path: str,
     *,
     electrical_series: str | None = None,
@@ -397,8 +392,6 @@ def read_nwb(  # noqa: PLR0913  (spec §5.1 fixes 7 parameters, plus select and 
         offset = float(getattr(series, "offset", 0.0) or 0.0)
         unit = (series.unit or "volts").lower()
         to_uv = 1e6 if unit in ("volts", "v", "volt") else 1.0
-        # first the events whose epoch is in the recording, then one array filled in
-        # place: the memory used is the epochs and one block (REQ-317)
         contiguous = index == list(range(min(index), max(index) + 1))
         kept, starts, in_gap = clock.epochs(onsets, (first, n_times), data.shape[0])
         if in_gap:
@@ -802,7 +795,6 @@ def _module_description(items: list[Any]) -> dict[str, Any]:
         "provenance": [
             getattr(getattr(i, "provenance", None), "to_dict", lambda: None)() for i in items
         ],
-        # the methods paragraph of each result (spec §11.8, REQ-390)
         "methods": [
             i.methods_text() if callable(getattr(i, "methods_text", None)) else None for i in items
         ],
@@ -864,7 +856,6 @@ def write_nwb(
     items = [r for r in items if not isinstance(r, TrialSet)]
     ndx: Any = None
     if extension:
-        # loaded before the file is opened: NWBHDF5IO copies the type map it starts with
         from evoparam.io import ndx_evoparam as ndx
 
         ndx.load()

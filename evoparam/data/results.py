@@ -20,7 +20,7 @@ from evoparam.data.provenance import Provenance
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._optional import require
 
-if TYPE_CHECKING:  # annotations only (containers imports this module)
+if TYPE_CHECKING:
     from evoparam.data.containers import TrialSet
 
 __all__ = [
@@ -43,7 +43,7 @@ __all__ = [
 
 FIT_STATUSES = ("ok", "no_response", "failed", "skipped")
 UNIT_STATUSES = ("ok", "failed")
-_TF_MAP_NDIM = 3  # channels x freqs x times
+_TF_MAP_NDIM = 3
 
 
 def _unit_status(status: Any, message: Any, shape: tuple[int, ...], owner: str) -> Any:
@@ -64,8 +64,6 @@ def _unit_status(status: Any, message: Any, shape: tuple[int, ...], owner: str) 
     return status, message
 
 
-# Columns of ResponseFit.to_dataframe() / GroupFit.to_dataframe("component") and their units.
-# "data" stands for the amplitude unit of the fitted data.
 COMPONENT_COLUMNS = {
     "channel": "",
     "condition": "",
@@ -87,8 +85,6 @@ COMPONENT_COLUMNS = {
     "status": "",
 }
 
-# Interval of each reported feature, in the same row (REQ-006): the bounds of
-# ``Component.ci`` at the fit's ``ci_level`` (NaN when the fit has no interval).
 INTERVAL_FEATURES = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 INTERVAL_COLUMNS = {
     f"{name}_ci_{side}": COMPONENT_COLUMNS[name]
@@ -96,10 +92,8 @@ INTERVAL_COLUMNS = {
     for side in ("low", "high")
 }
 
-# Columns appended to the component table by the existence test of each channel (§5.6).
 EXISTENCE_COLUMNS = {"existence_p": "", "existence_significant": ""}
 
-# Columns of GroupFit.to_dataframe("fit"): one row per channel × condition.
 FIT_COLUMNS = {
     "channel": "",
     "condition": "",
@@ -156,7 +150,7 @@ COMPONENT_FEATURES = (
 class _ResultMixin(DeepEqualMixin):
     """copy, to_dict / from_dict and save / load for result dataclasses."""
 
-    if TYPE_CHECKING:  # the result classes that use this mixin are dataclasses
+    if TYPE_CHECKING:
         __dataclass_fields__: ClassVar[dict[str, Any]]
 
     def copy(self) -> Any:
@@ -213,7 +207,7 @@ class Component(_ResultMixin):
 
     Times are in seconds, amplitudes in the data unit. ``onset`` and ``offset``
     are where the component reaches ``onset_fraction`` (default 0.10) of its
-    absolute amplitude; ``symmetry`` is (decay − rise) / (decay + rise);
+    absolute amplitude; ``symmetry`` is (decay - rise) / (decay + rise);
     ``sharpness`` is the curvature of the unit-amplitude shape at the peak times
     fwhm², dimensionless.
     """
@@ -236,13 +230,7 @@ class Component(_ResultMixin):
     se: dict[str, Any] | None = None
     ci: dict[str, Any] | None = None
     posterior: dict[str, Any] | None = None
-    # False when the component cannot be told apart from a neighbour: their amplitudes (or
-    # latencies) correlate beyond 0.95, or two components of opposite sign overlap and
-    # cancel (spec §5.5.3 step 6, risk S1): its numbers are not to be read alone
     resolvable: bool = True
-    # uncertainty="bootstrap" only (spec §5.5.5): the bootstrap distribution, one array of
-    # the successful draws per parameter (the shape's parameters and the amplitude "A") and
-    # per feature with an interval, for plotting
     bootstrap: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
@@ -270,7 +258,6 @@ class Component(_ResultMixin):
         if self.se is not None:
             self.se = {key: float(value) for key, value in self.se.items()}
 
-    # The times in milliseconds, for reading (the fields stay in seconds)
     @property
     def latency_ms(self) -> float:
         """``latency`` in milliseconds."""
@@ -304,7 +291,7 @@ class Component(_ResultMixin):
 
 @dataclass(eq=False)
 class GoodnessOfFit(_ResultMixin):
-    """Fit quality on the fit window. ``r2`` is 1 − SS_res / SS_tot (not a squared correlation)."""
+    """Fit quality on the fit window. ``r2`` is 1 - SS_res / SS_tot (not a squared correlation)."""
 
     r2: float
     adj_r2: float
@@ -354,8 +341,6 @@ class ResponseTest(_ResultMixin):
     curve_times: NDArray[Any] | None = None
     curve: NDArray[Any] | None = None
     null_band: NDArray[Any] | None = None
-    # per channel (and group), as ``statistic``: "ok", or "failed" with the exception in
-    # ``message`` (REQ-307 ii, ``on_error="record"``); None: every channel "ok"
     status: NDArray[Any] | None = None
     message: NDArray[Any] | None = None
 
@@ -391,9 +376,6 @@ class ResponseTest(_ResultMixin):
                     f"ResponseTest: '{name}' has shape {getattr(self, name).shape}, "
                     f"expected {n_channels}."
                 )
-        # The statistic over time (spec §5.13): curve [*statistic.shape, n_times] on
-        # curve_times, and its null band [*statistic.shape, n_times, 2] (low, high; NaN on
-        # a side the test does not look at). None for a method without a time course.
         for name in ("curve_times", "curve", "null_band"):
             if getattr(self, name) is not None:
                 setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
@@ -430,8 +412,6 @@ class ResponseFit(_ResultMixin):
     warnings: list[Any] = field(default_factory=list)
     provenance: Provenance = field(default_factory=Provenance)
     diagnostics: dict[str, Any] = field(default_factory=dict)
-    # the amplitude unit of the fitted data (REQ-009; "" when the data had none, a bare
-    # array): the unit of the amplitudes, areas and errors of the tables
     units: str = ""
 
     def __post_init__(self) -> None:
@@ -555,8 +535,6 @@ class ResponseFit(_ResultMixin):
         table["polarity"] = table["polarity"].astype("int64")
         table["component"] = table["component"].astype("int64")
         table["resolvable"] = pd.array(table["resolvable"].tolist(), dtype="boolean")
-        # The existence test of this channel, next to the fitted components, so that a
-        # component on a channel without a significant response is never hidden
         if self.existence is not None:
             table["existence_p"] = float(np.ravel(self.existence.p_value)[0])
             table["existence_significant"] = bool(np.ravel(self.existence.significant)[0])
@@ -778,7 +756,6 @@ class GroupFit(_ResultMixin):
 
 
 ###################################################################################################
-## Trial-level and hierarchical results
 
 
 @dataclass(eq=False)
@@ -795,7 +772,7 @@ class TrialFit(_ResultMixin):
     fwhm: NDArray[Any]
     gof: NDArray[Any]
     converged: NDArray[Any]
-    jitter_sd: dict[Any, Any]  # keyed by component index
+    jitter_sd: dict[Any, Any]
     jitter_sd_null: dict[Any, Any]
     amplitude_jitter_corrected: dict[Any, Any]
     trusted: NDArray[Any]
@@ -804,8 +781,6 @@ class TrialFit(_ResultMixin):
     realigned: Any = None
     settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
-    # "ok", or "failed" with the exception in ``message`` (REQ-307 ii): the numbers of a
-    # failed channel are NaN and none of its trials is converged or trusted
     status: str = "ok"
     message: str = ""
 
@@ -961,7 +936,6 @@ class HierarchicalFit(_ResultMixin):
 
 
 ###################################################################################################
-## Other module results
 
 
 @dataclass(eq=False)
@@ -977,9 +951,6 @@ class ArtifactResult(_ResultMixin):
     basis: NDArray[Any] | None = None
     settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
-    # per channel of ``cleaned``: "ok", or "failed" with the exception in ``message``
-    # (REQ-307 ii, ``on_error="record"``; the channel keeps its data with the artifact
-    # window masked); None: every channel "ok"
     status: NDArray[Any] | None = None
     message: NDArray[Any] | None = None
 
@@ -1062,7 +1033,7 @@ class TFFit(_ResultMixin):
         if self.significant.shape != self.tmaps.shape:
             raise DataError("TFFit: significant and tmaps must have the same shape.")
 
-    def to_mne(self, map: str = "total", *, ch_type: str = "misc") -> Any:  # noqa: A002  (public keyword of the API)
+    def to_mne(self, map: str = "total", *, ch_type: str = "misc") -> Any:  # noqa: A002
         """One map as ``mne.time_frequency.AverageTFR`` (extra ``mne``).
 
         Parameters
@@ -1122,7 +1093,7 @@ class TFFit(_ResultMixin):
         s: Any = self.settings or {}
         tp = s.get("transform_params") or {}
 
-        def _g(value: Any) -> Any:  # a value missing from the settings is named as such
+        def _g(value: Any) -> Any:
             """Return a number as text, or "not recorded"."""
             return f"{value:g}" if isinstance(value, (int, float)) else "not recorded"
 

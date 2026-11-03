@@ -17,7 +17,6 @@ import numpy as np
 
 from evoparam.models import ResponseModel, evaluate_fit, fitted_peak
 
-# End (s) of the early window compared.
 EARLY_END = 0.05
 
 SFREQ = 2048.0
@@ -55,14 +54,12 @@ def test_evaluate_fit_is_the_fitted_model_on_any_grid() -> None:
     times, y, fit = _tail_fit()
     w = (times >= fit.window[0]) & (times <= fit.window[1])
     assert np.allclose(evaluate_fit(fit, times[w]), fit.model, rtol=1e-9, atol=1e-6)
-    # a grid that starts elsewhere: the whole epoch, or later in the window
     for grid in (times, times[w][40:]):
         inside = (grid >= times[w][0]) & (grid <= times[w][-1])
         curve = evaluate_fit(fit, grid)
         assert np.all(np.isfinite(curve))
         ref = fit.model[np.isin(times[w], grid[inside])]
         assert np.allclose(curve[inside], ref, rtol=1e-9, atol=1e-6)
-    # before the first fitted sample the background keeps its value there
     bg = evaluate_fit(fit, times, components=[])
     assert np.allclose(bg[times < times[w][0]], bg[w][0])
 
@@ -114,7 +111,6 @@ def test_curve_detection_reads_the_fitted_trough_against_the_noise() -> None:
     assert out["detected"]
     assert out["latency"] == peak["latency"]
     assert out["depth"] == abs(peak["amplitude"]) / fit.diagnostics["sigma"]
-    # the same trough judged against a larger k, and a window with no trough
     assert not curve_detection(fit, rule["window"], k=out["depth"] + 1)["detected"]
     none = curve_detection(fit, (0.009, 0.05), polarity="positive")
     assert not none["detected"]

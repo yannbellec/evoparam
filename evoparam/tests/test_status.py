@@ -17,7 +17,6 @@ from evoparam import errors, sim
 from evoparam.data import TrialSet
 from evoparam.data.results import FIT_STATUSES
 
-# Statuses of the case (at least two kinds).
 MIN_STATUSES = 2
 
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
@@ -92,10 +91,8 @@ def test_req005_warnings_of_a_pipeline_are_logged(caplog: Any) -> None:
         warnings.catch_warnings(record=True) as caught,
     ):
         warnings.simplefilter("always")
-        # an Evoked: the existence test warns that its null is weaker (no trials)
         evoparam.fit(evoked, preset="ccep", random_state=0)
     logged = " ".join(r.getMessage() for r in caplog.records)
-    # the package's warnings are UserWarning subclasses (NumPy's RuntimeWarnings are not)
     ours = [w for w in caught if issubclass(w.category, UserWarning)]
     assert ours
     for w in ours:
@@ -122,7 +119,6 @@ def test_req005_status_explains_every_non_result() -> None:
         if fit_.status != "ok":
             assert fit_.message, fit_.status
         else:
-            # REQ-118: no NaN parameter with status "ok"
             assert fit_.components
             for comp in fit_.components:
                 values = [comp.latency, comp.amplitude, comp.fwhm, *np.ravel(comp.params)]

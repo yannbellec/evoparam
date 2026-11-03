@@ -16,14 +16,10 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
-# Fewest channels for a spatial subspace.
 _MIN_CHANNELS = 2
 
-# Energy of the artifact window removed when the number of directions is automatic.
 ENERGY = 0.95
 MAX_DIRECTIONS = 6
-# ``n_components="noise"``: directions whose whitened window energy per sample exceeds this
-# multiple of the largest eigenvalue expected from white noise (Marchenko-Pastur edge)
 NOISE_FACTOR = 2.0
 
 

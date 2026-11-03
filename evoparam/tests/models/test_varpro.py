@@ -10,13 +10,11 @@ from evoparam.shapes import get_background, get_shape
 
 from .helpers import TIMES, gauss, model, noise
 
-# Fit window end (s), the masked span (s) of REQ-103, and the 2 ms gap at the peak (REQ-108).
 WINDOW_END = 0.5
 MASK_START = 0.4
 MASK_END = 0.45
 GAP_START = 0.199
 GAP_END = 0.201
-# Latency tolerance (s) around the simulated 0.2 s, runs, and fraction found (REQ-108).
 LATENCY_TOLERANCE = 0.02
 N_RUNS = 20
 MIN_FOUND = 0.9
@@ -75,7 +73,7 @@ def test_req108_component_inside_a_masked_gap() -> None:
     for seed in range(20):
         rng = np.random.default_rng(seed)
         y = gauss(0.2, -8, 0.04) + noise(rng)
-        mask = (TIMES >= GAP_START) & (TIMES <= GAP_END)  # a 2 ms gap at the peak
+        mask = (TIMES >= GAP_START) & (TIMES <= GAP_END)
         fit = model().fit_waveform(TIMES, y, mask=mask)
         hits += any(
             abs(c.latency - 0.2) <= LATENCY_TOLERANCE and c.amplitude < 0 for c in fit.components
@@ -83,8 +81,6 @@ def test_req108_component_inside_a_masked_gap() -> None:
     assert hits / N_RUNS >= MIN_FOUND
 
 
-# A gap (s) around the 10 % onset of a Gaussian at 0.1 s with FWHM 40 ms (onset about
-# 0.064 s), and a gap after its support.
 ONSET_GAP = (0.055, 0.075)
 LATE_GAP = (0.4, 0.45)
 
@@ -127,7 +123,6 @@ def test_masked_onset_widens_the_intervals(monkeypatch: Any) -> None:
         assert np.isclose(w_high - w_low, (1 + fraction) * (high - low), rtol=1e-12), name
         assert np.isclose(w_low + w_high, low + high, rtol=1e-12, atol=1e-15), name
         assert np.isclose(comp.se[name], (1 + fraction) * ref.se[name], rtol=1e-12), name
-    # the estimates themselves do not change
     assert comp.latency == ref.latency
     assert comp.amplitude == ref.amplitude
 

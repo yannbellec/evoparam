@@ -16,7 +16,7 @@ whole recording:
             the latency, amplitude and uncertainty of the N1.
 
 Data: van Blooijs et al., OpenNeuro ds004080 (CC0). Only about 55 MB are read.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 import numpy as np
 
@@ -38,10 +38,10 @@ from evoparam.prep import rereference
 
 DATASET = "ds004080"
 RUN = "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448"
-SITE = "PT01-PT02"  # stimulated electrode pair
-EPOCH = (-0.5, 1.0)  # seconds around each pulse
-ARTIFACT = (-0.002, 0.010)  # artifact window, in seconds
-BASELINE = [-0.5, -0.05]  # where to measure the noise level
+SITE = "PT01-PT02"
+EPOCH = (-0.5, 1.0)
+ARTIFACT = (-0.002, 0.010)
+BASELINE = [-0.5, -0.05]
 
 ###################################################################################################
 # 1. io: events, then a segment of the recording around them
@@ -57,7 +57,6 @@ data, sfreq, ch_names, t0 = read_brainvision_segment(
 )
 print(f"Read {len(ch_names)} channels x {data.shape[1] / sfreq:.1f} s at {sfreq:.0f} Hz")
 
-# Keep the grid channels, minus the two stimulated contacts (they carry the largest artifact)
 picks = [
     ind
     for ind, name in enumerate(ch_names)
@@ -87,7 +86,6 @@ epochs = epochs - epochs[..., (times >= BASELINE[0]) & (times <= BASELINE[1])].m
     axis=-1, keepdims=True
 )
 
-# Subtract the median artifact of the 10 pulses, scaled to each pulse and channel
 trials = from_array(
     epochs,
     sfreq=sfreq,

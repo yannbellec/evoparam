@@ -12,13 +12,10 @@ from evoparam.utils._interp import interpolate_window
 
 from .helpers import make_overlay
 
-# Window (s) interpolated over, the samples it holds with the buffer, and the value
-# written inside it.
 WINDOW_START = -0.002
 WINDOW_END = 0.010
 N_REPLACED = 13
 INSIDE = 1e6
-# Default window (s) of remove_artifact.
 DEFAULT_START = -0.002
 DEFAULT_END = 0.008
 
@@ -64,7 +61,6 @@ def test_remove_artifact_interpolate(kind: Any) -> None:
     assert result.cleaned.masks[:, :, inds].all()
     assert result.method == "interpolate"
     assert result.window == (-0.002, 0.008)
-    # The artifact peak is gone
     assert (
         np.abs(result.cleaned.data[:, :, inds]).max() < 0.2 * np.abs(noisy.data[:, :, inds]).max()
     )

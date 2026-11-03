@@ -15,7 +15,6 @@ from evoparam.utils._interp import window_indices
 
 __all__ = []
 
-# Default grouping of pulses that share one artifact template.
 GROUP_BY = ("stim_site", "stim_current_mA", "stim_polarity")
 
 
@@ -46,7 +45,6 @@ def groups(ts: Any, group_by: Any) -> Any:
     columns = [col for col in (group_by or ()) if meta is not None and col in meta.columns]
     if not columns:
         return [((), np.arange(ts.n_trials))]
-    # the values of each column (a DataFrame, or a Table without pandas), missing as "nan"
     values = [np.asarray(meta[col], dtype=object) for col in columns]
     out: dict[Any, Any]
     out = {}

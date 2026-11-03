@@ -9,7 +9,7 @@ artifact by alternating the pulse polarity (the neural response keeps its sign, 
 artifact flips) and fits a biexponential N1 and a Gaussian P2.
 
 Data: simulated epidural recording, 8 contacts, alternating biphasic pulses at 30 kHz.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate alternating-polarity ECAPs
@@ -51,10 +51,10 @@ print(scores[["recall", "precision", "latency_mae", "amplitude_rel_mae"]].round(
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_fit(result.group.fits[0], result.trials.average())
 

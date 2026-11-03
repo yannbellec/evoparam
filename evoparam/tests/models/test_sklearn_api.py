@@ -12,7 +12,6 @@ from evoparam.models import ResponseModel
 from evoparam.trials import TrialFitter
 from evoparam.utils._estimator import NotFittedError
 
-# Latency tolerance (s) of the extracted feature, and the max_components set.
 LATENCY_TOLERANCE = 0.01
 MAX_COMPONENTS = 3
 
@@ -58,7 +57,6 @@ def test_req320_contract(est: Any) -> None:
         np.nan_to_num(again.transform(_input(est, data))),
         np.nan_to_num(est.transform(_input(est, data))),
     )
-    # no learned state on a fresh copy built from the parameters
     fresh = type(est)(**est.get_params())
     assert not fresh.__sklearn_is_fitted__()
 
@@ -72,9 +70,7 @@ def test_same_random_state_same_fit() -> None:
     features = a.transform(data)
     assert features.shape == (20, 2 * a.n_components_ * 3)
     assert len(a.get_feature_names_out()) == features.shape[1]
-    assert (
-        np.nanmax(np.abs(features[:, 2] - 0.08)) < LATENCY_TOLERANCE
-    )  # channel 0 latency ~ 80 ms
+    assert np.nanmax(np.abs(features[:, 2] - 0.08)) < LATENCY_TOLERANCE
 
 
 def test_pipeline_and_nested_parameters() -> None:
@@ -87,7 +83,7 @@ def test_pipeline_and_nested_parameters() -> None:
         ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1, window=(0.0, 0.002)),
         TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39)),
     )
-    pipe.set_params(trialfitter__max_components=3)  # the call of REQ-320
+    pipe.set_params(trialfitter__max_components=3)
     assert pipe.get_params()["trialfitter__max_components"] == MAX_COMPONENTS
     pipe.set_params(trialfitter__max_components=2)
     copy = clone(pipe)

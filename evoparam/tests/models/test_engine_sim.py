@@ -31,33 +31,23 @@ from .helpers import (
     same_decisions,
 )
 
-# Recall and precision required (REQ-105, REQ-112), and the fraction of agreeing runs.
 MIN_RATE = 0.95
-# Mean latency error (samples at 1 kHz) and median amplitude-ratio error (REQ-106).
 MAX_LATENCY_ERROR = 0.5
 MAX_AMPLITUDE_ERROR = 0.05
-# Fraction of pure-noise windows accepted without whitening.
 MIN_ACCEPTED = 0.3
-# Largest latency error (s) of a recalled edge component (REQ-110).
 EDGE_TOLERANCE = 0.015
-# Runs of REQ-110 and REQ-111/121/122.
 N_EDGE_RUNS = 20
 N_RUNS = 10
-# Two resolved components (REQ-111) and the fraction of runs that must resolve them.
 N_RESOLVED = 2
 MIN_RESOLVED = 0.9
-# Simulated latency (s) and amplitude of the coverage runs (REQ-116), and the coverage.
 TRUE_LATENCY = 0.2
 TRUE_AMPLITUDE = -8
 MIN_COVERAGE = 0.85
 MIN_COVERAGE_BOOTSTRAP = 0.92
 MAX_COVERAGE_BOOTSTRAP = 0.97
-# Components of the REQ-122 waveform, and the fraction of fits that find them.
 N_REQ122_COMPONENTS = 3
 MIN_GOOD = 0.85
-# Fraction of conditions with the same result.
 MIN_SAME = 0.99
-# False-component rates (REQ-107): largest with n_eff or AR whitening, smallest with n.
 MAX_FALSE = 0.05
 MIN_FALSE_WHITE = 0.30
 
@@ -93,7 +83,7 @@ def test_req106_accuracy_at_high_snr() -> None:
         _, _, _, lat_err, a = match(model(shapes=("gaussian",)).fit_waveform(TIMES, y), truth)
         lat += lat_err
         amp += a
-    assert np.mean(np.abs(lat)) * 1000 <= MAX_LATENCY_ERROR  # samples at 1 kHz
+    assert np.mean(np.abs(lat)) * 1000 <= MAX_LATENCY_ERROR
     assert abs(np.median(amp) - 1) <= MAX_AMPLITUDE_ERROR
 
 
@@ -139,7 +129,7 @@ def test_req110_edge_components() -> None:
     hits = 0
     for seed in range(20):
         rng = np.random.default_rng(300 + seed)
-        latency = 0.02 + rng.uniform(0, 0.03)  # within one FWHM of the start
+        latency = 0.02 + rng.uniform(0, 0.03)
         y = gauss(latency, -8, 0.03) + noise(rng)
         fit = model().fit_waveform(TIMES, y)
         hits += any(
@@ -160,8 +150,6 @@ def test_req111_resolution_and_req121_conditioning() -> None:
     for seed in range(10):
         rng = np.random.default_rng(500 + seed)
         y = gauss(0.2, -10, 0.04) + gauss(0.212, -10, 0.04) + noise(rng)
-        # Two components forced into a window not much wider than the pair: the fit cannot
-        # separate them, and must say so
         fit = model(
             shapes=("gaussian",),
             selection="fixed",
@@ -208,7 +196,6 @@ def test_req122_fixed_and_cross_validated_selection() -> None:
 
 
 ###################################################################################################
-## As written (spec §5.5.10)
 
 
 def _engine(**kwargs: Any) -> Any:
@@ -302,7 +289,7 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
     shapes = (truth_shape,) if fitted == "own" else None
     lat, amp, missed = [], [], 0
     for i in range(n):
-        snr = SNR_LEVELS[1:][i % 3]  # 5, 10, 20
+        snr = SNR_LEVELS[1:][i % 3]
         width = WIDTH_SAMPLES[i % len(WIDTH_SAMPLES)]
         times, y, truth = erp_waveform(
             10_600 + 1009 * TRUTH_SHAPES.index(truth_shape) + i,
@@ -315,7 +302,7 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
         fit = _engine(shapes=shapes, **settings).fit_waveform(times, y)
         _, b, _, lat_err, a = match(fit, truth)
         missed += b
-        lat += [abs(v) * 1000 for v in lat_err]  # samples at 1 kHz
+        lat += [abs(v) * 1000 for v in lat_err]
         amp += a
     return np.array(lat), np.array(amp), missed
 
@@ -369,7 +356,7 @@ def test_req110_latency_outside_window_iff_before_t0() -> None:
         if latency >= WINDOW[0]:
             inside += 1
             hits += any(abs(c.latency - latency) <= EDGE_TOLERANCE for c in fit.components)
-    assert before > 0  # both cases occurred
+    assert before > 0
     assert hits / inside >= MIN_RATE
 
 

@@ -9,7 +9,6 @@ from scipy.signal import savgol_filter
 from evoparam.artifact import apply_mask, remove_artifact
 from evoparam.data import TrialSet
 
-# Relative RMS error of the local fit, and the error of the global fit on the same data.
 MAX_LOCAL_RRMSE = 0.05
 MIN_GLOBAL_RRMSE = 0.9
 
@@ -26,12 +25,10 @@ def _railed_recording() -> Any:
     times = np.arange(int(-0.05 * SFREQ), int(0.1 * SFREQ)) / SFREQ
     n = len(times)
     truth = rng.normal(0, 5, (3, 4, n))
-    # Spikes everywhere, including just after the pulse
     wave = -80 * np.hanning(int(0.001 * SFREQ))
     for at in np.arange(int(0.054 * SFREQ), n - 100, int(0.006 * SFREQ)):
         truth[..., at : at + len(wave)] += wave
 
-    # A 600 mV pulse: the amplifier rails at 2 mV for 1 ms, then recovers exponentially
     i0 = np.searchsorted(times, 0.0)
     rail_end = i0 + int(0.001 * SFREQ)
     noisy = truth.copy()
@@ -56,11 +53,9 @@ def test_req065_recovery_within_2_ms_and_zeros_while_railed() -> None:
     )
     cleaned = result.cleaned.data
 
-    # Zeros while railed, and masked
     assert np.all(cleaned[..., i0:rail_end] == 0.0)
     assert result.cleaned.masks[..., i0:rail_end].all()
 
-    # From 2 ms after the pulse, the cleaned signal matches the truth after the same filter
     half = int(round(0.003 * SFREQ))
     reference = truth - savgol_filter(truth, 2 * half + 1, 3, axis=-1)
     after = slice(i0 + int(0.002 * SFREQ), n - half)
@@ -83,7 +78,6 @@ def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal() -
         local.data[..., i0 : i0 + int(0.01 * SFREQ)],
         published.data[..., i0 : i0 + int(0.01 * SFREQ)],
     )
-    # The baseline before the ramp is untouched
     half = int(round(0.003 * SFREQ))
     assert np.array_equal(local.data[..., : i0 - half], ts.data[..., : i0 - half])
     after = slice(i0 + int(0.002 * SFREQ), len(ts.times) - half)

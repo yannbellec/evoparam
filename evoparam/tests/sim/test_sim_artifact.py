@@ -19,24 +19,16 @@ from evoparam.sim.artifacts import (
     tail_shape,
 )
 
-# Largest residual RMS after removal, relative to the RMS before (10 %).
 MAX_RESIDUAL = 0.10
-# Saturation rail (uV) of the simulated amplifier.
 RAIL = 500.0
-# Time (s) before which the artifact is zero (the onset sample is at 0).
 ARTIFACT_START = -0.001
-# Shafts of 30 sEEG contacts, and scalp electrodes named.
 N_SHAFTS = 3
 N_SCALP = 40
-# Time (s) before which a pulse shape is zero.
 PULSE_START = -0.003
-# Trials left after the alternating and forward-masking subtractions.
 N_ALTERNATING = 4
 N_PROBE = 2
-# Switch artifact (uV) of the forward-masking paradigm, and the cochlear N1 latency bound (s).
 SWITCH_ARTIFACT = 20.0
 MAX_N1_LATENCY = 0.0015
-# Pulses of the ERNA train, and the distance (s) to a pulse looked at.
 N_PULSES = 4
 NEAR_PULSE = 0.0005
 
@@ -72,7 +64,6 @@ def test_template_removal_leaves_at_most_ten_percent(seed: Any) -> None:
     raw = ts.data[:, away][..., win]
     out = res.cleaned.data[:, away][..., win]
     assert np.sqrt(np.mean(out**2) / np.mean(raw**2)) <= MAX_RESIDUAL
-    # What remains is mostly the response and the noise, not the artifact.
     clean_truth = (ts.data - truth.artifact_data)[..., win]
     left = res.cleaned.data[..., win] - clean_truth
     assert np.sqrt(np.mean(left**2) / np.mean(ts.data[..., win] ** 2)) <= MAX_RESIDUAL
@@ -169,7 +160,6 @@ def test_layouts_and_waveforms() -> None:
     bi = pulse_shape(times, sfreq, pulse_width_us=200.0, kind="biphasic", polarity=-1)
     assert np.all(mono[times < PULSE_START] == 0)
     assert np.all(bi[times < PULSE_START] == 0)
-    # The anti-aliasing filter passes DC: a monophasic pulse integrates to its charge.
     assert np.isclose(mono.sum() / sfreq, -200e-6, rtol=0.02)
     assert abs(bi.sum()) / sfreq < 0.02 * 200e-6  # charge-balanced
     tail = tail_shape(times, sfreq, start=0.0, tau1=0.002, tau2=0.02)
@@ -183,7 +173,6 @@ def test_layouts_and_waveforms() -> None:
 
 
 ###################################################################################################
-## Paradigm-based cancellation (ECAP)
 
 
 def test_ecap_alternating_cancels_the_artifact() -> None:
@@ -200,7 +189,7 @@ def test_ecap_alternating_cancels_the_artifact() -> None:
 
 
 def test_ecap_forward_masking_recovers_the_probe() -> None:
-    """A − B + (C − D) cancels the probe and masker artifacts, the switching artifact and
+    """A - B + (C - D) cancels the probe and masker artifacts, the switching artifact and
     the masker response, leaving the probe response."""
 
     ts, truth = sim.simulate_ecap(8, paradigm="forward_masking", noise="none", seed=0)
@@ -227,7 +216,6 @@ def test_ecap_kinds_and_errors() -> None:
 
 
 ###################################################################################################
-## TEP and ERNA artifacts
 
 
 def test_tep_artifact_parts() -> None:

@@ -6,13 +6,11 @@ from typing import Any
 
 import numpy as np
 
-# Fraction of the channels a movement transient reaches.
 TRANSIENT_FRACTION = 0.8
 
 ###################################################################################################
 ###################################################################################################
 
-# Biphasic artifact shape, one value per sample from the onset (normalised to a peak of 1).
 PULSE_SHAPE = np.array([0.45, 1.0, 0.7, -0.5, -0.25, -0.08])
 
 
@@ -121,7 +119,6 @@ def make_recording(**keywords: Any) -> Any:
             start = int(rng.integers(width, n_times - 3 * width))
             if np.min(np.abs(onsets - start)) > 0.1 * design.sfreq:
                 break
-        # A movement transient: a smooth bump of transient_sd on most channels
         chans = rng.random(design.n_channels) < TRANSIENT_FRACTION
         data[chans, start : start + 2 * width] += (design.transient_sd * bump).astype(data.dtype)
         transients.append(start)

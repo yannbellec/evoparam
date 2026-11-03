@@ -19,17 +19,12 @@ from evoparam.tf.transforms import (
     morse_spectrum,
 )
 
-# Longest kernel half-support (samples) compared with the reference.
 MAX_HALF_SUPPORT = 1000
-# Tolerance of the Morse peak frequency, the peak value 2 and its tolerance.
 PEAK_TOLERANCE = 1e-3
 MORSE_PEAK = 2.0
 EXACT = 1e-12
-# Largest log2 distance of the ridge from the instantaneous frequency.
 MAX_RIDGE_ERROR = 0.1
-# Largest relative error of the decomposition into footprint, residual and cross terms.
 MAX_DECOMPOSITION_ERROR = 1e-9
-# Baseline (s) of the maps, the masked artifact (s), and the bound of valid pixels.
 BASELINE_START = -0.5
 BASELINE_END = -0.1
 ARTIFACT_START = -0.002
@@ -92,7 +87,6 @@ def test_every_transform_has_unit_gain_at_its_frequency(transform: Any) -> None:
     for j in (4, 8):
         coef = apply_kernels(kernels, 3.0 * np.cos(2 * np.pi * freqs[j] * t))
         power = np.mean(np.abs(coef[:, j, n // 2 - 20 : n // 2 + 20]) ** 2, axis=0)
-        # multitaper: the higher tapers have lower gain, so the mean power is below 9
         assert 0.3 * 9 <= power.mean() <= 9 * 1.001
 
 
@@ -193,5 +187,4 @@ def test_masked_samples_never_reach_valid_pixels() -> None:
         near = (tf.times >= ARTIFACT_START - half[j]) & (tf.times <= ARTIFACT_END + half[j])
         assert np.all(np.isnan(tf.maps["total"][0, j, near]))
         far = np.isfinite(tf.maps["total"][0, j])
-        # the 1e6 artifact does not leak into the valid pixels
         assert np.all(tf.maps["total"][0, j, far] < MAX_VALID)

@@ -30,7 +30,6 @@ from evoparam.shapes._base import (
     window_info,
 )
 
-# Artifact basis: vectors [n_basis, n_samples], at least this many samples
 _BASIS_NDIM = 2
 _MIN_BASIS_SAMPLES = 2
 
@@ -47,11 +46,8 @@ __all__ = [
     "TAU_MIN",
 ]
 
-# Shortest time constant of the exponential backgrounds (s).
 TAU_MIN = 5e-4
 
-# Linear coefficients are bounded by this multiple of the data scale (loose bounds:
-# variable projection solves them without bounds).
 COEF_BOUND = 10.0
 
 
@@ -65,7 +61,7 @@ class BackgroundBase:
 
     name: ClassVar[str]
     nonlinear_names: ClassVar[tuple[str, ...]] = ()
-    if TYPE_CHECKING:  # defined by each background
+    if TYPE_CHECKING:
 
         @property
         def linear_names(self) -> tuple[str, ...]:
@@ -115,7 +111,7 @@ class BackgroundBase:
             return np.zeros(0)
         return as_params(nonlinear, self.n_nonlinear, self.name)
 
-    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         return np.zeros((self.n_linear, times.size, 0))
@@ -168,11 +164,11 @@ class BackgroundBase:
             self.name, np.concatenate([-bound, nl_lower]), np.concatenate([bound, nl_upper])
         )
 
-    def _nonlinear_bounds(self, times: FloatArray) -> tuple[FloatArray, FloatArray]:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def _nonlinear_bounds(self, times: FloatArray) -> tuple[FloatArray, FloatArray]:  # noqa: ARG002
         """Return the bounds of the non-linear parameters (none here)."""
         return np.zeros(0), np.zeros(0)
 
-    def _nonlinear_guess(self, times: FloatArray) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def _nonlinear_guess(self, times: FloatArray) -> FloatArray:  # noqa: ARG002
         """Return the starting non-linear parameters (none here)."""
         return np.zeros(0)
 
@@ -198,7 +194,7 @@ class NoBackground(BackgroundBase):
 
     name: ClassVar[str] = "none"
 
-    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Basis functions, shape ``(0, n_times)``."""
         return np.zeros((0, as_times(times).size))
 
@@ -210,7 +206,7 @@ class ConstantBackground(BackgroundBase):
     name: ClassVar[str] = "constant"
     linear_names: ClassVar[tuple[str, ...]] = ("c0",)
 
-    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Basis functions, shape ``(1, n_times)``."""
         return np.ones((1, as_times(times).size))
 
@@ -223,7 +219,7 @@ class LinearBackground(BackgroundBase):
     name: ClassVar[str] = "linear"
     linear_names: ClassVar[tuple[str, ...]] = ("c0", "c1")
 
-    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Basis functions, shape ``(2, n_times)``."""
         times = as_times(times)
         return np.stack([np.ones_like(times), times - self._t_ref(times)])
@@ -268,7 +264,7 @@ class ExponentialBackground(BackgroundBase):
         decay = np.exp(-(times - self._t_ref(times)) / tau)
         return np.stack([np.ones_like(decay), decay], axis=-2)
 
-    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None) -> FloatArray:  # type: ignore[override]  # needs its non-linear parameters
+    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None) -> FloatArray:  # type: ignore[override]
         """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         tau = self._nonlinear(nonlinear)[..., 0, None]
@@ -322,7 +318,7 @@ class DoubleExponentialBackground(BackgroundBase):
         first, second = np.broadcast_arrays(first, second)
         return np.stack([np.ones_like(first), first, second], axis=-2)
 
-    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None) -> FloatArray:  # type: ignore[override]  # needs its non-linear parameters
+    def basis_jacobian(self, times: ArrayLike, nonlinear: ArrayLike | None) -> FloatArray:  # type: ignore[override]
         """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         nonlinear = self._nonlinear(nonlinear)
@@ -332,7 +328,6 @@ class DoubleExponentialBackground(BackgroundBase):
         d2 = np.exp(-lag / tau2) * lag / tau2**2
         d1, d2 = np.broadcast_arrays(d1, d2)
         zero = np.zeros_like(d1)
-        # Rows: basis functions; last axis: (tau1, tau2).
         return np.stack(
             [np.stack([zero, zero], -1), np.stack([d1, zero], -1), np.stack([zero, d2], -1)],
             axis=-3,
@@ -423,7 +418,7 @@ class PSplineBackground(BackgroundBase):
         """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.n_basis))
 
-    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Basis functions, shape ``(n_basis, n_times)``; zero outside the spline support."""
         times = as_times(times)
         spline = BSpline(self.knots, np.eye(self.n_basis), self.degree, extrapolate=False)
@@ -522,7 +517,7 @@ class ArtifactBasisBackground(BackgroundBase):
         """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.basis_vectors.shape[0]))
 
-    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def basis(self, times: ArrayLike, nonlinear: ArrayLike | None = None) -> FloatArray:  # noqa: ARG002
         """Basis functions, shape ``(n_basis, n_times)``."""
         times = as_times(times)
         return np.stack(

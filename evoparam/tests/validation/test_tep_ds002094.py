@@ -80,13 +80,9 @@ import pytest
 
 from evoparam import presets
 
-# Trials removed by the README: after 556 for subject 774, 401 to 405 for subject 780.
 LAST_KEPT_774 = 556
 FIRST_DROPPED_780 = 401
 LAST_DROPPED_780 = 405
-# ICA rejection rules: early window (s) and ratio of TMS muscle components, z thresholds
-# of blinks, eye movements and electrode noise, and the band (Hz, without the line) and
-# slope of persistent muscle.
 EARLY_START = 0.011
 EARLY_END = 0.030
 MUSCLE_RATIO = 8.0
@@ -98,8 +94,6 @@ BAND_MAX = 100
 LINE_LOW = 57
 LINE_HIGH = 63
 MUSCLE_SLOPE = -0.31
-# Fraction with both N45 and N100 (REQ-275), subjects, and the floors of step S15
-# (N45, N100, both) on the inner channels, all channels and inner channels after ICA.
 MIN_BOTH = 0.8
 N_SUBJECTS = 20
 FLOOR_A_N45 = 11
@@ -111,7 +105,6 @@ FLOOR_B_BOTH = 8
 FLOOR_C_N45 = 12
 FLOOR_C_N100 = 17
 FLOOR_C_BOTH = 12
-# Correlation of the recovered and mixed sources.
 MIN_CORRELATION = 0.99
 
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
@@ -144,7 +137,6 @@ RUNS = {
     "766": ("tmseeg1", "tmseeg2"),
     "780": ("tmseeg1", "tmseeg2"),
 }
-# Trials (1-based, over the runs in order) removed from the EEG by the dataset README.
 README_DROP = {
     "767": lambda n: n in (1, 2),
     "774": lambda n: n > LAST_KEPT_774,
@@ -512,25 +504,9 @@ def test_req275_methods_text_names_the_sensory_confound() -> None:
     text = methods_text(fit)
     assert "coil click" in text
     assert "somatosensory" in text
-    # Other presets carry no TMS note.
     assert "coil click" not in resolve_settings("ccep").preset_note
 
 
-# Measured on the 20 subjects (ds002094 1.0.0, evoparam 0.1.0.dev0, step S15): subjects with a
-# labelled N45 / N100 / both on the channel of maximal response.
-#   variant A (preset chain), 17 inner channels:  11 / 13 / 9
-#   variant A, all 30 channels:                    8 /  8 / 4
-#   variant B (with ICA), all 30 channels:          9 / 11 / 6   <- REQ-275 criterion
-#   variant B, 17 inner channels:                   8 / 16 / 6
-# Measured again (Python 3.13, numpy 2.5.3), development 8 + held-out 12 = total:
-#                         preset tep 1.0 (3b222bb)   preset tep 1.1
-#   A, 17 inner channels:  9 / 12 / 8               4/6/3 + 5/9/5 = 9 / 15 / 8
-#   A, all 30 channels:    5 /  7 / 3               4/4/2 + 2/5/2 = 6 / 9 / 4
-#   B, all 30 channels:    7 / 11 / 5               6/7/6 + 4/4/2 = 10 / 11 / 8  <- criterion
-#   B, 17 inner channels:  7 / 14 / 5               6/7/6 + 6/10/6 = 12 / 17 / 12
-# Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
-# Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
-# B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
 needs_data = [
     pytest.mark.network,
     pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"),

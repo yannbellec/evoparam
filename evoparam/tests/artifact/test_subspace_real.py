@@ -45,7 +45,6 @@ from evoparam.data import TrialSet
 
 from .helpers import response, times_axis
 
-# Signal-to-interference improvement (dB) required (REQ-064), and runs of ds004080.
 MIN_GAIN_DB = 30
 N_RUNS = 23
 
@@ -190,7 +189,6 @@ def sir_improvement(
 
 
 SPEC_VERSION = {"n_components": "energy", "subspace_extent": "all"}
-# The default must beat the specification's version by more than this (dB) on every overlay.
 MIN_MARGIN_DB = 20
 
 

@@ -12,7 +12,6 @@ from evoparam.errors import ReaderError
 from evoparam.io import dataset_info, list_datasets
 from evoparam.io.registry import EVENTS_STATUS, match_dataset
 
-# Registry entries of ds004080 and ds002094.
 DS004080_SFREQ = 2048.0
 DS004080_SUBJECTS = 74
 DS004080_SIZE_GB = 269.0
@@ -104,13 +103,12 @@ def test_dataset_info() -> None:
     assert info["license"] == "CC0"
     assert info["events_status"] == "present"
     assert info["doi"] == "10.18112/openneuro.ds004080.v1.2.4"
-    tep = dataset_info("ds002094")  # read from its files (REQ-275)
+    tep = dataset_info("ds002094")
     assert tep["license"] == "CC0"
     assert tep["sfreq"] == DS002094_SFREQ
     assert tep["n_subjects"] == DS002094_SUBJECTS
     assert dataset_info("erpcore")["id"] == "erp-core"
 
-    # A copy: changing it does not change the registry
     info["sfreq"] = 1.0
     assert dataset_info("ds004080")["sfreq"] == DS004080_SFREQ
 
@@ -132,7 +130,7 @@ def test_list_datasets() -> None:
     assert set(spes["modality"]) == {"spes"}
     assert set(list_datasets(modality=["erp", "tep"])["modality"]) == {"erp", "tep"}
     small = list_datasets(max_size_gb=300)
-    assert list(small["id"]) == ["ds004080", "ds002094"]  # the datasets with a stated size
+    assert list(small["id"]) == ["ds004080", "ds002094"]
     assert list(list_datasets(max_size_gb=100)["id"]) == ["ds002094"]
     assert len(list_datasets(max_size_gb=1)) == 0
 

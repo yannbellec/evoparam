@@ -24,11 +24,9 @@ from .helpers import BASELINE, SFREQ, TIMES, WINDOW, gauss, model, noise
 
 pd = pytest.importorskip("pandas")
 
-# Channels of the array fit, and the max_components values set.
 N_CHANNELS = 3
 MAX_COMPONENTS = 4
 OTHER_MAX_COMPONENTS = 3
-# Peak tolerance (s), the measurement window (s), and the fractional-area tolerance (s).
 PEAK_TOLERANCE = 0.01
 WINDOW_START = 0.05
 WINDOW_END = 0.15
@@ -42,7 +40,7 @@ def _trials(n: Any = 12, seed: Any = 0, channels: Any = 3) -> Any:
     rng = np.random.default_rng(seed)
     sig = gauss(0.025, -100, 0.012) + gauss(0.15, -50, 0.08)
     data = sig[None, None] + rng.normal(0, 10, (n, channels, len(TIMES)))
-    data[:, -1] = rng.normal(0, 10, (n, len(TIMES)))  # a channel without response
+    data[:, -1] = rng.normal(0, 10, (n, len(TIMES)))
     return TrialSet(
         data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(channels)]
     )
@@ -165,7 +163,6 @@ def test_estimator_contract_and_compare() -> None:
     assert m.get_params()["max_components"] == OTHER_MAX_COMPONENTS
     trials = _trials()
     m.fit(trials)
-    # scikit-learn semantics (spec §10.4): samples are the channels, features the time points
     assert m.n_features_in_ == trials.n_times
     assert m.transform().shape == (3, 3)
     assert np.isfinite(m.score())
@@ -192,10 +189,8 @@ def test_uncertainty_levels() -> None:
         model(uncertainty="posterior").fit_waveform(TIMES, y)
 
 
-# Bootstrap resamples and trials of the bootstrap-distribution test.
 N_BOOT = 60
 N_BOOT_TRIALS = 20
-# Components of the bootstrap test, and the fewest draws an interval is computed from.
 N_BOOT_COMPONENTS = 2
 MIN_DRAWS = 10
 
@@ -217,7 +212,6 @@ def test_bootstrap_returns_the_distribution_and_intervals_on_every_parameter(
     assert len(result.components) == N_BOOT_COMPONENTS
     n_ok = result.diagnostics["n_bootstrap_ok"]
     assert MIN_DRAWS <= n_ok <= N_BOOT
-    # the expanded percentile interval (DECISIONS §3, "Bootstrap intervals")
     q = np.sqrt(N_BOOT_TRIALS / (N_BOOT_TRIALS - 1)) * student_t.ppf(0.975, N_BOOT_TRIALS - 1)
     tail = 100 * norm.cdf(-q)
     for comp in result.components:
@@ -231,15 +225,12 @@ def test_bootstrap_returns_the_distribution_and_intervals_on_every_parameter(
             good = draws[np.isfinite(draws)]
             assert np.allclose(comp.ci[name], np.percentile(good, [tail, 100 - tail])), name
             assert np.isclose(comp.se[name], np.std(good, ddof=1)), name
-        # the draws of the parameters and of the amplitude are those of the component
         for i, name in enumerate(comp.param_names):
             median = np.median(comp.bootstrap[name])
             assert np.isclose(median, comp.params[i], atol=3 * comp.se[name])
         assert np.isclose(np.median(comp.bootstrap["latency"]), comp.latency, atol=0.01)
-    # without the bootstrap, no distribution
     jacobian = model(random_state=0).fit_waveform(TIMES, trials.mean(0))
     assert all(comp.bootstrap is None for comp in jacobian.components)
-    # the distribution is saved and loaded with the fit
     path = result.save(tmp_path / "boot.evoparam")
     loaded = type(result).load(path)
     assert loaded == result

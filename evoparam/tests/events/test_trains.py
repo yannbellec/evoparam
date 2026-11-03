@@ -12,11 +12,9 @@ from evoparam.events import events_to_metadata, group_trains, trains
 
 pd = pytest.importorskip("pandas")
 
-# Sites and pulses per site of the simulated protocol (1 Hz, 4 s between sites).
 N_SITES = 20
 N_PER_SITE = 30
 LAST_INDEX = 29
-# Mayo protocol: 10-12 pulses per site, 2.5 to 6 s between pulses (about 0.2 Hz).
 MIN_PULSES = 10
 MAX_PULSES = 12
 MIN_INTERVAL = 2.5
@@ -87,10 +85,6 @@ def test_events_to_metadata() -> None:
     assert meta["stim_current_mA"].dtype == float
 
 
-# Every events.tsv of the four Mayo CCEP datasets of OpenNeuro (ds004696 sub-01, 04 and 05
-# repeat ds004457 sub-2, sub-1 and sub-4; ds004977 keeps the events of every site although its
-# signal is censored outside one site per run, which does not matter here: only the event
-# times and sites are used).
 MAYO_EVENTS = [
     "ds003708/sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01",
     *(
@@ -106,8 +100,6 @@ MAYO_EVENTS = [
     "ds004977/sub-3/ses-ieeg01/ieeg/sub-3_ses-ieeg01_task-ccep_run-03",
     "ds004977/sub-4/ses-ieeg01/ieeg/sub-4_ses-ieeg01_task-ccep_run-02",
 ]
-# The one run whose own events.tsv has more than 12 pulses per site (median 13 pulses per
-# block, 378 pulses on 27 sites).
 MAYO_LONG = "ds004696/sub-07/ses-ieeg01/ieeg/sub-07_ses-ieeg01_task-ccep_run-01"
 
 network = pytest.mark.skipif(
@@ -158,13 +150,10 @@ def test_req044_mayo_protocol(stem: Any) -> None:
     events, grouped, summary = _mayo_trains(stem)
     sites = grouped["stim_site_guess"].to_numpy()
     blocks = np.r_[0, np.cumsum(sites[1:] != sites[:-1])]
-    # Every train holds one site, and never spans two blocks of consecutive pulses
     assert (grouped.groupby("train_id")["stim_site_guess"].nunique() == 1).all()
     assert (pd.Series(blocks).groupby(grouped["train_id"].to_numpy()).nunique() == 1).all()
-    # Each block of consecutive pulses on one site is exactly one train
     assert (grouped["train_id"].to_numpy() == blocks).all()
     assert len(grouped) == len(events)
-    # About 0.2 Hz and 10-12 pulses per site
     assert MIN_PULSES <= summary["n_pulses"].median() <= MAX_PULSES
     assert MIN_INTERVAL <= summary["mean_interval"].median() <= MAX_INTERVAL
 

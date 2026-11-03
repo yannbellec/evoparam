@@ -23,14 +23,12 @@ import pytest
 
 from evoparam.models import classical_measures
 
-# Participants of each ERP CORE component.
 N_PARTICIPANTS = 40
 
 TOL = 1e-9
 
 
 ###################################################################################################
-## Independent reference (definitions only)
 
 
 def _ref_signed(v: Any, polarity: Any) -> Any:
@@ -153,7 +151,6 @@ def _compare(times: Any, average: Any, window: Any, polarity: Any) -> None:
 
 
 ###################################################################################################
-## Simulated N170 and P3 averages (every build)
 
 
 @pytest.mark.parametrize(
@@ -181,7 +178,6 @@ def test_req117_classical_measures_match_independent_definitions(
 
 
 ###################################################################################################
-## ERP CORE N170 and P3 averages (local copy)
 
 ERPCORE = os.environ.get("EVOPARAM_ERPCORE", "")
 SCRIPT = pathlib.Path(__file__).parents[3] / "validation" / "erpcore.py"
@@ -208,7 +204,7 @@ def test_req117_on_erp_core_averages(component: Any) -> None:
         loaded += 1
         wave, _ = erpcore.difference_wave(component, times, data, names, bins)
         if not np.all(np.isfinite(wave)):
-            continue  # no difference wave (as in the published analysis)
+            continue
         _compare(np.asarray(times), np.asarray(wave), design["window"], polarity)
         compared += 1
     assert loaded == N_PARTICIPANTS

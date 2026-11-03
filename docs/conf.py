@@ -11,11 +11,11 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-import evoparam  # noqa: E402  (after the sys.path insert above)
+import evoparam  # noqa: E402
 
 project = "evoparam"
 author = "Yann V. Bellec"
-copyright = "Yann V. Bellec"  # noqa: A001  (the Sphinx configuration name)
+copyright = "Yann V. Bellec"  # noqa: A001
 version = release = evoparam.__version__
 
 extensions = [
@@ -31,8 +31,6 @@ extensions = [
 exclude_patterns = ["_build", "spec", "tutorials/README.txt", "Thumbs.db", ".DS_Store"]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 html_theme = "pydata_sphinx_theme"
-# version switcher (REQ-302): ``latest`` is main, ``stable`` the last tag. The JSON file is
-# served with the published site, which waits for the owner's HIIE decision (REQ-398).
 html_theme_options = {
     "switcher": {
         "json_url": "_static/switcher.json",
@@ -44,10 +42,6 @@ html_theme_options = {
 html_static_path = ["_static"]
 html_title = f"evoparam {release}"
 numpydoc_show_class_members = False
-# The names exported at the package root (evoparam.TrialSet, evoparam.fit, ...) are also
-# listed in their module's table (REQ-303: every public symbol in the index). The module's
-# page of such a name is not indexed, so each object has one target and an unqualified
-# reference (``TrialSet`` in an annotation) is not ambiguous.
 templates_path = ["_templates"]
 
 
@@ -83,7 +77,7 @@ def _root_reexports():
     ):
         module = importlib.import_module(f"evoparam.{module_name}")
         names_of = getattr(module, "__all__", None)
-        if names_of is None:  # the rule of tools/gen_api_index.py for a module without __all__
+        if names_of is None:
             names_of = [
                 n
                 for n, obj in vars(module).items()
@@ -96,16 +90,11 @@ def _root_reexports():
     return names
 
 
-# macOS and Windows file systems ignore case: the constant evoparam.io.OPENNEURO_URL and the
-# function evoparam.io.openneuro_url would share one stub file
 autosummary_filename_map = {"evoparam.io.OPENNEURO_URL": "evoparam.io.OPENNEURO_URL-constant"}
 autosummary_context = {"noindex": _root_reexports()}
 autosummary_generate = True
-# every literature key [LIT-<axis>-<n>] cited in the docs (REQ-302), generated from
-# docs/spec/LITERATURE.md by tools/gen_references_bib.py
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "plain"
-# linkcheck (REQ-302): 0 broken links; DOIs behind paywalls answer 403 to robots
 linkcheck_ignore = [
     r"https://doi\.org/10\.1016/.*",
     r"https://doi\.org/10\.1002/.*",

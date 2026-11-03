@@ -19,8 +19,6 @@ from typing import Any
 
 import pytest
 
-# Trials of the Allen session read, the fewest channels with a response, and the fraction
-# of them labelled in the expected area.
 N_TRIALS = 150
 MIN_SIGNIFICANT = 10
 MIN_LABELLED = 0.9

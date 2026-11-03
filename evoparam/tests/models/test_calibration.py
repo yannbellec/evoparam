@@ -21,23 +21,20 @@ from .helpers import BASELINE, TIMES, WINDOW, gauss, model, noise
 ###################################################################################################
 ###################################################################################################
 
-ALPHA = 0.04  # the package default
-FIXED = 10.0  # spec §5.5.4, every preset
-C0 = 18.0  # a scan level
+ALPHA = 0.04
+FIXED = 10.0
+C0 = 18.0
 LATENCY_TOL = 0.002  # s
 
 
 def test_scan_level_without_search_is_the_chi_square_quantile() -> None:
-    # no latency or width to search over: P(|Z| >= u) = alpha
     assert scan_level(0.05, 0.0, 0.0) == pytest.approx(chi2.ppf(0.95, 1), rel=1e-8)
-    # a larger search space needs a higher level; a lower alpha too
     assert scan_level(0.05, 100.0, 300.0) > scan_level(0.05, 10.0, 30.0)
     assert scan_level(0.01, 100.0, 300.0) > scan_level(0.05, 100.0, 300.0)
 
 
 def test_inflation_for_an_uncertain_spectrum() -> None:
     assert Calibration.inflate(C0, 0.0) == C0
-    # small variance: c0 + c0^2 v / 4
     assert Calibration.inflate(C0, 1e-4) == pytest.approx(C0 + C0**2 * 1e-4 / 4, rel=1e-3)
     assert Calibration.inflate(C0, 0.1) > Calibration.inflate(C0, 0.05) > C0
 
@@ -66,7 +63,7 @@ def test_white_noise_curvatures_match_the_continuous_formula() -> None:
     cal = Calibration(0.03, white, tw, None, 0.004, 0.1, len(tw), [1.0], 1.0, None, 0)
     s1, s2 = 4 / 2.3548, 100 / 2.3548
     assert cal.l2 == pytest.approx(len(tw) / 2 * (1 / s1 - 1 / s2), rel=0.05)
-    assert cal.cov is None  # white noise: no autoregressive coefficient to be uncertain about
+    assert cal.cov is None
     assert cal.required(white(np.c_[gauss(0.3, 1, 0.02, tw), np.ones(len(tw))]), 0) == (
         pytest.approx(cal.delta0)
     )
@@ -86,7 +83,6 @@ def test_coloured_noise_needs_more_evidence() -> None:
         spread[rho] = (cal.l2, cal.c0, cal.required(design, 0) - cal.required(design, 1))
     assert spread[0.9][0] > spread[0.0][0]
     assert spread[0.9][1] > spread[0.0][1]
-    # broad minus narrow: large for the red noise, about zero for the white one
     assert spread[0.9][2] > 3 * abs(spread[0.0][2])
 
 
@@ -137,7 +133,6 @@ def test_calibrated_on_request_and_a_number_is_the_fixed_rule() -> None:
     assert np.isfinite(acc["delta"])
     fixed = model(delta=10).fit_waveform(TIMES, y)
     assert fixed.diagnostics["acceptance"] == {"rule": "fixed", "delta": FIXED}
-    # not calibrated without the whitened likelihood: the fixed 10 of spec §5.5.4
     assert model(noise_model="neff").fit_waveform(TIMES, y).diagnostics["acceptance"] == {
         "rule": "fixed",
         "delta": FIXED_DELTA,
@@ -153,10 +148,9 @@ def test_presets_keep_the_rule_they_were_validated_with() -> None:
         assert s.shape_choice == "bic"
         assert not s.resolution_check
     s = resolve_settings(None)
-    assert s.delta == FIXED  # the fixed rule stays the package default (DECISIONS §5.3)
+    assert s.delta == FIXED
     assert s.shape_choice == "penalised"
     assert s.resolution_check
-    # None given to the dataclass reads as "not given": the default
     given = FitSettings(delta=None)
     given.validate()
     assert given.delta == FIXED
@@ -174,13 +168,12 @@ def test_a_preset_can_ask_for_the_calibrated_acceptance() -> None:
     assert ResponseModel("erp", delta=None, **window).settings().delta == FIXED
     cal = ResponseModel("erp", delta=CALIBRATED, **window)
     assert cal.settings().delta == CALIBRATED
-    assert cal.settings().shape_choice == "bic"  # the preset's other settings stay
+    assert cal.settings().shape_choice == "bic"
     fit = cal.fit_waveform(times, y)
     assert fit.settings["delta"] == CALIBRATED
     assert fit.diagnostics["acceptance"]["rule"] == "calibrated"
     assert fit.diagnostics["acceptance"]["delta"] < FIXED
     assert "calibrated on each waveform's noise model" in fit.methods_text()
-    # a preset of its own may set it too
     derived = presets.derive("erp", name="erp_calibrated", delta=CALIBRATED)
     assert presets.from_json(presets.to_json(derived)).delta == CALIBRATED
     again = ResponseModel(derived, **window).fit_waveform(times, y)
@@ -213,7 +206,7 @@ def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
     assert "merged:0,1" in fit.warnings
     apart = gauss(0.2, -10, 0.04) + gauss(0.24, -10, 0.04) + noise(rng)
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, apart)
-    assert len(fit.components) == 2  # noqa: PLR2004  (the two Gaussians)
+    assert len(fit.components) == 2  # noqa: PLR2004
     assert not any(w.startswith("merged:") for w in fit.warnings)
     strong = gauss(0.3, 400, 0.02) + noise(rng)
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, strong)
@@ -231,11 +224,11 @@ def test_resolution_check_does_not_depend_on_signs() -> None:
     rng = np.random.default_rng(0)
     y = gauss(0.2, -8, 0.03) + gauss(0.25, 6, 0.03) + noise(rng)
     fit, flipped = model().fit_waveform(TIMES, y), model().fit_waveform(TIMES, -y)
-    assert len(fit.components) == len(flipped.components) == 2  # noqa: PLR2004  (the pair)
+    assert len(fit.components) == len(flipped.components) == 2  # noqa: PLR2004
     assert not any(w.startswith("merged:") for w in fit.warnings)
     assert fit.warnings == flipped.warnings
     for c, f in zip(fit.components, flipped.components, strict=True):
-        assert abs(c.latency - f.latency) < 1e-9  # noqa: PLR2004  (REQ-003 tolerance)
+        assert abs(c.latency - f.latency) < 1e-9  # noqa: PLR2004
         assert abs(c.amplitude + f.amplitude) < 1e-9  # noqa: PLR2004
 
 

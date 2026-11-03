@@ -8,7 +8,6 @@ import numpy as np
 
 from evoparam.data import TrialSet
 
-# Probability that a simulated response is inverted.
 INVERTED = 0.5
 
 ###################################################################################################

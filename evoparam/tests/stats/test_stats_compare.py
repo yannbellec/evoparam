@@ -12,14 +12,11 @@ from evoparam.stats import compare_conditions, hedges_g, score_waveforms
 
 pd = pytest.importorskip("pandas")
 
-# Test level, the condition probability, the range of the type-I error rate, and the level
-# the exact test must reach.
 ALPHA = 0.05
 HALF = 0.5
 MIN_RATE = 0.04
 MAX_RATE = 0.06
 STRICT_ALPHA = 0.01
-# Rows excluded by their status, and the subjects of condition a that are kept.
 N_EXCLUDED = 2
 N_KEPT = 7
 
@@ -225,7 +222,7 @@ def test_status_rows_are_excluded_and_counted() -> None:
     )
     assert out["n_excluded"].iloc[0] == N_EXCLUDED
     assert out["n_missing"].iloc[0] == 1
-    assert out["n_a"].iloc[0] == N_KEPT  # s1 (missing b), s8, s9 dropped
+    assert out["n_a"].iloc[0] == N_KEPT
 
 
 def test_several_conditions_and_errors() -> None:
@@ -252,7 +249,7 @@ def test_several_conditions_and_errors() -> None:
         ("2", "3"),
     ]
     assert np.all(out["p_value"] >= out["p_value_raw"])
-    assert out["difference_ms"].notna().all()  # a latency: also reported in ms
+    assert out["difference_ms"].notna().all()
     with pytest.raises(SettingsError):
         compare_conditions(table, parameter="latency", condition="condition", unit="session")
     with pytest.raises(SettingsError, match="paired=True"):

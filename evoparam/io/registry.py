@@ -22,7 +22,6 @@ __all__ = ["list_datasets", "dataset_info", "EVENTS_STATUS"]
 
 EVENTS_STATUS = ("present", "absent", "unknown")
 
-# Columns of list_datasets, in order.
 _COLUMNS = (
     "id",
     "title",

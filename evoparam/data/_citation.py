@@ -17,7 +17,7 @@ __all__ = ["read_citation", "citation_text", "citation_bibtex", "parse_cff"]
 
 
 _KEY = re.compile(r"^[A-Za-z0-9_.-]+:(\s|$)")
-_QUOTED_MIN = 2  # an opening and a closing quote
+_QUOTED_MIN = 2
 
 
 def _scalar(text: str) -> str | None:
@@ -53,7 +53,6 @@ def _parse_block(lines: list[tuple[int, str]], start: int, indent: int) -> tuple
         while i < len(lines) and lines[i][0] == indent and lines[i][1].startswith("- "):
             body = lines[i][1][2:]
             if _KEY.match(body):
-                # a mapping whose first key is on the dash line
                 sub = [(indent + 2, body)]
                 j = i + 1
                 while j < len(lines) and lines[j][0] > indent:
@@ -140,7 +139,6 @@ def citation_text(cff: dict[str, Any] | None = None) -> str:
     text += f" (version {cff['version']})." if cff.get("version") else "."
     version_doi = _version_doi(cff)
     if cff.get("doi") and version_doi:
-        # REQ-391: the concept DOI (every version) and the DOI of this version
         text += (
             f" https://doi.org/{version_doi} (this version; all versions: "
             f"https://doi.org/{cff['doi']})"

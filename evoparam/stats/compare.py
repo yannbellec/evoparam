@@ -32,14 +32,11 @@ __all__ = ["compare_conditions", "hedges_g", "UNITS", "COMPARE_COLUMNS"]
 
 UNITS = ("trial", "channel", "subject")
 
-# Fewest condition labels, and units per condition, for a contrast
 _MIN_CONDITIONS = 2
 _MIN_UNITS = 2
 
-# Levels that contain each unit: a contrast must stay inside one of each.
 _ABOVE = {"trial": ("channel", "subject"), "channel": ("subject",), "subject": ()}
 
-# Parameters measured in seconds (reported in ms as well) when the table has no unit record.
 _TIME_NAMES = (
     "latency",
     "onset",
@@ -198,7 +195,7 @@ def _is_time(table: Any, parameter: Any) -> Any:
     return parameter in _TIME_NAMES or parameter.endswith("_latency")
 
 
-def compare_conditions(  # noqa: PLR0913  (spec §5.11 fixes 8 parameters, plus by, conditions, ci_level and n_boot; DECISIONS.md §7.2)
+def compare_conditions(  # noqa: PLR0913
     table: Any,
     *,
     parameter: str,

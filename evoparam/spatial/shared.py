@@ -45,9 +45,6 @@ from evoparam.version import __version__
 
 __all__ = ["fit_shared", "neighbours", "PARAMETER_ROLES"]
 
-# Role of each shape parameter, so that ``shared`` can name roles ("latency", "fwhm",
-# "asymmetry") instead of the parameter names of each shape. The location parameter of
-# every shape has the role "latency".
 PARAMETER_ROLES = {
     "sigma": "fwhm",
     "omega": "fwhm",
@@ -63,9 +60,7 @@ PARAMETER_ROLES = {
 }
 LAMBDA_FACTORS = (0.0, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0)
 MAX_ROUNDS = 10
-# Fewest channels of a shared fit
 _MIN_CHANNELS = 2
-# Residual samples above which the lag-1 autocorrelation is reported
 _MIN_LAG_SAMPLES = 3
 LAMBDA_MARGIN = 0.01
 
@@ -139,8 +134,6 @@ class _Layout:
                 )
                 is_shared = name in shared or role in shared
                 if name == shape.latency_param:
-                    # The latency is shared (with per-channel offsets when free_latency) or,
-                    # when not in ``shared``, local
                     if is_shared:
                         self.shared_idx.append((k, i))
                     else:
@@ -152,7 +145,6 @@ class _Layout:
         self.free_latency = free_latency
         self.shared = shared
         self.loc = [shape.param_names.index(shape.latency_param) for shape in shapes]
-        # A latency offset per channel and component when the latency is shared
         self.offset_k = [
             k for k in range(len(shapes)) if free_latency and (k, self.loc[k]) in self.shared_idx
         ]
@@ -469,7 +461,6 @@ def _alternate(
 
 
 ###################################################################################################
-## Leave-one-channel-out choice of the penalty
 
 
 def _offset_curvature(m: _Model, z_shared: Any, z_locals: Any, max_shift: Any) -> FloatArray:
@@ -667,8 +658,6 @@ def _channel_fit(
         )
     bg = ch.background
     values = dict(zip(bg.linear_names, beta[len(shapes) :], strict=False))
-    # the time constants (held from the channel's own fit) and the time origin with the
-    # coefficients, so that evaluate_fit gives this channel's fitted background
     values.update(zip(getattr(bg, "nonlinear_names", ()), ch.bg_nonlinear, strict=True))
     background = {"name": bg.name, **{key: float(v) for key, v in values.items()}}
     if ch.t_ref is not None:
@@ -694,9 +683,7 @@ def _channel_fit(
 ## Entry point
 
 
-def _shape_like(
-    name: Any, settings: Any
-) -> Any:  # a ComponentShape (shapes is reached through models only)
+def _shape_like(name: Any, settings: Any) -> Any:
     """Return the shape ``name`` with the width limits of ``settings``."""
     import dataclasses
 
@@ -706,7 +693,7 @@ def _shape_like(
     return get_shape(name, **kwargs)
 
 
-def fit_shared(  # noqa: PLR0913  (spec §5.9 fixes 8 parameters, plus smooth_lambda, group_fit and reject_cancelling; DECISIONS.md §7.2)
+def fit_shared(  # noqa: PLR0913
     ts: "TrialSet | Evoked",
     *,
     channels: list[str] | None = None,
@@ -848,7 +835,7 @@ def fit_shared(  # noqa: PLR0913  (spec §5.9 fixes 8 parameters, plus smooth_la
         warns = [f"k_mismatch:{flagged[name]}"] if name in flagged else []
         fits.append(_channel_fit(ch, m, (z_shared, z), (y, valid), warns, out))
     for fit in fits:
-        fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
+        fit.units = evoked.units
     return GroupFit.from_fits(
         fits, channels, [""] * len(fits), settings=settings_dict, provenance=provenance
     )
@@ -1010,7 +997,6 @@ def _drop_cancelling(
         pairs = _cancelling(m, state.z_shared, state.z_locals, settings, sfreq)
         if not pairs:
             break
-        # the pair found on most channels; the member whose removal fits best is dropped
         (a, b), n_channels = pairs.most_common(1)[0]
         best: Any = None
         for drop in (a, b):
@@ -1048,7 +1034,7 @@ def _smooth(
             "fit_shared: no neighbouring contacts (coordinates missing or no "
             f"pair within {radius_mm} mm); smooth=True has no effect.",
             UserWarning,
-            stacklevel=3,  # _smooth, fit_shared, then its caller
+            stacklevel=3,
         )
         return {"lambda": 0.0, "reason": "no_neighbours"}
     m, z_shared, z_locals = state.model, state.z_shared, state.z_locals

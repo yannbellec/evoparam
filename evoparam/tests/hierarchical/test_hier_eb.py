@@ -15,27 +15,18 @@ from evoparam.errors import SettingsError
 from evoparam.hierarchical import fit_hierarchical, posterior_summary
 from evoparam.tests.hierarchical.helpers import auc, merged, reliability_slope, simulate_group
 
-# The reference group of REQ-170: 20 subjects x 50 channels, so 1000 channel rows.
 N_SUBJECTS = 20
 N_CHANNEL_ROWS = 1000
-# REQ-170: p_response discriminates (AUC) and is calibrated (reliability slope in range).
 MIN_AUC = 0.95
 MIN_SLOPE = 0.8
 MAX_SLOPE = 1.2
-# Fewest runs in which the shrunken estimate wins, or the truth is covered (REQ-171, 172, 175).
 MIN_WIN_FRACTION = 0.9
-# Largest relative error of a variance component (REQ-172).
 MAX_RATIO_ERROR = 0.2
-# Simulated effect of age on the latency (s per year), and the coverage required in the
-# short (5-run) version of the test.
 AGE_SLOPE = 0.0002
 MIN_SHORT_COVERAGE = 0.8
-# REQ-176: the model step per subject (s), and the whole fit per subject (s).
 MAX_MODEL_SECONDS = 0.5
 MAX_FIT_SECONDS = 10
-# Fewest channels with a latency when one subject is fitted.
 MIN_CHANNELS = 5
-# The Wald errors and fallback of the latency standard-error test (s).
 WIDE_WALD = 0.015
 FALLBACK_SE = 0.0007
 
@@ -190,7 +181,6 @@ def test_formula_errors() -> None:
 def test_req176_eb_model_time_per_subject(reference: Any) -> None:
 
     fit, _, _ = reference
-    # the model itself (given the channel and trial fits) takes a small part of the time
     assert fit.diagnostics["timing_s"]["model"] / N_SUBJECTS <= MAX_MODEL_SECONDS
 
 
@@ -233,7 +223,6 @@ def test_channel_with_few_trusted_trials_is_prior_dominated() -> None:
     sets, truth = simulate_group(
         n_subjects=3, n_channels=10, n_trials=20, p_respond=1.0, snr=3.0, seed=5
     )
-    # two trials only on one channel: drop the others by NaN masking
     import dataclasses
 
     ts = sets[0]
@@ -299,11 +288,8 @@ def test_latency_standard_error_adds_jitter_and_truncates_to_the_window() -> Non
         0.05,
         fallback=np.array([9.0, 9.0, FALLBACK_SE, 9.0]),
     )
-    # a narrow error is the noise and the mean jitter in quadrature (window far away)
     assert out[0] == pytest.approx(np.hypot(0.001, 0.002 / 4), rel=1e-6)
-    # a wide one is the SD of the normal truncated to the label window
     assert out[1] < WIDE_WALD
     assert out[1] < (0.05 - 0.009) / np.sqrt(12) * 1.01
-    # no Wald error: the fallback; no trial: the Wald error alone
     assert out[2] == FALLBACK_SE
     assert out[3] == pytest.approx(0.001)

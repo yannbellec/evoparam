@@ -11,8 +11,6 @@ from .helpers import epochs, sim_carla
 
 pd = pytest.importorskip("pandas")
 
-# Responsive fraction up to which no responsive channel may be chosen, and the median
-# of the false positives allowed.
 MAX_FRACTION = 0.84
 MAX_FALSE_POSITIVES = 2.5
 
@@ -145,9 +143,7 @@ def test_reference_sensitivity_runs_the_existence_test() -> None:
     assert groups == ["S48-S49"]
     assert np.ndim(detected) == 1
     assert channels["monopolar"]["detected"].reindex(ts.ch_names).tolist() == list(detected)
-    # Responsive channels are found under the original reference
     found = {int(key[1:3]) for key in channels.index[channels["monopolar"]["detected"]]}
     assert len(found & responsive) >= 0.8 * len(responsive)
-    # The interim threshold rule stays available by name
     other = reference_sensitivity(ts, schemes=("monopolar", "car"), detector="threshold")
     assert other.attrs["detector"] == "threshold_detector"

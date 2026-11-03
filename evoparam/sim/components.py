@@ -18,7 +18,6 @@ from evoparam._typing import Any, FloatArray
 from evoparam.errors import SettingsError
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_shape
 
-# a range is a (low, high) pair
 _RANGE_LENGTH = 2
 
 __all__ = [
@@ -33,15 +32,8 @@ __all__ = [
     "ROLES",
 ]
 
-# Roles of a simulated component in the ground truth.
-#   target: what the generator was asked to produce; overlap: response to a neighbouring
-#   event; confound: a real response that is not the one studied (auditory click of a
-#   TMS pulse); masker: response to the masker of a forward-masking paradigm.
 ROLES = ("target", "overlap", "confound", "masker")
 
-# Per shape: the location parameter (moved by latency jitter), the width parameter
-# (scaled to reach the FWHM), dimensionless parameters with their defaults, and
-# parameters given as a multiple of the width parameter (keyword ``<name>_ratio``).
 SHAPE_FORMS: dict[str, dict[str, Any]] = {
     "gaussian": {"loc": "mu", "scale": "sigma", "fixed": {}, "ratios": {}},
     "skewed_gaussian": {"loc": "xi", "scale": "omega", "fixed": {"alpha": 2.0}, "ratios": {}},
@@ -50,12 +42,10 @@ SHAPE_FORMS: dict[str, dict[str, Any]] = {
     "biexponential": {"loc": "t0", "scale": "tau_rise", "fixed": {}, "ratios": {"tau_decay": 4.0}},
 }
 
-# Oscillatory shapes: latency is the onset (damped) or the envelope centre (Gabor).
 OSCILLATORY = ("damped_oscillation", "gabor")
 
 
 ###################################################################################################
-## Latency and FWHM -> shape parameters
 
 
 def _form_settings(
@@ -96,7 +86,7 @@ def _unit_form(name: Any, fixed: Any, ratios: Any) -> Any:
     Both scale linearly with the width parameter and the latency moves with the
     location, so one evaluation per set of dimensionless parameters is enough.
     """
-    shape: Any = get_shape(name)  # a built-in shape of SHAPE_FORMS, with latency()
+    shape: Any = get_shape(name)
     params = _assemble(name, 0.0, 1.0, fixed, ratios)
     if name == "gaussian":
         return 0.0, float(FWHM_PER_SIGMA)
@@ -312,11 +302,6 @@ def as_spec(obj: Any, presets: Any = None) -> Any:
 ###################################################################################################
 ## Presets
 
-# ERP components. Latency ranges follow the ERP CORE measurement windows where ERP CORE
-# defines the component (N170 110-150 ms, MMN 125-225 ms, N400 300-500 ms, P3 300-600 ms,
-# ERN 0-100 ms after the response) [LIT-erpmeas-39]; P1 and N1 (not ERP CORE components)
-# use the usual visual ranges. Widths and amplitudes (µV) are typical values; they set the
-# simulation, not a claim about the literature.
 ERP_COMPONENTS = {
     "P1": ComponentSpec("P1", latency=(0.080, 0.130), fwhm=(0.030, 0.050), amplitude=(2.0, 5.0)),
     "N1": ComponentSpec("N1", latency=(0.130, 0.200), fwhm=(0.040, 0.070), amplitude=(-6.0, -2.0)),
@@ -335,8 +320,6 @@ ERP_COMPONENTS = {
     ),
 }
 
-# TMS-evoked components and their latency ranges [LIT-domains-1]; widths and amplitudes
-# (µV at the stimulated site) are typical values.
 TEP_COMPONENTS = {
     "N15": ComponentSpec(
         "N15", latency=(0.010, 0.020), fwhm=(0.006, 0.010), amplitude=(-3.0, -1.0)
@@ -354,8 +337,6 @@ TEP_COMPONENTS = {
     ),
 }
 
-# CCEP components (spec §5.12): N1 15-40 ms, FWHM 5-15 ms; N2 80-250 ms, FWHM 40-150 ms;
-# delayed responses 100 ms-1 s [LIT-ccep-19]. Amplitudes in µV.
 CCEP_N1 = ComponentSpec(
     "N1", latency=(0.015, 0.040), fwhm=(0.005, 0.015), amplitude=(-500.0, -50.0)
 )

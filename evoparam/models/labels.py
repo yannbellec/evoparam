@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 __all__ = ["label_components", "sign_name", "POLARITY_RULES"]
 
 POLARITY_RULES = ("sign", "none")
-# a window named by sign holds two names, "P1/N1"
 _PAIR = 2
 
 

@@ -16,8 +16,6 @@ from .helpers import make_bids
 
 pd = pytest.importorskip("pandas")
 
-# Exit code of validate-bids --strict when a field is missing, fields reported, and the
-# fewest missing in the fixtures.
 EXIT_MISSING = 5
 N_FIELDS = 30
 MIN_MISSING = 10
@@ -164,14 +162,14 @@ def test_statuses_on_the_three_fixtures(fixtures: Any) -> None:
 
     utrecht = _status(table, "utrecht")
     assert utrecht["stim_site"] == "present"
-    assert utrecht["stim_current_mA"] == "inferred"  # 0.008 read as A (8 mA)
-    assert utrecht["stim_pulse_width_us"] == "inferred"  # 0.001 read as s (1000 us)
-    assert utrecht["stim_frequency_hz"] == "inferred"  # 0.2 without unit, read as Hz
-    assert utrecht["stim_polarity"] == "inconsistent"  # monophasic, phase order unknown
+    assert utrecht["stim_current_mA"] == "inferred"
+    assert utrecht["stim_pulse_width_us"] == "inferred"
+    assert utrecht["stim_frequency_hz"] == "inferred"
+    assert utrecht["stim_polarity"] == "inconsistent"
     assert utrecht["stim_n_pulses"] == "missing"
     assert utrecht["ElectricalStimulation"] == "present"
     assert utrecht["reference"] == "missing"
-    assert utrecht["type"] == "inconsistent"  # EKG typed n/a
+    assert utrecht["type"] == "inconsistent"
     assert utrecht["coordinates"] == "missing"
     assert set(table.loc[table["subject"] == "utrecht", "n_events"]) == {4}
 
@@ -257,8 +255,8 @@ def test_mini_dataset_of_the_reader_tests(tmp_path: Any) -> None:
     root = make_bids(str(tmp_path / "mini"))
     table = validate_stim_metadata(root)
     sub01 = _status(table, "01")
-    assert sub01["stim_current_mA"] == "present"  # Units A in the root events.json
-    assert sub01["stim_pulse_width_us"] == "inferred"  # 0.0002 without units
+    assert sub01["stim_current_mA"] == "present"
+    assert sub01["stim_pulse_width_us"] == "inferred"
     assert sub01["coordinates"] == "present"
     assert sub01["reference"] == "present"
     assert _status(table, "02")["coordinates"] == "missing"

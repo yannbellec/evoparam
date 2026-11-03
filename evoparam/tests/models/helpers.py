@@ -9,7 +9,6 @@ from scipy.signal import lfilter
 
 from evoparam.models import ResponseModel
 
-# Smallest latency gap (s) between two simulated components.
 MIN_COMPONENT_GAP = 0.08
 
 ###################################################################################################
@@ -81,9 +80,7 @@ def match(fit: Any, truth: Any) -> Any:
 
 
 ###################################################################################################
-## Designs of the acceptance tests on simulate_erp waveforms (REQ-104 to REQ-106)
 
-# Levels of spec §7.2: SNR (peak / noise SD of the waveform) and width (samples)
 SNR_LEVELS = (3, 5, 10, 20)
 WIDTH_SAMPLES = (3, 6, 12, 25)
 TRUTH_SHAPES = ("gaussian", "skewed_gaussian", "exgaussian", "gamma", "biexponential")

@@ -63,13 +63,12 @@ def main(argv):
     task = descriptor["task"]
     if task not in ("T1", "T2"):
         sys.exit(f"crp_adapter: task {task} is not answered (T1, T2 only).")
-    data = arrays["data"]                                  # trials x channels x samples
+    data = arrays["data"]
     t = times(descriptor, data.shape[-1])
     keep = (t >= WINDOW[0]) & (t <= WINDOW[1])
     channels = scored_channels(descriptor)
     with tempfile.TemporaryDirectory(prefix="crp-") as tmp:
         mat_in, mat_out = os.path.join(tmp, "in.mat"), os.path.join(tmp, "out.mat")
-        # V: samples x trials x channels, as CRP_method takes one samples x trials matrix
         V = np.nan_to_num(data[:, [i for i, _ in channels]][:, :, keep]).transpose(2, 0, 1)
         savemat(mat_in, {"V": V, "t_win": t[keep]})
         command = _engine_command(f"crp_wrapper('{mat_in}', '{mat_out}')")
@@ -80,7 +79,7 @@ def main(argv):
         out = loadmat(mat_out)
     p_values = np.ravel(out["p_value"]).astype(float)
     t_values = np.ravel(out["t_value"]).astype(float)
-    shapes = np.atleast_2d(out["shape"]).astype(float)     # channels x samples (0 to tR)
+    shapes = np.atleast_2d(out["shape"]).astype(float)
     t_shape = t[keep]
     rows = []
     for k, (_, channel) in enumerate(channels):

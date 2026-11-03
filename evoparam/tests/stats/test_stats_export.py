@@ -19,7 +19,6 @@ from .helpers import N1
 
 pd = pytest.importorskip("pandas")
 
-# Rows of the table exported.
 N_ROWS = 10
 
 HAS_STATSMODELS = importlib.util.find_spec("statsmodels") is not None
@@ -109,7 +108,6 @@ def test_req235_long_table() -> None:
     ok = long[(long["status"] == "ok") & (long["parameter"] == "latency")]
     assert (ok["se"] > 0).all()
     assert np.allclose(ok["weight"], 1 / ok["se"] ** 2)
-    # channels without a component keep their rows, with their status, and no value
     for channel, status in (("X1", "failed"), ("X2", "skipped")):
         rows = long[long["channel"] == channel]
         assert len(rows) == N_ROWS
@@ -133,7 +131,6 @@ def test_req235_wide_table_and_other_results() -> None:
     assert sidecar["amplitude"]["Units"] == "uV"
     assert sidecar["latency_weight"]["Units"] == "1/s^2"
     assert all(_scalar(v) for v in wide.to_numpy().ravel())
-    # a trial table (TrialFit / TrialFitSet layout) keeps every metadata column
     trials = pd.DataFrame(
         {
             "trial": [0, 0, 1, 1],
@@ -156,7 +153,7 @@ def test_req235_wide_table_and_other_results() -> None:
     long = to_long(trials, units="uV")
     assert set(long["parameter"]) == {"shift", "scale", "latency", "amplitude", "fwhm", "r2"}
     assert {"stim_current_mA", "trusted", "trial"} <= set(long.columns)
-    assert long["tags"].iloc[0] == '["a"]'  # one value per cell
+    assert long["tags"].iloc[0] == '["a"]'
     assert long.attrs["sidecar"]["stim_current_mA"]["Description"].startswith("Column")
     summary = pd.DataFrame(
         {
@@ -200,7 +197,6 @@ def test_column_dictionary_unknown_columns() -> None:
     assert out["channel"]["Units"] == "n/a"
 
 
-# Frozen templates (REQ-236).
 FORMULA_CASES = [
     (
         {"response": "value", "fixed": ["condition"], "groups": ["subject"]},
@@ -283,7 +279,7 @@ def test_req236_frozen_templates(case: Any, expected: Any) -> None:
     "package statsmodels (extra 'stats') is not installed",
 )
 @pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
-def test_req236_statsmodels_parses(case: Any, expected: Any) -> None:  # noqa: ARG001  (shared parametrization; this test checks parsing only)
+def test_req236_statsmodels_parses(case: Any, expected: Any) -> None:  # noqa: ARG001
 
     import statsmodels.formula.api as smf
 
@@ -341,7 +337,6 @@ def test_req237_status_counts() -> None:
     assert lat["n"] == len(ok_lat)
     assert lat["mean"] == pytest.approx(ok_lat.mean())
     assert lat["ci_low"] <= lat["mean"] <= lat["ci_high"]
-    # the long format gives the same counts
     long = to_long(group, units="uV")
     out_long = group_summary(long, by=["condition"], parameters=["latency"], random_state=0)
     assert (

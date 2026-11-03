@@ -27,15 +27,12 @@ from evoparam.trials import FixedShapeModel
 
 __all__ = ["StreamFitter", "PulseEstimate", "replay", "INTENDED_USE", "STATUSES"]
 
-# Dimensions of a block of samples [n_samples, n_channels] and of a raw recording.
 _MATRIX_NDIM = 2
 
 INTENDED_USE = "research only; not a medical device"
 STATUSES = ("ok", "artifact", "late", "saturated")
 BACKENDS = ("numpy",)
-# Compute time per pulse above which its estimates are "late" (REQ-324: 20 ms).
 BUDGET_MS = 20.0
-# Sign flips of the running existence test (the default of test_response).
 N_PERMUTATIONS = 1000
 
 
@@ -131,7 +128,7 @@ class StreamFitter:
     medical device).
     """
 
-    def __init__(  # noqa: PLR0913  (spec §10.6 fixes 11 parameters, plus saturation, existence_alpha, existence_max_pulses, existence_looks, random_state and mode; DECISIONS.md §7.2)
+    def __init__(  # noqa: PLR0913
         self,
         template: Any,
         *,

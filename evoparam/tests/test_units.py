@@ -21,7 +21,6 @@ def test_req009_containers_have_times_in_seconds_and_an_explicit_unit() -> None:
     trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0)
     assert trials.units in UNITS
     assert trials.units != ""
-    # times in seconds: an epoch of -0.5 to 1 s at 2048 Hz
     assert trials.times[0] == pytest.approx(-0.5)
     assert trials.times[-1] < 1.0
     assert np.diff(trials.times) == pytest.approx(1 / trials.sfreq)

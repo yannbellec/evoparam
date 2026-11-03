@@ -19,33 +19,25 @@ from evoparam.tests.sim._helpers import SMALL
 
 pd = pytest.importorskip("pandas")
 
-# Seed recorded in the provenance.
 SEED = 7
-# Relative tolerance of the noise SD, and the tolerances of the shape features (s).
 SD_TOLERANCE = 0.05
 LATENCY_TOLERANCE = 1e-6
 FWHM_TOLERANCE = 1e-5
-# Latency range (s) and amplitude range of the component spec, and the explicit amplitude.
 LATENCY_MIN = 0.1
 LATENCY_MAX = 0.2
 AMPLITUDE_MIN = -3.0
 EXPLICIT_AMPLITUDE = 2.0
-# P1 components (one per channel) and their latency range (s).
 N_P1 = 4
 P1_MIN = 0.08
 P1_MAX = 0.13
-# Jitter checks: SD and mean tolerances (s), ex-Gaussian mean tolerance and skewness.
 JITTER_SD_TOLERANCE = 0.003
 JITTER_MEAN_TOLERANCE = 0.004
 EXGAUSS_MEAN_TOLERANCE = 0.006
 MIN_SKEW = 0.5
-# Range (s) of the stimulus onset asynchrony.
 SOA_MIN = 0.3
 SOA_MAX = 0.5
-# Responders among 20 contacts (two are stimulated), and the stimulated contacts.
 N_RESPONDERS = 18
 N_STIM_CONTACTS = 2
-# Period (s) of the train at 0.5 Hz, the ERNA frequency range (Hz), and its pulses.
 TRAIN_PERIOD = 2.0
 ERNA_FMIN = 200.0
 ERNA_FMAX = 450.0
@@ -75,7 +67,6 @@ def test_containers_and_provenance(name: Any) -> None:
     assert ts.ch_names == truth.ch_names
     assert ts.sfreq == truth.sfreq
     np.testing.assert_array_equal(ts.times, truth.times)
-    # Time axis on the grid k / sfreq, tmax excluded.
     np.testing.assert_allclose(ts.times * ts.sfreq, np.round(ts.times * ts.sfreq), atol=1e-6)
     assert ts.times[0] < 0 < ts.times[-1]
     assert truth.signal.shape == ts.data.shape
@@ -90,7 +81,7 @@ def test_containers_and_provenance(name: Any) -> None:
     assert source["generator"] == truth.generator == f"evoparam.sim.{gen.__name__}"
     step = ts.provenance.steps[-1]
     assert step["function"] == truth.generator
-    json.loads(dumps(step["settings"]))  # settings are strict JSON
+    json.loads(dumps(step["settings"]))
     assert step["settings"]["seed"] == SEED
     for key, value in SMALL[name].items():
         assert truth.settings[key] == value
@@ -140,7 +131,6 @@ def test_bad_counts() -> None:
 
 
 ###################################################################################################
-## Components and presets
 
 
 @pytest.mark.parametrize("shape", sorted(SHAPE_FORMS))
@@ -376,7 +366,6 @@ def test_ccep_trains() -> None:
 
 
 ###################################################################################################
-## ERNA, TEP, ECAP, animal
 
 
 def test_erna_pulses() -> None:
@@ -391,7 +380,7 @@ def test_erna_pulses() -> None:
     assert ERNA_FMIN <= freq.pop() <= ERNA_FMAX
     first = [c for c in truth.components if c["channel"] == ts.ch_names[1]]
     amplitudes = [abs(c["amplitude"]) for c in sorted(first, key=lambda c: c["event"])]
-    assert all(np.diff(amplitudes) > 0)  # build-up over the train
+    assert all(np.diff(amplitudes) > 0)
     assert truth.components[0]["shape"] == "damped_oscillation"
     assert ts.metadata["stim_n_pulses"].iloc[0] == N_ERNA_PULSES
     with pytest.raises(SettingsError, match="4096"):
@@ -424,7 +413,6 @@ def test_tep_components_and_site() -> None:
 def test_ecap_masking_and_paradigms() -> None:
     ts, truth = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=1.0, noise="none")
     probe = [i for i, c in enumerate(truth.components) if c["role"] == "target"]
-    # Full masking: no probe response in condition B (masker + probe).
     b_trials = [t for t, cond in enumerate(truth.conditions) if cond == "B"]
     assert not truth.present[np.ix_(b_trials, probe)].any()
     _, half = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=0.5, noise="none")
@@ -450,7 +438,7 @@ def test_animal_depth_reversal_and_states() -> None:
     assert set(ts.metadata["state"]) == {"awake", "nrem"}
     first = truth.components[0]["label"]
     amps = [c["amplitude"] for c in truth.components if c["label"] == first]
-    assert np.sign(amps[0]) == -np.sign(amps[-1])  # polarity reverses with depth
+    assert np.sign(amps[0]) == -np.sign(amps[-1])
     _, custom = sim.simulate_animal_ep(
         seed=2,
         n_trials=6,

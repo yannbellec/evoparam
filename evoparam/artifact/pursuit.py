@@ -17,16 +17,15 @@ from evoparam.errors import warn as _warn
 
 __all__ = []
 
-# Warnings already given in this session (the patent notice is given once).
 _WARNED: set[str] = set()
 
 # Dictionary grid.
 N_HARMONICS = 3
-GAUSS_WIDTHS = (0.002, 0.005, 0.01, 0.02, 0.05)  # SD of the response atoms (s)
-GAUSS_STEP = 0.005  # spacing of their centres (s)
-N_DECAYS = 12  # exponential time constants
+GAUSS_WIDTHS = (0.002, 0.005, 0.01, 0.02, 0.05)
+GAUSS_STEP = 0.005
+N_DECAYS = 12
 DECAY_RANGE = (0.0002, 0.05)  # s
-DECAY_START_STEP = 0.001  # spacing of their onsets (s)
+DECAY_START_STEP = 0.001
 
 
 def warn_patent() -> None:
@@ -101,7 +100,7 @@ def pursuit_clean(
     atoms, kinds = dictionary(rel, window_end, line_freq)
     is_artifact = kinds == "artifact"
     gram = atoms @ atoms.T
-    corr = series @ atoms.T  # correlation of the residual with each atom
+    corr = series @ atoms.T
     energy = np.sum(series**2, axis=1)
     coefs = np.zeros(corr.shape)
     active = np.ones(len(series), dtype=bool)

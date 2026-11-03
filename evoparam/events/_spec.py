@@ -28,7 +28,6 @@ from ._score import _CHUNK, MAD_TO_SD
 __all__ = []
 
 
-# A local maximum needs a sample on each side.
 _MIN_PEAK_SAMPLES = 3
 
 
@@ -73,13 +72,13 @@ def spec_threshold(
     half = max(1, int(round(0.002 * sfreq)))
     n = len(score)
     for i in above:
-        sample = i + 1  # d[sample] crosses the threshold
+        sample = i + 1
         if sample - last < min_samples:
             continue
         lo, hi = max(0, i - half), min(n, i + half + 1)
         if refine:
-            best = lo + int(np.argmax(score[lo:hi]))  # d[best + 1] is the largest
-            onset = best  # (best + 1) - 1: last pre-artifact
+            best = lo + int(np.argmax(score[lo:hi]))
+            onset = best
         else:
             onset = sample
         onsets.append(max(onset, 0))

@@ -8,25 +8,17 @@ import numpy as np
 from evoparam.models import ResponseModel
 from evoparam.models import engine as eng
 
-# Sampling rate (Hz), epoch (s), fit window (s) and baseline (s): a 12 s window at 2 kHz
-# holds 24 000 samples, more than the 20 000 of the search.
 SFREQ = 2000.0
 EPOCH = (-2.0, 13.0)
 WINDOW = (0.0, 12.0)
 BASELINE = (-2.0, 0.0)
-# Three slow components: (latency s, amplitude, FWHM s), in noise of SD 1.
 TRUTH = ((1.5, -8.0, 0.4), (4.0, 6.0, 1.0), (8.0, -5.0, 1.5))
-# Spec §5.5.9: the window length (s) and rate (Hz) above which the search is decimated, and
-# the most samples it runs on.
 LONG_WINDOW = 10.0
 HIGH_RATE = 1000.0
 SEARCH_MAX = 20_000
-# Latency tolerance (s) against the truth; agreement with the search at full resolution, in
-# standard errors (two ends of the optimiser from different starts) and relative on BIC.
 LATENCY_TOLERANCE = 0.02
 SAME_SE = 1e-3
 SAME_BIC = 1e-6
-# Decimation factors: a 12 s window at 2 kHz (24 000 samples) and a 30 s one (60 000).
 FACTOR_12S = 2
 FACTOR_30S = 3
 
@@ -70,14 +62,12 @@ def test_long_window_is_searched_decimated_and_refitted_at_full_resolution(
     assert note["n_samples"] <= SEARCH_MAX < note["n_samples_full"] == n_window
     assert note["factor"] == FACTOR_12S
     assert fit.diagnostics["decimated_search"] == note
-    # the result is at full resolution: model and residual on every sample of the window
     assert len(fit.model) == len(fit.residual) == n_window
     assert fit.status == "ok"
     assert len(fit.components) == len(TRUTH)
     for comp, (latency, amplitude, _) in zip(fit.components, TRUTH, strict=True):
         assert abs(comp.latency - latency) <= LATENCY_TOLERANCE
         assert np.sign(comp.amplitude) == np.sign(amplitude)
-    # the refit reaches the optimum the search at full resolution reaches
     monkeypatch.setattr(eng, "DECIMATE_WINDOW", np.inf)
     full = _model().fit_waveform(times, y)
     assert "decimated_search" not in full.provenance.steps[-1]
@@ -97,10 +87,8 @@ def test_short_or_slow_windows_are_not_decimated() -> None:
     short = _model(fit_window=(0.0, 9.5)).settings()
     assert eng.decimation_factor(times, short, SFREQ) == 1
     assert eng.decimation_factor(times[::4], settings, SFREQ / 4) == 1
-    # 15 s at 1 kHz: 15 000 samples, already at most 20 000
     slow = np.arange(-2.0, 18.0, 1e-3)
     assert eng.decimation_factor(slow, _model(fit_window=(0.0, 15.0)).settings(), 1000.0) == 1
-    # 30 s at 2 kHz: 60 000 samples, factor 3
     wide = np.arange(-2.0, 31.0, 1 / SFREQ)
     factor = eng.decimation_factor(wide, _model(fit_window=(0.0, 30.0)).settings(), SFREQ)
     assert factor == FACTOR_30S

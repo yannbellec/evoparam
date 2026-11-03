@@ -142,7 +142,6 @@ def damped_oscillation(bk: Any, t0: Any, tau: Any, freq: Any, phase: Any) -> Any
         angle = omega * u + phase
         return -bk.exp(-u / tau) * (bk.cos(angle) / tau + omega * bk.sin(angle))
 
-    # The envelope decreases: the largest extremum is within one period of the onset.
     norm = _max_abs(bk, curve, slope, bk.mpf(0), 1 / freq, 400)
     return lambda t: curve(t - t0) / norm if t >= t0 else bk.mpf(0)
 
@@ -158,7 +157,6 @@ def gabor(bk: Any, t0: Any, sigma: Any, freq: Any, phase: Any) -> Any:
             -(u / sigma**2) * bk.cos(omega * u + phase) - omega * bk.sin(omega * u + phase)
         )
 
-    # A crest of the cosine lies within a quarter period of the centre.
     reach = 1 / (4 * freq) + sigma / 100
     norm = _max_abs(bk, curve, slope, -reach, reach, 2000)
     return lambda t: curve(t - t0) / norm

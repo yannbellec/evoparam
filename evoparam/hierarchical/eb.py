@@ -45,11 +45,9 @@ __all__ = [
     "design_matrix",
 ]
 
-# Channels beyond this many noise SDs start the iterations, if at least _MIN_STRONG of them.
 _STRONG_Z = 3
 _MIN_STRONG = 2
 
-# Fewest trial latencies from which the trial-to-trial jitter is estimated.
 _MIN_JITTER_TRIALS = 5
 
 PARAMETERS = ("latency", "amplitude", "fwhm")
@@ -94,7 +92,6 @@ def mixture_em(
     ok = np.isfinite(y) & np.isfinite(se2) & (se2 > 0)
     sign = polarity if polarity else (np.sign(np.median(y[ok])) or 1.0)
     z = sign * y / np.sqrt(se2)
-    # initialise from the channels well beyond their noise
     strong = ok & (z > _STRONG_Z)
     start = (
         np.median(y[strong])
@@ -108,7 +105,7 @@ def mixture_em(
     mu_group, var_group = float(start), np.inf
     previous = -np.inf
     converged = False
-    for it in range(1, max_iter + 1):  # noqa: B007  (the count is read after the loop)
+    for it in range(1, max_iter + 1):  # noqa: B007
         var1 = tau**2 + se2
         l1 = np.log(pi[subject]) + _normal_logpdf(y, mu[subject], var1)
         l0 = np.log(1 - pi[subject]) + _normal_logpdf(y, 0.0, se2)
@@ -164,7 +161,7 @@ def shrink(
     se: Any,
     subject: Any,
     channel: Any,
-    X: Any = None,  # noqa: N803  (public keyword: the fixed-effect design X)
+    X: Any = None,  # noqa: N803
 ) -> tuple[dict[str, Any], int]:
     """Shrunken channel and subject estimates of one parameter (REML, nested model).
 
@@ -195,7 +192,6 @@ def jitter_components(latency: Any, noise_sd: Any, subject: Any, channel: Any) -
     groups = [channel] if single else [subject, channel]
     out = reml(latency, groups, se=noise_sd, residual=True)
     sd = float(np.sqrt(out["residual"]))
-    # third central moment within channels (noise adds nothing to it)
     keys = [f"{a}/{b}" for a, b in zip(subject, channel, strict=False)]
     centred = np.empty_like(latency)
     for key in dict.fromkeys(keys):
@@ -302,8 +298,6 @@ def effects_table(out: Any, names: Any, level: float = 0.95) -> Any:
     beta = np.asarray(out["beta"], float)
     se = np.sqrt(np.diag(np.asarray(out["beta_cov"], float)))
     q = sstats.norm.ppf(0.5 + level / 2)
-    # beta / se without a floating-point warning (hierarchical uses utils.require only):
-    # +-inf for a non-zero estimate with a zero standard error, NaN for 0 / 0
     z = np.where((se == 0) & (beta != 0), np.copysign(np.inf, beta), np.nan)
     np.divide(beta, se, out=z, where=(se > 0) & ~(np.isinf(beta) & np.isinf(se)))
     return pd.DataFrame(

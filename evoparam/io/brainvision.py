@@ -37,12 +37,9 @@ __all__ = [
 
 _DTYPES = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2", "INT_32": "<i4"}
 
-# Fields of a "Chn=<name>,<reference>,<resolution>,<unit>" line of the header
 _RESOLUTION_FIELD = 2
 _UNIT_FIELD = 3
 
-# Factor from each voltage unit to µV. The micro sign (U+00B5) and the Greek mu
-# (U+03BC) are both used in headers; the default unit of BrainVision is µV.
 _TO_UV = {"µV": 1.0, "μV": 1.0, "uV": 1.0, "mV": 1e3, "V": 1e6, "nV": 1e-3}
 
 
@@ -118,7 +115,6 @@ def read_brainvision_header(vhdr: str, *, log: "TransferLog | None" = None) -> d
     """
     text = _read_text(vhdr, log=log)
 
-    # The header is an INI file, with a first line that is not a section: drop it
     if "[" not in text:
         raise ReaderError(f"{vhdr} is not a BrainVision header.")
     text = text[text.index("[") :]
@@ -188,7 +184,7 @@ class _LocalFile:
         self.path = path
         self.size = os.path.getsize(path)
         self.bytes_read = 0
-        self._file = open(path, "rb")  # noqa: SIM115  (the reader owns the file; close() and __exit__ close it)
+        self._file = open(path, "rb")  # noqa: SIM115
 
     def read(self, offset: Any, nbytes: Any) -> bytes:
         """Return ``nbytes`` at ``offset``."""
@@ -273,8 +269,6 @@ def _read_windows(
             block = np.frombuffer(raw, dtype=dtype).reshape(n_times, n_channels)
             out[ind] = block[:, ch_index].T * scale
     else:
-        # Vectorized: all samples of channel 1, then of channel 2, ...; read channel by
-        # channel so that the windows of one channel share the cached chunks.
         for pos, channel in enumerate(ch_index):
             for ind, start in enumerate(starts):
                 offset = (int(channel) * n_samples + int(start)) * itemsize

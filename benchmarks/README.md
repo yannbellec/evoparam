@@ -20,7 +20,7 @@ CI machines are about twice as slow: the timed tests run only with
 (REQ-045), `bench_tf.py` (REQ-218) and `stream_latency.py` (REQ-324, REQ-347); each
 docstring gives its target and the test that checks it.
 
-## Performance targets P1–P6: `run_benchmarks.py`
+## Performance targets P1-P6: `run_benchmarks.py`
 
 ```
 OMP_NUM_THREADS=1 python benchmarks/run_benchmarks.py --suite perf

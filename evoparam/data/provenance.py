@@ -25,7 +25,6 @@ from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
 from evoparam.version import __version__, algorithm_version
 
-# Optional packages whose versions are recorded when installed (None when absent).
 OPTIONAL_PACKAGES = (
     "pandas",
     "pyarrow",
@@ -155,7 +154,7 @@ def lock_sha256(path: StrPath | None = None) -> str | None:
         raw = fobj.read()
     try:
         from packaging.markers import Marker
-    except ImportError:  # markers cannot be evaluated: no claim
+    except ImportError:
         marker_cls = None
     else:
         marker_cls = Marker
@@ -202,8 +201,6 @@ def _environment() -> dict[str, Any]:
 
 def capture_environment() -> dict[str, Any]:
     """Return the software environment as a JSON-serialisable dictionary."""
-    # the plugins a result used are added by the functions that use them (models, readers):
-    # environment["plugins"] = {name: "dist==version"}, absent without plugins (spec §10.8)
     return copy.deepcopy(_environment())
 
 
@@ -293,8 +290,6 @@ class Provenance(DeepEqualMixin):
         if duration_s is not None and fixed_clock() is not None:
             duration_s = 0.0
         settings = settings or {}
-        # REQ-294: every step has the seven keys (function, settings, version, preset,
-        # random_state, duration_s, n_jobs); REQ-399: and the version of its algorithm
         step = {
             "function": function,
             "settings": to_jsonable(settings),

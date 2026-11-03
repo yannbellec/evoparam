@@ -21,7 +21,6 @@ import pytest
 
 import evoparam
 
-# Completeness of the types required (REQ-301).
 MIN_SCORE = 0.95
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
@@ -77,7 +76,7 @@ def test_req301_py_typed_is_shipped() -> None:
     assert "py.typed" in config["setuptools"]["package-data"]["evoparam"]
     mypy = config["mypy"]
     assert mypy["strict"] is True
-    for override in mypy["overrides"]:  # only optional packages are ignored
+    for override in mypy["overrides"]:
         assert override["ignore_missing_imports"] is True
         assert "evoparam" not in " ".join(override["module"])
 
@@ -103,7 +102,7 @@ def test_req301_examples_cover_the_entry_points() -> None:
     ):
         assert entry in text, entry
     user_shape = (EXAMPLES / "user_shape.py").read_text(encoding="utf-8")
-    assert "class Triangle:" in user_shape  # no base class: structural typing
+    assert "class Triangle:" in user_shape
 
 
 def test_req301_good_examples_type_check(tmp_path: Any) -> None:

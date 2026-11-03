@@ -11,7 +11,7 @@ segments as runs.
 
 Data: a Neo block built in memory (two segments, a signal in mV, stimulus events), as a
 file reader of Neo would return it.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # A Neo block
@@ -33,7 +33,7 @@ for run in range(2):
     onsets = np.arange(2.0, 28.0, 1.0)  # s
     for t in onsets:
         i = int(t * sfreq)
-        data[i + 8 : i + 30, :] += -0.08 * np.hanning(22)[:, None]  # an evoked response
+        data[i + 8 : i + 30, :] += -0.08 * np.hanning(22)[:, None]
     segment = Segment(name=f"run {run}")
     segment.analogsignals.append(
         AnalogSignal(

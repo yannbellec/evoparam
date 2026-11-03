@@ -56,47 +56,30 @@ from evoparam._typing import FloatArray, IntArray
 
 __all__ = ["kernel", "OK", "FALLBACK", "VALUE_ERROR", "LINALG_ERROR"]
 
-# status of optimise
 OK = 0
-FALLBACK = 1  # a design not finite or not clearly of full rank: the NumPy path takes over
-VALUE_ERROR = 2  # what least_squares_trf raises as ValueError
-LINALG_ERROR = 3  # an SVD that did not converge
+FALLBACK = 1
+VALUE_ERROR = 2
+LINALG_ERROR = 3
 
 # shape kinds
 GAUSSIAN = 0
 SKEWED_GAUSSIAN = 1
 # background kinds
-BG_FIXED = 0  # linear coefficients only: a fixed basis (none, constant, linear, ...)
-BG_EXPONENTIAL = 1  # c0 + c1 exp(-(t - t_ref) / tau)
+BG_FIXED = 0
+BG_EXPONENTIAL = 1
 
-# |z| beyond which a Gaussian factor is taken as 0: exp(-z^2/2) < 6e-32 there, and the term it
-# would add to a whitened residual is below 1e-25 of the residual's scale even for an
-# amplitude of 1e6 noise SDs (rounding is 1e-16); the NumPy path computes it up to 38.7
-# (shapes.components.SUPPORT_Z), where it underflows to 0
 SUPPORT_Z = 12.0
-COND_MAX = 1e11  # Frobenius condition number of R above which the SVD route is taken
+COND_MAX = 1e11
 EPS = float(np.finfo(float).eps)
 _SQRT2 = math.sqrt(2.0)
 _SQRT_2_OVER_PI = math.sqrt(2.0 / math.pi)
-# below this argument erfc takes the rational approximation of the middle range (Cephes' P/Q),
-# above it the one of the far range (R/S)
 _ERFC_MID = 8.0
-# an ordered parameterisation chains two latencies or more
 _CHAIN_MIN = 2
-# radius updates and termination of the trust-region solver (models/_trf.py)
 _SHRINK = 0.25
 _EXPAND = 0.75
 _BOUND_HIT = 0.95
 _THETA_MIN = 0.995
 
-# The kernels take their arrays grouped in tuples, unpacked on entry (numba compiles a tuple
-# of arrays as its members):
-# - Model: ``(tw, kinds, offsets, bg_kind, lag, fixed)``, the time axis, the kind and offset
-#   of each component, the background (kind, lag from its reference time, fixed basis);
-# - Whitening: ``(inv_scale, a, post, stride, start, start_rows)``, see ``_whiten_full``;
-# - Prior: ``(prior_cols, prior_diag, target)``, the prior rows and the whitened target;
-# - Problem: ``(model, whitening, prior)``, what ``engine._compiled_args`` returns;
-# - ColumnWork, FactorWork, JacobianWork: the work arrays (see ``_workspace``).
 Model = tuple[FloatArray, IntArray, IntArray, int, FloatArray, FloatArray]
 Whitening = tuple[FloatArray, FloatArray, FloatArray, int, FloatArray, IntArray]
 Prior = tuple[IntArray, FloatArray, FloatArray]
@@ -111,7 +94,6 @@ Scaled = tuple[FloatArray, FloatArray, FloatArray, FloatArray]
 Environment = tuple[Problem, Workspace, IntArray, FloatArray, FloatArray, FloatArray, float, int]
 
 
-# the whitening filter adds its lags by groups of this many in one pass over the samples
 _LAG_GROUP = 4
 
 
@@ -153,17 +135,13 @@ def _skew_mode(alpha: float) -> tuple[float, float]:
     return c, dc
 
 
-# exp: Cody-Waite reduction x = k ln2 + r, |r| <= ln2 / 2, the Taylor polynomial of degree 13
-# (truncation 4e-18) and 2^k from its bits: within 1 ulp (0.97 at most against 0.61 for
-# NumPy's on 4 000 arguments in [-745, 0], measured with mpmath), and the loops vectorise
 _LOG2E = 1.4426950408889634
 _LN2_HI = 6.93147180369123816490e-01
 _LN2_LO = 1.90821492927058770002e-10
-_EXP_LOW = -708.3964185322641  # ln(2^-1022): below, the result is taken as 0
+_EXP_LOW = -708.3964185322641
 _EXP_TAYLOR = tuple(1.0 / math.factorial(k) for k in range(14))
 _E2, _E3, _E4, _E5, _E6, _E7, _E8, _E9, _E10, _E11, _E12, _E13 = _EXP_TAYLOR[2:]
 
-# erfc: the rational approximations of Cephes (ndtr.c, Moshier), which SciPy's erfc uses
 _ERF_T = (
     9.60497373987051638749e0,
     9.00260197203842689217e1,
@@ -346,7 +324,7 @@ def _skewed_column(
         arg[i] = -0.5 * (z * z)
         u[i] = -alpha * z / _SQRT2
     _vexp(arg, g, bits)
-    _verfc(u, e, arg, bits)  # leaves exp(-u^2) in arg
+    _verfc(u, e, arg, bits)
     numer_k, fast_k = numer[k, i0:i1], fast[k, i0:i1]
     part = design[k, i0:i1]
     for i in range(m):
@@ -466,7 +444,7 @@ def _lags_in(p: int, stride: int, n: int) -> int:
     return p_in
 
 
-def _whiten_full(  # noqa: PLR0913, PLR0917  (a row, the filter and the samples it holds)
+def _whiten_full(  # noqa: PLR0913, PLR0917
     values: FloatArray, row: FloatArray, white: Whitening, raw: FloatArray, lo: int, hi: int
 ) -> None:
     """``Whitener.into`` (or ``StridedWhitener``) of one row: ``values`` into ``row``.
@@ -493,7 +471,7 @@ def _whiten_full(  # noqa: PLR0913, PLR0917  (a row, the filter and the samples 
         _start_rows(row, raw, start, start_rows, p)
 
 
-def _filter_row(  # noqa: PLR0913, PLR0917  (the arrays of one row and the filter)
+def _filter_row(  # noqa: PLR0913, PLR0917
     values: FloatArray,
     row: FloatArray,
     sc: FloatArray,
@@ -514,8 +492,6 @@ def _filter_row(  # noqa: PLR0913, PLR0917  (the arrays of one row and the filte
     a0 = a[0]
     _zero(rw[:lo])
     _zero(rw[hi:n])
-    # separate loops: LLVM vectorises them better than one loop with two stores (and loops
-    # over views from index 0)
     scaled, given, factor = rw[lo:hi], values[lo:hi], sc[lo:hi]
     for i in range(hi - lo):
         scaled[i] = given[i] * factor[i]
@@ -539,7 +515,7 @@ def _filter_one_group(
     order (one group of lags).
     """
     n = row.shape[0]
-    full = p_in * stride  # the first sample with every lag
+    full = p_in * stride
     for i in range(min(full, n)):
         value = rw[i]
         for q in range(1, p_in + 1):
@@ -560,13 +536,13 @@ def _filter_one_group(
         return
     a2 = a[2]
     l2 = rw[full - 2 * stride : n - 2 * stride]
-    if p_in == 2:  # noqa: PLR2004  (two lags)
+    if p_in == 2:  # noqa: PLR2004
         for i in range(m):
             head[i] = ((l0[i] + a1 * l1[i]) + a2 * l2[i]) * weight[i]
         return
     a3 = a[3]
     l3 = rw[full - 3 * stride : n - 3 * stride]
-    if p_in == 3:  # noqa: PLR2004  (three lags)
+    if p_in == 3:  # noqa: PLR2004
         for i in range(m):
             head[i] = (((l0[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) * weight[i]
         return
@@ -576,7 +552,7 @@ def _filter_one_group(
         head[i] = ((((l0[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]) * weight[i]
 
 
-def _whiten_part(  # noqa: PLR0913, PLR0917  (a row of _whiten and the samples it holds)
+def _whiten_part(  # noqa: PLR0913, PLR0917
     values: FloatArray,
     row: FloatArray,
     lo: int,
@@ -674,7 +650,7 @@ def _whiten_design(
             _whiten_full(design[j, :n], rows[j, :n], white, raw, 0, n)
 
 
-def _whiten_derivatives(  # noqa: PLR0913, PLR0917  (the derivatives and where they are not 0)
+def _whiten_derivatives(  # noqa: PLR0913, PLR0917
     draw: FloatArray,
     rows: FloatArray,
     offsets: IntArray,
@@ -704,13 +680,13 @@ def _lag_groups(
     from which the last group has applied the row weights (0 without lags).
     """
     n = row.shape[0]
-    weighted = 0  # the row weights are applied from this sample on by the last pass
+    weighted = 0
     k = 1
     while k <= p_in:
         size = min(_LAG_GROUP, p_in - k + 1)
         last = k + size - 1 == p_in
         shift = k * stride
-        full = shift + (size - 1) * stride  # the first sample with every lag of the group
+        full = shift + (size - 1) * stride
         for q in range(size - 1):
             lag = shift + q * stride
             aq = a[k + q]
@@ -725,7 +701,7 @@ def _lag_groups(
     return weighted
 
 
-def _scale_row(  # noqa: PLR0913, PLR0917  (a row, its scale and weights, its samples)
+def _scale_row(  # noqa: PLR0913, PLR0917
     values: FloatArray,
     row: FloatArray,
     inv_scale: FloatArray,
@@ -806,7 +782,6 @@ def _lags(
 
 
 ###################################################################################################
-## Householder QR (columns stored as rows: ``mat[j]`` is column j)
 
 
 def _dot(x: FloatArray, y: FloatArray) -> float:
@@ -911,7 +886,6 @@ def _evaluate(theta: FloatArray, problem: Problem, cols: ColumnWork, fact: Facto
     for i in range(length):
         qtb[i] = target[i]
     _apply_qt(qr, c, 0, length, tau, qtb)
-    # R beta = (Q^T b)[:c] (dtrtrs)
     for i in range(c - 1, -1, -1):
         total = qtb[i]
         for k in range(i + 1, c):
@@ -946,7 +920,6 @@ def _well_conditioned(qr: FloatArray, rinv: FloatArray) -> bool:
 
 
 ###################################################################################################
-## Trust-region reflective solver (models/_trf.py, after SciPy)
 
 
 def _norm(x: FloatArray) -> float:
@@ -1260,7 +1233,7 @@ def _stacked_qr(
     """Return ``R`` of ``[top; diag(diag)] = Q R`` (column j as row j) and ``Q^T [f_top; 0]``."""
     r, n = top.shape
     m = r + n
-    cols = np.zeros((n, m))  # column j of A as row j
+    cols = np.zeros((n, m))
     for j in range(n):
         for i in range(r):
             cols[j, i] = top[i, j]
@@ -1271,7 +1244,6 @@ def _stacked_qr(
     tau = np.zeros(n)
     _householder(cols, n, 0, m, tau)
     _apply_qt(cols, n, 0, m, tau, rhs)
-    # B = R (n x n, column j as row j)
     b = np.zeros((n, n))
     for j in range(n):
         for i in range(min(j + 1, m)):
@@ -1285,9 +1257,6 @@ def _jacobi_sweeps(b: FloatArray, v: FloatArray) -> bool:
     At most 60 sweeps; False when a sweep still rotated after the last one.
     """
     n = b.shape[0]
-    # squared column norms: exact at the start of each sweep, updated after each rotation
-    # (||b_p||^2 - t gamma, ||b_q||^2 + t gamma) within it. Rows are indexed in place: a
-    # view per pair costs more than its few products
     sq = np.empty(n)
     for _ in range(60):
         for j in range(n):
@@ -1331,7 +1300,6 @@ def _rotate(b: FloatArray, v: FloatArray, sq: FloatArray, p: int, q: int) -> boo
 
 
 ###################################################################################################
-## The fit of one structure
 
 
 def _to_theta(phi: FloatArray, chain: IntArray, theta: FloatArray) -> None:
@@ -1376,10 +1344,9 @@ def _jacobian(
     _derivatives(theta, beta, model, cols, draw)
     _whiten_derivatives(draw, dmat, model[2], cols[4], n, white, raw)
     for j in range(n_par):
-        _zero(dmat[j, n:length])  # the prior rows do not depend on theta
+        _zero(dmat[j, n:length])
     for j in range(n_par):
         _apply_qt(qr, c, 0, length, tau, dmat[j])
-    # (Q^T W dM)[c:] = -J; the chain rule is linear in the columns
     if chain.shape[0] >= _CHAIN_MIN:
         _chain_rule(x, chain, dmat, c, jac_work[5][:rows])
     return _reduce_jacobian(f, c, jac_work)
@@ -1526,7 +1493,6 @@ def optimise(
     theta = np.empty(n_par)
     x = _strictly_feasible(x0, lb, ub, 1e-10)
 
-    # residual and Jacobian at x
     _to_theta(x, chain, theta)
     if not _evaluate(theta, problem, work[0], work[1]):
         return FALLBACK, x0.copy(), 0, empty, empty
@@ -1591,8 +1557,6 @@ def _iterate(
             x, f, cost = x_new, f_new, cost_new
             fresh = True
             if status != -1:
-                # SciPy computes the Jacobian at the last point too, for nothing: the
-                # solution is the same without it
                 break
             n_rows = _jacobian(x, f, theta, problem, chain, work)
             g, norms = _gradient(jac_work, n_rows)
@@ -1621,8 +1585,6 @@ def _local_model(
     d = v**0.5 * scale_x
     diag_h = g * dv * scale_x
     g_h = d * g
-    # the scaled Jacobian and the diagonal of the reflective scaling, stacked; SciPy takes
-    # its SVD (gesdd), here a QR and the one-sided Jacobi SVD of R (_svd_stacked)
     j_h = np.empty((n_rows, n_par))
     for i in range(n_rows):
         for j in range(n_par):
@@ -1762,8 +1724,6 @@ def _solution(
     _to_theta(x, chain, theta)
     if not fresh and not _evaluate(theta, problem, cols, fact):
         return FALLBACK, x0.copy(), 0, empty, empty
-    # residual of every row: target - A beta (A: the whitened design and the prior rows,
-    # rebuilt from the design, which the QR overwrote)
     residual = target.copy()
     whitened = np.empty((c, n))
     _whiten_design(cols, whitened, problem[0][1].shape[0], n, white, raw)
@@ -1780,13 +1740,9 @@ def _solution(
 ## Compilation
 
 _LOCK = threading.Lock()
-# compiled with "contract" (fused multiply-adds) and the error model of NumPy (no checks of
-# division by zero, which keep loops from vectorising); the inner product may also reorder
 # its sum
 _REASSOCIATED = ("_dot", "_finite")
 _COMPILED: dict[str, Any] = {}
-# compiled in this order (callees first): each name is replaced by its compiled version in
-# this module, so that the compiled callers call compiled code
 _KERNELS = (
     "_skew_root",
     "_skew_mode",
@@ -1885,7 +1841,7 @@ def kernel() -> Callable[..., Any] | None:
             except ImportError:
                 _COMPILED["optimise"] = None
                 return None
-            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+            except Exception as err:  # noqa: BLE001
                 _unusable(err)
                 return None
             module = globals()
@@ -1896,7 +1852,7 @@ def kernel() -> Callable[..., Any] | None:
                     compiled[name] = numba.njit(
                         cache=True, nogil=True, error_model="numpy", fastmath=flags
                     )(module[name])
-            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+            except Exception as err:  # noqa: BLE001
                 _unusable(err)
                 return None
             module.update(compiled)

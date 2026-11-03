@@ -93,7 +93,6 @@ def test_req003_trial_fits_of_flipped_data_are_mirrored(pair: Any) -> None:
     assert len(ta) == len(tb) > 0
     for column in ("shift", "latency", "fwhm", "r2"):
         assert _close(ta[column], tb[column]), column
-    # the trial amplitude and its scale carry the sign of the data
     for column in ("scale", "amplitude"):
         assert _close(ta[column], -tb[column]), column
     assert list(ta["trusted"]) == list(tb["trusted"])
@@ -177,7 +176,7 @@ def test_req003_sign_rule_scan_finds_a_mutation(tmp_path: Any) -> None:
         "            if c.amplitude > 0:\n"
         "                continue\n"
     )
-    global PACKAGE  # noqa: PLW0603  (the module path is swapped for the duration of the test)
+    global PACKAGE  # noqa: PLW0603
     saved, PACKAGE = PACKAGE, tmp_path
     try:
         assert len(_sign_rules(bad)) == 1

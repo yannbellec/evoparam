@@ -15,15 +15,11 @@ import pytest
 
 from evoparam.events import detect_pulses, estimate_delay, match_onsets
 
-# Fewest subjects, and the recall and precision required (REQ-040).
 MIN_SUBJECTS = 5
 MIN_RATE = 0.99
-# Largest trigger delay (s) of the recording system.
 MAX_DELAY = 0.0015
-# Tolerance (s) of a matched onset, and the confidence of a site guess counted as sure.
 TOLERANCE = 0.01
 CONFIDENT = 0.5
-# Accuracy of the confident guesses, their fraction, and the site agreement (REQ-042).
 MIN_ACCURACY = 0.98
 MIN_CONFIDENT = 0.4
 MIN_AGREEMENT = 0.95
@@ -129,12 +125,6 @@ def test_req040_recall_precision_and_onset(results: Any) -> None:
     assert hits / (hits + misses) >= MIN_RATE
     assert hits / (hits + false_alarms) >= MIN_RATE
 
-    # Onset error (owner decision D9): detect_pulses reports the physical onset, the first
-    # sample of the artifact; the trigger in events.tsv precedes it by a constant delay of
-    # the recording system (0.97 ms). The delay is estimated on the even runs and the onset
-    # error is checked on the odd runs, held out, within 1 sample. (Estimated on the odd runs
-    # instead, the delay is the same, 0.972 ms, and 11 of the 13 even runs are within 1
-    # sample: the median absolute error over their pulses is 0.02 sample.)
     calib = [
         (ev["onset_time"].to_numpy(), on)
         for i, (_, _, ev, on, _) in enumerate(results)
@@ -189,7 +179,7 @@ def spec_results() -> Any:
         try:
             events = detect_pulses(data, sfreq, t0=t0, procedure="spec", saturation=False)
             detected = events["onset_time"].to_numpy()
-        except Exception:  # noqa: BLE001  (no pulse found: any failure counts as no detection)
+        except Exception:  # noqa: BLE001
             detected = np.array([])
         out.append((stem, sfreq, detected, onsets))
     return out

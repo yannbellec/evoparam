@@ -8,8 +8,6 @@ from typing import Any
 import numpy as np
 import pytest
 
-# N1 window (s) of the trial average, the subjects required, the |rho| counted, and the
-# fraction of subjects with it.
 N1_START = 0.009
 N1_END = 0.1
 MIN_SUBJECTS = 5
@@ -40,7 +38,6 @@ def _relations() -> Any:
             warnings.simplefilter("ignore")
             tf = tf_fit(ts, zones=ZONE, window=(0.0, 0.6), by=(), random_state=0)
         metrics = tf.zone_metrics.set_index("channel").reindex(ts.ch_names)
-        # N1 amplitude: most negative deflection of the trial average, 9 to 100 ms
         early = (ts.times >= N1_START) & (ts.times <= N1_END)
         n1 = -ts.data.mean(axis=0)[:, early].min(axis=1)
         for column in ("fraction_increase", "value"):

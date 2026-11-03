@@ -11,7 +11,6 @@ from evoparam.events import EVENT_COLUMNS, detect_pulses, match_onsets
 
 from .helpers import make_recording
 
-# Smallest template correlation of a detected pulse.
 MIN_RHO = 0.8
 
 ###################################################################################################
@@ -41,10 +40,8 @@ def test_detects_legacy_recording(method: Any) -> None:
     results = match_onsets(events["onset_time"], onsets, tolerance=0.001)
     assert results["hits"] == len(onsets)
     assert results["false_alarms"] == 0
-    # The onset is the first sample of the artifact
     assert np.allclose(results["errors"], 0)
 
-    # Clock offset is carried through
     events = detect_pulses(data, sfreq, method=method, t0=100.0)
     assert np.allclose(events["onset_time"] - 100.0, onsets, atol=0.001)
 
@@ -64,7 +61,6 @@ def test_event_table_columns_and_types() -> None:
 
 def test_onset_is_first_artifact_sample_with_precursor() -> None:
 
-    # A small switching transient 2 samples before the pulse must not move the onset
     sfreq = 2048.0
     data, onsets, _ = make_recording(duration=6.0, seed=4)
     for onset in onsets:
@@ -75,7 +71,6 @@ def test_onset_is_first_artifact_sample_with_precursor() -> None:
 
 def test_strongest_wins_in_refractory_period() -> None:
 
-    # A click 100 ms before each pulse, strong enough to cross the threshold
     sfreq = 2048.0
     data, onsets, _ = make_recording(n_channels=16, duration=10.0, interval=2.0, seed=5)
     click = int(0.1 * sfreq)
@@ -118,7 +113,6 @@ def test_invalid_settings() -> None:
 def test_picks_restrict_channels() -> None:
 
     data, onsets, _ = make_recording(n_channels=8, duration=6.0, seed=8)
-    # Destroy the artifact on half of the channels: picking the other half still works
     data[:4] = np.random.default_rng(1).normal(size=data[:4].shape)
     events = detect_pulses(data, 2048.0, picks=[4, 5, 6, 7])
     assert (events["onset_sample"].to_numpy() == onsets).all()
@@ -156,8 +150,8 @@ def test_spec_procedure_template_pass_recovers_and_rejects() -> None:
     onsets = np.arange(1, 19, 2.0)
     data = legacy_recording(onsets, sfreq)
     weak = 19.5
-    data[:, int(weak * sfreq) : int(weak * sfreq) + 3] += 6.0  # below the threshold
-    data[:, 1500:1520] += 200.0 * (-1.0) ** np.arange(20)  # a fast oscillating burst
+    data[:, int(weak * sfreq) : int(weak * sfreq) + 3] += 6.0
+    data[:, 1500:1520] += 200.0 * (-1.0) ** np.arange(20)
     threshold_only = detect_pulses(data, sfreq, method="threshold", procedure="spec")
     both = detect_pulses(data, sfreq, method="threshold+template", procedure="spec")
     truth = np.r_[onsets, weak]

@@ -17,14 +17,12 @@ import evoparam
 from evoparam import presets, sim
 from evoparam.errors import EvoparamVersionError
 
-# min_fwhm (s) of the settings logged.
 MIN_FWHM = 0.003
 
 
 @pytest.fixture(scope="module")
 def fitted() -> Any:
     with pytest.MonkeyPatch.context() as patch:
-        # a fixed clock, so that the two provenance records can be compared whole
         patch.setenv("SOURCE_DATE_EPOCH", "1767225600")
         trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, sfreq=1024.0, seed=4)
         with warnings.catch_warnings():
@@ -76,11 +74,9 @@ def test_settings_log(fitted: Any) -> None:
     assert fit_step["preset"] == settings["preset"]
     json.dumps(settings, allow_nan=False)
     assert all(f.settings["_overrides"] == ["min_fwhm"] for f in group.fits)
-    # the full resolved dictionary: every field of the fit settings
     from evoparam.models import FitSettings
 
     assert set(FitSettings.__dataclass_fields__) <= set(settings)
-    # refit with the recorded settings: an equal GroupFit
     assert _without_overrides(again) == _without_overrides(group)
     assert again.to_dataframe("component").equals(group.to_dataframe("component"))
 
@@ -94,7 +90,6 @@ def test_overrides_name_only_what_the_user_set(fitted: Any) -> None:
         two = evoparam.fit(trials, preset="ccep", max_components=2, n_starts=2)
     assert plain.settings["_overrides"] == []
     assert two.settings["_overrides"] == ["max_components", "n_starts"]
-    # the methods text states the settings whose value differs from the preset
     assert group.settings["_changed_from_preset"] == []
     assert two.settings["_changed_from_preset"] == ["max_components", "n_starts"]
 

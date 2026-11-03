@@ -10,7 +10,7 @@ and their uncertainty. The fitted curves come back as an ``mne.Evoked`` and the 
 as ``mne.Annotations``, so MNE's own plots show them.
 
 Data: ``mne.datasets.sample`` (about 1.6 GB, downloaded by MNE on first use).
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # The averaged response
@@ -69,10 +69,10 @@ model = group.to_evoked_model()
 annotations = group.to_annotations()
 print(model.comment, "-", len(annotations), "components as annotations")
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402  (sphinx-gallery section)
+import matplotlib.pyplot as plt  # noqa: E402
 
 best = int(np.argmax([fit.gof.r2 if fit.gof else 0 for fit in group.fits]))
 channel = group.index["channel"].iloc[best]

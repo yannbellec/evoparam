@@ -25,9 +25,6 @@ __all__ = ["ON_ERROR", "PROPAGATE", "check_on_error", "describe", "fit_error", "
 
 ON_ERROR = ("record", "raise")
 
-#: Errors of the data or of the settings of the call (REQ-307 i, the documented
-#: ``ArtifactError`` and ``EventError`` of the calls, and the ``ImportError`` of a missing
-#: optional package): they always propagate.
 PROPAGATE = (
     ImportError,
     DataError,

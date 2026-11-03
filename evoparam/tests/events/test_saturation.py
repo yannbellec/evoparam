@@ -11,13 +11,10 @@ from evoparam.events import detect_pulses, detect_saturation
 
 from .helpers import make_noise, make_recording
 
-# Probability of a positive clipped run; shortest run always found (samples), the short
-# run, and the fraction of short runs found (REQ-043).
 POSITIVE = 0.5
 LONG_RUN = 3
 SHORT_RUN = 2
 MIN_SHORT_FOUND = 0.95
-# Event clipped in the saturation test.
 SATURATED_EVENT = 2
 
 ###################################################################################################
@@ -63,7 +60,6 @@ def test_req043_detection_rates() -> None:
 
 def test_req043_false_positives_on_clean_data() -> None:
 
-    # 10 minutes of clean data, including quantised (integer-coded) noise
     sfreq = 2048.0
     clean = make_noise(8, 600.0, sfreq, sd=3.0, seed=5, dtype=np.float64)
     quantised = np.round(make_noise(8, 600.0, sfreq, sd=3.0, seed=6, dtype=np.float64))
@@ -94,7 +90,7 @@ def test_known_rail_flags_single_samples() -> None:
     _, table = detect_saturation(data, sfreq, rail=100.0)
     assert len(table) == 1
     assert table["n_samples"].iloc[0] == 1
-    _, table = detect_saturation(data, sfreq)  # estimated rail needs 2 samples
+    _, table = detect_saturation(data, sfreq)
     assert len(table) == 0
 
 
@@ -102,8 +98,8 @@ def test_stuck_code_flat_run() -> None:
 
     sfreq = 2048.0
     data = make_noise(2, 5.0, sfreq, dtype=np.float64)
-    data[1, 3000] = 80.0  # sets the estimated rail
-    data[1, 5000:5004] = 60.0  # stuck below the rail, above half
+    data[1, 3000] = 80.0
+    data[1, 5000:5004] = 60.0
     _, table = detect_saturation(data, sfreq)
     assert (table["kind"] == "flat").any()
 
@@ -114,7 +110,6 @@ def test_per_pulse_search_and_event_link() -> None:
     data, onsets, _ = make_recording(n_channels=8, duration=6.0, seed=31)
     data = data.astype(np.float64)
     rail = 1.5 * np.abs(data).max()
-    # Channel 3 sticks at the rail right after the third pulse only
     data[3, onsets[2] + 1 : onsets[2] + 6] = rail
     events = detect_pulses(data, sfreq, saturation=False)
     mask, table = detect_saturation(data, sfreq, events=events, rail=rail)

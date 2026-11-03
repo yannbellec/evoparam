@@ -11,8 +11,6 @@ from evoparam.artifact import estimate_period, remove_artifact
 from evoparam.data import TrialSet
 from evoparam.errors import ArtifactError, SettingsError
 
-# SD and bias (samples) of the period estimates, tolerance of the period found, and the
-# level of the rank-sum test.
 MAX_PERIOD_SD = 1e-4
 MAX_PERIOD_ERROR = 1e-3
 ALPHA = 0.05
@@ -20,7 +18,7 @@ ALPHA = 0.05
 ###################################################################################################
 ###################################################################################################
 
-SFREQ, FREQ = 1000.0, 130.2  # a real DBS frequency is not a round number
+SFREQ, FREQ = 1000.0, 130.2
 
 
 def train(n: Any, period: Any, rng: Any, amplitude: Any = 300.0) -> Any:
@@ -67,15 +65,14 @@ def test_req062_residual_like_prestimulation_noise() -> None:
     period = result.settings["_info"]["period_samples"][0]
     assert abs(period - SFREQ / FREQ) < MAX_PERIOD_ERROR
 
-    margin = int(3 * SFREQ)  # the filter reaches about 2.5 s to each side
+    margin = int(3 * SFREQ)
     stim = slice(n_pre + margin, n - margin)
     error = (result.cleaned.data[0] - signal)[:, stim]
     pre = noise[:, : n_pre - margin]
-    step = 13  # thin out to roughly independent samples
+    step = 13
     for ch in range(2):
         stat = ranksums(np.abs(error[ch, ::step]), np.abs(pre[ch, ::step]))
         assert stat.pvalue > ALPHA
-    # The artifact was large: it is gone
     assert np.std(error) < 1.1 * np.std(pre)
 
 
@@ -95,7 +92,6 @@ def test_causal_variant_uses_past_only() -> None:
         baseline=(0.0, 1.0),
         quality=False,
     )
-    # A change after sample t never alters the cleaned value at t
     later = ts.data.copy()
     later[..., 5000:] += 1000.0
     from dataclasses import replace

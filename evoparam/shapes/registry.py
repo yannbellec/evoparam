@@ -40,8 +40,6 @@ from evoparam.shapes.components import (
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
-# A column of the Jacobian check is measurable above this scale (times the bound width),
-# and used when its finite differences agree on at least this share of the samples
 _MEASURABLE = 1e-9
 _MIN_SMOOTH_SHARE = 0.5
 
@@ -91,8 +89,6 @@ def _plugin_shape(name: str, obj: Any, origin: str) -> Any:
     return obj
 
 
-# Members of a background that the fit uses beyond the Background protocol: the fit solves
-# the linear coefficients by variable projection, from the basis functions
 FIT_MEMBERS = ("linear_names", "nonlinear_names", "n_linear", "n_nonlinear", "basis")
 
 
@@ -175,7 +171,6 @@ BACKGROUNDS = _plugins.LazyRegistry(
     _plugin_background,
 )
 
-# Reference axis of the registration checks: 300 ms at 1 kHz.
 CHECK_TIMES = np.arange(-0.05, 0.25, 1e-3, dtype=np.float64)
 
 FEATURE_FIELDS = (
@@ -365,7 +360,7 @@ def _check_bounds(shape: Any, name: Any, times: Any, n: int) -> tuple[Any, Any]:
     """Check and return the default bounds of the shape on ``times``."""
     try:
         lower, upper = (np.asarray(b, dtype=np.float64) for b in shape.default_bounds(times))
-    except Exception as err:  # noqa: BLE001  (report any failure of user code as a failed check)
+    except Exception as err:  # noqa: BLE001
         _fail(name, "bounds", f"default_bounds raised {err!r}.")
     if (
         lower.shape != (n,)
@@ -390,7 +385,7 @@ def _check_evaluate(shape: Any, name: Any, times: Any, params: Any) -> None:
         values = np.asarray(shape.evaluate(times, params))
         single = np.asarray(shape.evaluate(times, params[0]))
         jac = np.asarray(shape.jacobian(times, params))
-    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
+    except Exception as err:  # noqa: BLE001
         _fail(name, "evaluate", f"evaluate or jacobian raised {err!r}.")
     if values.shape != (n_sets, times.size) or single.shape != (times.size,):
         _fail(
@@ -453,7 +448,7 @@ def _check_guess(shape: Any, name: Any, times: Any, middle: Any, bounds: Any) ->
     peak_index = int(np.argmax(np.abs(waveform)))
     try:
         guess = np.asarray(shape.initial_guess(times, waveform, peak_index), dtype=np.float64)
-    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
+    except Exception as err:  # noqa: BLE001
         _fail(name, "initial_guess", f"initial_guess raised {err!r}.")
     if (
         guess.shape != (n,)
@@ -470,7 +465,7 @@ def _check_features(shape: Any, name: Any, times: Any, middle: Any) -> None:
     """Check that the features of the curve of ``middle`` have every field."""
     try:
         features = shape.features(times, middle)
-    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
+    except Exception as err:  # noqa: BLE001
         _fail(name, "features", f"features raised {err!r}.")
     missing = [item for item in FEATURE_FIELDS if not hasattr(features, item)]
     if missing:

@@ -8,7 +8,6 @@ from scipy.signal import lfilter
 
 from evoparam.data import TrialSet
 
-# Baseline window (s) of the simulated trials.
 BASELINE_START = -0.5
 BASELINE_END = -0.05
 

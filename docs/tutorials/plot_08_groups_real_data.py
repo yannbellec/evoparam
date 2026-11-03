@@ -5,7 +5,7 @@
 
 Read a real recording, clean it, fit every electrode, test which ones respond, and write
 the methods.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -43,7 +43,6 @@ the methods.
 
 ###################################################################################################
 
-# Import what we need
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -72,11 +71,9 @@ from evoparam.prep import baseline_correct, reject_trials, rereference
 
 ###################################################################################################
 
-# The stimulated pair, and the electrodes we keep
 site = "PT13-PT14"
 picks = [f"PT{number:02d}" for number in range(1, 49) if f"PT{number:02d}" not in site]
 
-# Read the trials from OpenNeuro
 trials = read_bids(
     "ds004080",
     "ccepAgeUMCU01",
@@ -92,7 +89,7 @@ print(trials)
 
 ###################################################################################################
 #
-# ``trials`` is a **TrialSet**: 10 trials × 46 electrodes × 1024 time points, from −1 s to
+# ``trials`` is a **TrialSet**: 10 trials × 46 electrodes × 1024 time points, from -1 s to
 # +1 s, recorded 512 times per second (512 Hz), in µV. Time 0 is the pulse.
 #
 # It also keeps a table with one row per trial (``trials.metadata``): when each pulse came,
@@ -106,7 +103,7 @@ print(trials.metadata[["onset", "stim_site", "stim_current_mA"]].head(3))
 ###################################################################################################
 #
 # Here is the average of the 10 trials on electrode PT21, before any cleaning. We look
-# from −50 to +300 ms.
+# from -50 to +300 ms.
 
 ###################################################################################################
 
@@ -130,7 +127,7 @@ ax.legend(frameon=False)
 #
 # The very high and narrow peak at 0 ms is the **artifact**: the electrical pulse itself,
 # picked up by the electrode. It is much larger than the brain response. Right after it,
-# the curve dips down to about −480 µV near 28 ms: that is the N1 we want to measure.
+# the curve dips down to about -480 µV near 28 ms: that is the N1 we want to measure.
 # Then comes a slower dip after 100 ms, the N2.
 
 ###################################################################################################
@@ -140,18 +137,17 @@ ax.legend(frameon=False)
 # ``remove_artifact`` takes the pulse out of every trial. With ``method="template"``, it
 # builds the typical shape of the artifact (the **template**: here the median of the 10
 # trials), scales it to each trial and electrode, and subtracts it, in a short window
-# around the pulse (``window``, from −2 to +8 ms).
+# around the pulse (``window``, from -2 to +8 ms).
 #
 # After the pulse, the recording equipment takes a few ms to settle: a slow **tail** that
 # fades away. ``tail="joint"`` leaves this tail to the fit, which models it as the
 # background (tutorial 01), together with the bumps.
 #
 # The ``baseline`` is a piece of the trial before the pulse, with no response in it: here
-# from −500 to −20 ms. It tells the method what "no artifact" looks like.
+# from -500 to -20 ms. It tells the method what "no artifact" looks like.
 
 ###################################################################################################
 
-# Take the artifact out of every trial
 cleaned = remove_artifact(
     trials,
     method="template",
@@ -161,7 +157,6 @@ cleaned = remove_artifact(
     random_state=0,
 )
 
-# One score per trial, from 0 (bad) to 1 (good)
 print(np.round(cleaned.quality, 2))
 
 ###################################################################################################
@@ -207,7 +202,6 @@ ax.legend(frameon=False)
 
 referenced = rereference(cleaned.cleaned, "car_adaptive", random_state=0)
 
-# The electrodes used for the average (no response)
 print(referenced.provenance.steps[-1]["settings"]["members"])
 
 ###################################################################################################
@@ -220,7 +214,7 @@ print(referenced.provenance.steps[-1]["settings"]["members"])
 # --------------------------
 #
 # Each trial starts at its own level: the brain's slow waves move it up or down. We
-# subtract, from each trial and electrode, its mean over the baseline (−500 to −20 ms).
+# subtract, from each trial and electrode, its mean over the baseline (-500 to -20 ms).
 # All trials then sit around zero before the pulse, and the average is not pulled up or
 # down by a few of them.
 
@@ -267,7 +261,6 @@ print(checked.metadata[["rejected", "n_flagged_channels"]])
 
 group = evoparam.fit(checked, "ccep", random_state=0)
 
-# One row per bump, for all the electrodes
 table = group.to_dataframe()
 n1 = table[table["label"] == "N1"]
 print(n1[["channel", "latency", "amplitude"]].round(3).to_string(index=False))
@@ -275,7 +268,7 @@ print(n1[["channel", "latency", "amplitude"]].round(3).to_string(index=False))
 ###################################################################################################
 #
 # 14 electrodes have an N1. The latency is in seconds (0.032 s = 32 ms) and the amplitude
-# in µV. On PT21, the N1 comes at 32 ms with −475 µV.
+# in µV. On PT21, the N1 comes at 32 ms with -475 µV.
 #
 # The amplitude of a bump is measured from the background, not from zero, so it is not
 # exactly the lowest point of the curve.
@@ -292,7 +285,7 @@ fig = plots.plot_fit(fit)
 #
 # .. note::
 #
-#     PT24 has an N1 of −1714 µV, much larger than the others. Such a value is worth a
+#     PT24 has an N1 of -1714 µV, much larger than the others. Such a value is worth a
 #     look (``plots.plot_fit(group.get("PT24"))``) before you trust it: close to the
 #     stimulated pair, what is left of the artifact and its tail can add to a bump.
 
@@ -369,8 +362,8 @@ print(table_all[table_all["label"] == "N1"][["channel", "latency", "amplitude"]]
 #
 # ``run_pipeline`` does not mask any trial (step 5 is not part of the preset's chain), so
 # its averages use all 10 trials, and its numbers are those of steps 2-4 and 6 without the
-# masks. It finds 17 N1 instead of 14, and on PT21 the N1 comes at 28 ms with −354 µV,
-# instead of 32 ms and −475 µV. With only 10 trials, leaving one out is enough to move a
+# masks. It finds 17 N1 instead of 14, and on PT21 the N1 comes at 28 ms with -354 µV,
+# instead of 32 ms and -475 µV. With only 10 trials, leaving one out is enough to move a
 # bump: this is why every choice of cleaning goes in the methods.
 #
 # Doing the steps one by one is useful to look at each of them; ``run_pipeline`` is

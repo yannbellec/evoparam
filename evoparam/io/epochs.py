@@ -10,9 +10,7 @@ from evoparam.data import Provenance, TrialSet
 from evoparam.errors import DataError, EventError
 from evoparam.utils._optional import require
 
-# Continuous data: (n_channels, n_times)
 _CONTINUOUS_NDIM = 2
-# Fewest samples in an epoch window
 _MIN_WINDOW_SAMPLES = 2
 
 
@@ -135,7 +133,7 @@ def _pandas() -> Any:
     return pandas
 
 
-def epoch(  # noqa: PLR0913  (spec §5.1 fixes 10 parameters; DECISIONS.md §7.2)
+def epoch(  # noqa: PLR0913
     data: ArrayLike,
     sfreq: float,
     onsets: Any,
@@ -203,8 +201,6 @@ def epoch(  # noqa: PLR0913  (spec §5.1 fixes 10 parameters; DECISIONS.md §7.2
             if isinstance(record, dict)
             else list(getattr(record, "steps", []))
         )
-        # the source of the recording the events were detected in (REQ-294: the trials
-        # continue its record)
         prior_source = (
             record.get("source") if isinstance(record, dict) else getattr(record, "source", None)
         )

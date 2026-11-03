@@ -16,8 +16,6 @@ import sys
 import warnings
 from types import FrameType
 
-# The package logs to "evoparam" and installs a NullHandler only (spec §9.8, REQ-304): the
-# application decides where records go, and nothing is printed twice when it does not.
 logging.getLogger("evoparam").addHandler(logging.NullHandler())
 
 __all__ = [
@@ -75,10 +73,6 @@ class ConvergenceWarning(UserWarning):
     """Trial fits or MCMC chains did not converge."""
 
 
-# Files whose frames ``warn`` does not count in ``stacklevel`` (Python >= 3.12): the
-# ``verbose`` decorator and the ``n_jobs`` helper wrap the public functions. The prefixes
-# stop before the extension: CPython's C implementation compares them with the file name
-# without its last character.
 _SKIP = tuple(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", name)
     for name in ("_logging.", "_parallel.")
@@ -126,10 +120,7 @@ def warn(
     name = category.__name__ if isinstance(category, type) else type(message).__name__
     logging.getLogger("evoparam").warning("%s: %s", name, text)
     if sys.version_info >= (3, 12):
-        # the frames of the verbose decorator and of the n_jobs helper are not counted, so
-        # that a warning points to the same line as without them
         warnings.warn(message, category, stacklevel=stacklevel + 1, skip_file_prefixes=_SKIP)
         return
-    # Python < 3.12 has no skip_file_prefixes: the same walk up the stack, by hand
     caller = sys._getframe(1)  # stacklevel 1
     _warn_at(message, category, _frame_above(caller, stacklevel - 1) or caller)

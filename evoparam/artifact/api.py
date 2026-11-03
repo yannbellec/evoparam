@@ -43,12 +43,8 @@ METHODS = (
     "none",
 )
 
-# Methods that change samples outside the declared window (spec REQ-060).
 GLOBAL_METHODS = ("period_template", "lowrank", "subspace", "polynomial")
 
-#: Methods that clean each channel on its own: a channel that fails is recorded on its own
-#: (REQ-307 ii). The others work across channels (``lowrank``, ``subspace``, ``learned``)
-#: or change the trials (``paradigm``): their failures propagate.
 CHANNEL_WISE = (
     "interpolate",
     "template",
@@ -74,7 +70,7 @@ def _check_window_vs_rate(ts: Any, window: Any, method: Any) -> None:
         )
 
 
-def remove_artifact(  # noqa: PLR0913  (spec §5.3 fixes 28 parameters, plus 12 method options; DECISIONS.md §7.2)
+def remove_artifact(  # noqa: PLR0913
     ts: "TrialSet",
     *,
     method: str = "template",
@@ -229,8 +225,6 @@ def remove_artifact(  # noqa: PLR0913  (spec §5.3 fixes 28 parameters, plus 12 
     except PROPAGATE:
         raise
     except Exception:
-        # the channels that fail on their own (REQ-307 ii); none, or a method that works
-        # across channels: not a channel's failure
         if method not in CHANNEL_WISE:
             raise
         data, masks, saturation, info, failed = _channel_by_channel(
@@ -533,14 +527,14 @@ def _channel_by_channel(
     masks = base_masks(ts)
     failed: dict[int, str] = {}
     user = template if isinstance(template, (np.ndarray, list, tuple)) else None
-    per_channel = user is not None and np.ndim(user) > 1  # a template per channel
+    per_channel = user is not None and np.ndim(user) > 1
     for c, name in enumerate(ts.ch_names):
         sub = ts.select(picks=[c])
         try:
             out = clean(sub, np.asarray(user, float)[c : c + 1]) if per_channel else clean(sub)
         except PROPAGATE:
             raise
-        except Exception as exc:  # the failure of this channel only
+        except Exception as exc:
             if on_error == "raise":
                 raise fit_error("remove_artifact", str(name), exc) from exc
             failed[c] = record_failure(logger, "remove_artifact", str(name), exc)

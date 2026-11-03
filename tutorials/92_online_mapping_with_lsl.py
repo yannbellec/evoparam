@@ -19,7 +19,7 @@ stream:
    fitter reads an ``LSLInlet`` and publishes its estimates with an ``LSLOutlet``.
 
 Run it with ``python tutorials/92_online_mapping_with_lsl.py``.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 import warnings
 
@@ -33,9 +33,9 @@ from evoparam.stream import StreamFitter
 # Settings
 
 SFREQ = 2048.0
-N_CHANNELS = 8  # responses on the first half
-N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
-ARTIFACT = (-0.002, 0.008)  # artifact window, interpolated (s)
+N_CHANNELS = 8
+N1 = (-40.0, 0.03, 0.02)
+ARTIFACT = (-0.002, 0.008)
 
 
 def gauss(times, latency, fwhm):

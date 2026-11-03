@@ -63,8 +63,6 @@ def test_req334_frozen_containers_load_and_equal(major: Any, kind: Any) -> None:
     obj = load_object(path)
     reference = expected(kind)
     if kind == "trialset":
-        # The factory's data differ from the frozen ones in the last bits from one CPU to
-        # another, and the data hash with them: compare the values, then the rest exactly.
         np.testing.assert_allclose(obj.data, reference.data, rtol=1e-9, atol=0)
         reference = dataclasses.replace(reference, data=obj.data, provenance=_provenance())
     assert obj == reference
@@ -122,11 +120,11 @@ def test_req334_older_major_is_migrated_and_recorded(tmp_path: Any, monkeypatch:
     }
     with open(manifest, encoding="utf-8") as fobj:
         assert json.load(fobj)["schema"] == SCHEMA
-    again = load_object(path)  # verified checksums, current schema
+    again = load_object(path)
     assert again == obj
     assert again.provenance.steps[-1]["function"] == "evoparam.data.migrate"
     assert migrate(path)["migrated"] is False
-    assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]  # no temporary file left
+    assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]
 
 
 def _freeze() -> None:

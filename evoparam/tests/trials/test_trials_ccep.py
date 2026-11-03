@@ -21,15 +21,10 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-# Trials per stimulation site in ds004080 (REQ-156).
 N_TRIALS_PER_SITE = 10
-# Fewest subjects with trial fits, and the median trusted fraction required (REQ-156).
 MIN_SUBJECTS = 5
 MIN_TRUSTED_FRACTION = 0.8
-# Longest fit_trials time per subject (s, REQ-156).
 MAX_SECONDS = 2.0
-# REQ-158 on simulated trains: fewest channels counted, and the fraction whose amplitude
-# slope has the simulated sign.
 MIN_COUNTED = 10
 MIN_AGREEMENT = 0.8
 
@@ -43,8 +38,6 @@ def network(test: Any) -> Any:
     return pytest.mark.network(test)
 
 
-# (subject, run, stimulation pair): decision D14; the pair is the first of the run with at
-# least 10 trials (the rule of validation/ds004080_subjects.txt), as in test_engine_ccep.py
 PAIRS_156 = [
     ("ccepAgeUMCU01", "061233", "PT01-PT02"),
     ("ccepAgeUMCU02", "021804", "FC01-FC02"),
@@ -103,7 +96,7 @@ def results() -> Any:
         n1, significant = _n1_channels(group)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            fit_trials(ts, group, components=["N1"])  # warm-up (imports, caches)
+            fit_trials(ts, group, components=["N1"])
             start = time.perf_counter()
             tf = fit_trials(ts, group, components=["N1"])
             duration = time.perf_counter() - start
@@ -139,7 +132,6 @@ def test_req156_speed(results: Any) -> None:
 
 
 ###################################################################################################
-## REQ-158: amplitude slope across a train
 
 
 def _trend_table(ts: Any, group: Any) -> Any:

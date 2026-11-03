@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-r"""Run the performance workloads P1–P6 (spec §9.1, REQ-290) against a baseline (REQ-299).
+r"""Run the performance workloads P1-P6 (spec §9.1, REQ-290) against a baseline (REQ-299).
 
 A thin wrapper around :func:`evoparam.benchmark.timing.run_suite` (also reachable as
 ``evoparam benchmark run --suite perf``). The results go to
@@ -26,7 +26,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from evoparam.benchmark import timing  # noqa: E402  (after the sys.path insert above)
+from evoparam.benchmark import timing  # noqa: E402
 
 
 def main(argv=None):

@@ -48,6 +48,7 @@ def _matplotlib():
             "svg.fonttype": "path",
             "font.family": "DejaVu Sans",
             "figure.dpi": 100,
+            "axes.unicode_minus": False,
         }
     )
     import matplotlib.pyplot as plt
@@ -79,7 +80,6 @@ def fig_ccep_fit(path):
     fig, ax = plt.subplots(figsize=(6, 3.5))
     ax.plot(trials.times * 1000, average, color="0.6", lw=1, label="average of 20 trials")
     if fit.model is not None:
-        # the model is defined on the fit window
         start = int(np.searchsorted(trials.times, fit.window[0] - 1e-9))
         times = trials.times[start : start + len(fit.model)]
         ax.plot(times * 1000, fit.model, color="#0072B2", lw=1.5, label="model")

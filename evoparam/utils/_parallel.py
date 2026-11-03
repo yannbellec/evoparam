@@ -54,7 +54,6 @@ class _Collect(logging.Handler):
         self.records: list[logging.LogRecord] = []
 
     def emit(self, record: logging.LogRecord) -> None:
-        # the message is formatted here: the arguments may not survive pickling
         record.msg, record.args = record.getMessage(), None
         record.exc_info, record.exc_text = None, None
         self.records.append(record)
@@ -70,7 +69,7 @@ def _captured(
     the unit it points to, so that the calling process locates it as many frames above the
     caller of :func:`parallel_map`.
     """
-    if os.getpid() == parent:  # a thread backend chosen by the caller: nothing to carry
+    if os.getpid() == parent:
         return function(item), [], []
     logger = logging.getLogger(LOGGER)
     logger.setLevel(level)
@@ -100,7 +99,6 @@ def _replay(issued: Sequence[tuple[Any, ...]], records: Sequence[logging.LogReco
         logging.getLogger(record.name).handle(record)
     here = sys._getframe()
     for message, category, filename, lineno, steps in issued:
-        # steps frames above the caller of parallel_map (the frames of this module skipped)
         frame = _frame_above(here, steps) if steps else None
         if frame is not None:
             _warn_at(message, category, frame)

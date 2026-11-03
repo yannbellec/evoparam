@@ -10,7 +10,7 @@ artifact with a template of one pulse period, then fits one damped oscillation p
 
 Data: a simulated burst of 10 pulses on 4 DBS contacts (no public ERNA dataset exists; the
 preset is validated on simulations, REQ-276).
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate ERNA bursts
@@ -65,10 +65,10 @@ print(
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_group(group, pulses.average())
 

@@ -25,12 +25,10 @@ from evoparam.version import __version__
 
 from ..benchmark.helpers import ROOT
 
-# Thresholds of spec §7.4: recall points (sampling), relative recall and latency (ms) of a
 # preset perturbation.
 SAMPLING_RECALL_POINTS = 5.0
 PRESET_RECALL_REL = 0.10
 PRESET_LATENCY_MS = 2.0
-# 3 x 0.5 rounded, and the relative tolerance of the platform comparison.
 HALVED = 2
 PLATFORM_RTOL = 1e-9
 
@@ -334,7 +332,6 @@ def test_req376_changelog_explanation_unblocks(gate: Any) -> None:
     result = gate.gate(base, now, text)
     assert result["regressions"] == ["n1_ds004080/paper/kappa"]
     assert not result["release_blocked"]
-    # an explanation under an older release does not count
     old = (
         "# Changelog\n\n## Unreleased\n\n## 0.0.1\n\n- Layer-3 regression explained: "
         "n1_ds004080/paper/kappa: old.\n"

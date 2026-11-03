@@ -25,7 +25,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from evoparam.benchmark import write_leaderboard, write_report  # noqa: E402  (after the sys.path insert above)
+from evoparam.benchmark import write_leaderboard, write_report  # noqa: E402
 
 DOCS = ROOT / "docs" / "benchmark"
 

@@ -61,7 +61,6 @@ for s in list(subs.itertuples())[:N]:
     r = apply_rule(avg, times, ts.sfreq, spec, "uV")
     rule = np.asarray(r["significant"], bool)
     rule_lat = np.asarray(r["onset"], float)
-    # the rule's score: depth of its deepest strict local minimum in 9-50 ms, in baseline SDs
     w = (times >= t.N1_START) & (times <= t.N1_END)
     a = avg[:, w]
     loc = np.zeros_like(a, bool)

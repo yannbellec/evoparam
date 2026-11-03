@@ -40,7 +40,6 @@ VERSION = "0.1.0"
 SPEC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spec")
 NAMESPACE_FILE = os.path.join(SPEC_DIR, f"{NAMESPACE}.namespace.yaml")
 
-# type -> (parent, parent namespace, doc, [(column, dtype, doc)])
 TABLES = {
     "EvokedResponseFitTable": (
         "DynamicTable",
@@ -224,11 +223,9 @@ def settings_record(
     )
     preset = settings.get("preset")
     if isinstance(preset, dict):
-        # the preset is recorded as {"name", "version"} (REQ-331)
         preset_name = str(preset.get("name") or "")
         preset_version = str(preset.get("version") or "")
     else:
-        # results written before: the name alone, the version in preset_note
         note = settings.get("preset_note") or ""
         preset_name = str(preset or "")
         preset_version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else ""

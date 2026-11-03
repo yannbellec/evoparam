@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 __all__ = ["artifact_quality"]
 
-# Windows of the penalties, in seconds after the end of the artifact window.
 RESIDUAL_WINDOW = 0.010
 SATURATION_WINDOW = 0.020
 

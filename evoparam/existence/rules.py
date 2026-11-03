@@ -10,7 +10,6 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, IntArray, NDArray
 from evoparam.errors import SettingsError
 
-# selective_maxima: fewest samples, and the case of the two end points only
 _MIN_POINTS = 2
 _ENDS_ONLY = 2
 
@@ -126,14 +125,12 @@ def selective_maxima(x: ArrayLike, sel: float) -> IntArray:
     if len(val) <= _ENDS_ONLY:
         best = int(np.argmax(val))
         return np.array([idx[best]] if val[best] > floor + sel else [], int)
-    # the end points were added without checking that the extrema still alternate
     first, second = np.sign(val[1] - val[0]), np.sign(val[2] - val[1])
     if first == second:
         drop = 1 if first <= 0 else 0
         del idx[drop], val[drop]
     found, left, best, best_pos = [], floor, floor, None
     peak_open = True
-    # walk the alternating sequence: even steps are candidate maxima, odd steps valleys
     i = 0 if val[0] >= val[1] else 1
     m = len(val)
     while i < m:
@@ -278,9 +275,6 @@ def apply_rule(avg: Any, times: Any, sfreq: float, spec: Any, units: str = "uV")
     stat_kind = spec["statistic"]
     k = float(spec["k"])
     negative = stat_kind in ("negative_peak_over_sd", "negative_peak_z")
-    # The rule's quantity over time and the level it must cross (spec §5.13,
-    # plot_existence): the baseline z-score of the average, -k for the negative-peak rules,
-    # +/-k for the absolute ones, no band for the RMS rule (one value for the window)
     band = np.full(seg.shape + (2,), np.nan)
     if stat_kind != "rms_z":
         band[..., 0] = -k

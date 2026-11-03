@@ -10,8 +10,6 @@ from evoparam.artifact import remove_artifact
 from evoparam.data import TrialSet
 from evoparam.errors import ArtifactError
 
-# Probability of a spike after each pulse, the correlation of the recovered spikes, and
-# the relative RMS change on the silent channels.
 SPIKE_PROBABILITY = 0.5
 MIN_CORRELATION = 0.95
 MAX_RMS_CHANGE = 0.10

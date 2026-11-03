@@ -60,14 +60,11 @@ __all__ = ["tf_fit", "tf_zones", "tf_compare", "list_published_zones", "methods_
 NYQUIST_FACTOR = 2.5
 MIN_CLUSTER_TRIALS = 10
 ZONE_METHODS = ("nmf", "cp")
-# Ramp (s) that brings the fitted background to zero at the edges of the fit window, so
-# that cutting it does not put a step (broadband power) into the footprint.
 BACKGROUND_TAPER = 0.005
-_GRID_SPEC = 3  # freqs given as (fmin, fmax, n)
-_MIN_TRIALS = 3  # valid trials for a pixel, and for the t of a zone metric
-_N_METRICS = 6  # value, t, p and the three fractions of a zone metric row
+_GRID_SPEC = 3
+_MIN_TRIALS = 3
+_N_METRICS = 6
 
-# Unit of a normalised power value, per baseline mode.
 MODE_UNITS = {
     "db": "dB",
     "percent": "%",
@@ -293,7 +290,7 @@ def _region_values(
 
 
 @verbose
-def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window and channel_correction; DECISIONS.md §7.2)
+def tf_fit(  # noqa: PLR0913
     ts: "TrialSet",
     *,
     transform: str = "morse",
@@ -319,9 +316,9 @@ def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window
     by_trial: bool = False,
     picks: Any = None,
     by: Sequence[str] = ("stim_site",),
-    n_jobs: int = 1,  # noqa: ARG001  (spec §5.10 signature; documented: the computation runs in one process)
+    n_jobs: int = 1,  # noqa: ARG001
     random_state: Any = None,
-    verbose: Any = None,  # noqa: ARG001  (spec §5.10 signature; read by the @verbose decorator)
+    verbose: Any = None,  # noqa: ARG001
 ) -> "TFFit":
     """Time-frequency maps, pixel statistics and zones of a TrialSet.
 
@@ -428,8 +425,6 @@ def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window
         stft_window=stft_window,
     )
     if random_state is None:
-        # a seed drawn from the operating system and recorded in the settings, so that the
-        # result can be regenerated from its provenance (REQ-007, REQ-333)
         random_state = int(np.random.default_rng().integers(2**31 - 1))
     setup = _Setup(
         ts,
@@ -507,7 +502,6 @@ def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window
     if want_zones:
         table, regions = _zones_of(result, zone_method, max_zones, setup.rng)
         if len(table):
-            # second pass: the zone metrics need the trials
             metric_rows = _zone_metrics(setup, result, regions, layout, by_trial=by_trial)
             table["p_value"] = _zone_p_values(table, metric_rows, n_rows)
         result.zones = table
@@ -520,9 +514,6 @@ def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window
     result.zone_metrics.attrs["units"] = {**METRIC_COLUMNS, "value": unit}
     if hasattr(result.zones, "attrs"):
         result.zones.attrs["units"] = {**ZONE_COLUMNS, "peak_value": unit, "mean_value": unit}
-    # REQ-007: the step holds every keyword argument that changes the result, by its name,
-    # so that evoparam.reproduce calls tf_fit again with them (the frequencies as the grid
-    # used, the channels by name); a group fit is recorded as used ("footprint")
     step = {k: v for k, v in settings.items() if k not in ("rows", "row_p_value", "row_alpha")}
     step.update(
         gamma=opts["gamma"],
@@ -546,7 +537,6 @@ def tf_fit(  # noqa: PLR0913  (spec §5.10 fixes 25 parameters, plus stft_window
 
 
 ###################################################################################################
-## tf_fit, step by step
 
 
 class _Axis(NamedTuple):
@@ -623,9 +613,9 @@ class _FirstPass:
 
     maps: dict[str, Any]
     tmaps: Any
-    padj: Any  # pixel p-values adjusted within each row
+    padj: Any
     padj_residual: Any
-    stash: list[Any]  # published zone: each row's values inside the zone
+    stash: list[Any]
     rows: list[tuple[Any, Any]] = field(default_factory=list)
     row_trials: list[Any] = field(default_factory=list)
 
@@ -648,7 +638,6 @@ def _published(zones: Any, allow_unverified: bool, opts: dict[str, Any]) -> Any:
     return None
 
 
-# the settings of tf_fit that a published zone may set (besides its baseline and window)
 _PUBLISHED_SETTINGS = (
     "transform",
     "gamma",
@@ -863,7 +852,6 @@ def _store_halves(maps: dict[str, Any], settings: dict[str, Any], split: Any) ->
     halves, row_halves, halves_rows, box = split
     maps["zone_halves"] = halves.reshape(N_SPLITS * 2, *halves.shape[2:])
     if row_halves:
-        # (2 N_SPLITS, n_freqs_box, n_times_box, n_rows_significant)
         maps["zone_halves_rows"] = np.stack(row_halves, axis=-1).reshape(
             (N_SPLITS * 2,) + row_halves[0].shape[2:] + (len(row_halves),)
         )
@@ -1009,7 +997,6 @@ def _zones_of(
         stability[sign] = stab.get(rank, np.nan)
     regions = zone_regions(parts_by_sign, group)
     table = zone_table(regions, group, tf.freqs, tf.times, stability)
-    # zone_table orders zones by energy; keep the regions in the same order
     order = sorted(range(len(regions)), key=lambda i: -np.nansum(np.abs(group[regions[i][2]])))
     return table, [regions[i][2] for i in order]
 

@@ -21,13 +21,10 @@ from evoparam.shapes.components import gamma_fwhm_factor
 from evoparam.tests.shapes import references
 from evoparam.tests.shapes.helpers import SFREQ, TIMES, make_template, sample_params
 
-# Latency (s) of the shapes evaluated, the asymmetry of a skewed one, and the latency (s)
-# outside the window of the last test.
 LATENCY = 0.1
 MIN_SKEW = 0.1
 EXGAUSS_SKEW = 0.2
 OUTSIDE_LATENCY = 1.4
-# Random parameter draws (the others at the bounds).
 N_RANDOM = 80
 
 ANALYTIC = {
@@ -41,7 +38,6 @@ ANALYTIC = {
 }
 ALL = dict(ANALYTIC, template=make_template(), template_stretch=make_template(stretch=True))
 
-# Parameter sets of moderate range, where the float64 references are accurate.
 MODERATE = {
     "gaussian": [[0.1, 0.02], [0.012, 0.004]],
     "skewed_gaussian": [[0.1, 0.02, 3.0], [0.05, 0.01, -6.0], [0.08, 0.015, 0.0]],
@@ -134,7 +130,6 @@ def test_closed_forms_in_long_double() -> None:
 def test_template_equation() -> None:
     shape = make_template()
     nodes, values = shape.template_times, shape.template_values
-    # The interpolant goes through the samples; the norm is the maximum of |T|.
     np.testing.assert_allclose(shape.evaluate(nodes, [0.0]) * shape.norm, values, atol=1e-15)
     assert np.max(np.abs(values)) <= shape.norm <= 1.001 * np.max(np.abs(values))
     stretched = make_template(stretch=True)
@@ -164,14 +159,13 @@ def test_unit_amplitude(name: Any) -> None:
 
 @pytest.mark.parametrize("name", sorted(ALL))
 def test_extremum_is_a_stationary_point(name: Any) -> None:
-    # Every shape is a function of t minus its latency parameter, so ds/dt = -ds/d(latency).
     shape = ALL[name]
     params = sample_params(shape, TIMES, 50, np.random.default_rng(4))
     index = shape.param_names.index(shape.latency_param)
     for row in params:
         peak = float(shape.extremum(row))
         if shape.causal and peak == row[index]:
-            continue  # extremum at the onset of a damped oscillation
+            continue
         span = 0.01 * np.linspace(-1, 1, 201)
         slope = shape.jacobian(np.array([peak]), row)[0, index]
         scale = np.max(np.abs(shape.jacobian(peak + span, row)[:, index]))
@@ -225,7 +219,6 @@ def test_skewed_gaussian_reduces_to_gaussian_and_skews() -> None:
 
 def test_exgaussian_mode_and_limits() -> None:
     shape = shapes.ExGaussian()
-    # Short tau: the shape tends to the Gaussian, the mode to mu.
     np.testing.assert_allclose(
         shape.evaluate(TIMES, [0.1, 0.02, 1e-5]),
         shapes.Gaussian().evaluate(TIMES, [0.1 + 1e-5, 0.02]),
@@ -300,9 +293,7 @@ def test_damped_oscillation_features() -> None:
     assert features.latency == t0
     assert features.peak_time == t0
     assert features.amplitude == pytest.approx(2.0, abs=1e-12)
-    # Successive extrema are half a period apart.
     np.testing.assert_allclose(np.diff(features.peak_times[1:]), 1 / (2 * freq), atol=2e-6)
-    # Phase pi/2: the onset is a zero crossing, the extremum comes later.
     shifted = shape.features(TIMES, [t0, tau, freq, np.pi / 2])
     assert shifted.latency == t0
     assert shifted.peak_time > t0
@@ -345,7 +336,6 @@ def test_features_of_an_extremum_after_the_feature_grid() -> None:
     )
     assert tw[-1] < features.onset < OUTSIDE_LATENCY
     assert features.amplitude == pytest.approx(2.0)
-    # the same for a Gaussian placed after the grid (IndexError as well)
     late = shapes.Gaussian().features(tw, [2.0, 0.05], sfreq=2048.0)
     assert np.isnan(late.fwhm)
     assert "fwhm_outside_grid" in late.warnings
@@ -477,10 +467,8 @@ def test_initial_guess_recovers_a_gaussian() -> None:
     guess = shape.initial_guess(TIMES, waveform, int(np.argmax(waveform)))
     assert guess[0] == pytest.approx(0.0805, abs=0.5 / SFREQ)
     assert guess[1] == pytest.approx(0.01, rel=0.02)
-    # Edge component: the window starts at the peak, so the width comes from one side.
     start = int(np.argmax(waveform))
     edge = shape.initial_guess(TIMES[start:], waveform[start:], 0)
     assert edge[1] == pytest.approx(0.01, rel=0.05)
-    # No half maximum at all inside the window: fallback to min_fwhm.
     flat = shape.initial_guess(TIMES[:40], np.linspace(1.0, 0.9, 40), 0)
     assert flat[1] == pytest.approx(2.0 / SFREQ / 2.3548200450309493)

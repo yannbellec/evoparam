@@ -13,7 +13,6 @@ from .helpers import ccep, epochs
 
 pd = pytest.importorskip("pandas")
 
-# Response window (s), trials simulated, and the rejection rates required.
 RESPONSE_START = 0.01
 RESPONSE_END = 0.5
 N_TRIALS = 200
@@ -31,7 +30,7 @@ def test_req083_flags_corrupted_trials_without_deleting() -> None:
     data = ts.data + ccep(ts.times)[None, None]
     corrupted = rng.choice(200, 30, replace=False)
     big, flat, masked = corrupted[:10], corrupted[10:20], corrupted[20:]
-    data[big] *= 10  # 10x the baseline amplitude
+    data[big] *= 10
     data[flat] = 0.0  # flat
     mask = np.zeros(data.shape, dtype=bool)
     resp = np.flatnonzero((ts.times >= RESPONSE_START) & (ts.times <= RESPONSE_END))
@@ -55,9 +54,8 @@ def test_quality_threshold_and_cap() -> None:
     assert out.metadata["rejected"].tolist() == [False] * 18 + [True, True]
     assert out.metadata["reject_reason"].iloc[-1] == "quality"
 
-    # A broken channel: most trials extreme on it -> capped, with a warning
     data = ts.data.copy()
-    data[:8, 0] *= 50  # 40 % of the trials
+    data[:8, 0] *= 50
     with pytest.warns(UserWarning, match="the channel, not the trials"):
         out = reject_trials(replace(ts, data=data, metadata=None))
     assert out.provenance.steps[-1]["settings"]["capped_channels"] == ["A1"]

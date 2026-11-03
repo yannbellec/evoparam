@@ -51,11 +51,11 @@ class Lorentzian:
         high = (times[-1] - times[0]) / 2.0 if self.max_fwhm is None else float(self.max_fwhm)
         return times, low, high
 
-    def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002
         times, low, high = self._widths(times)
         return (np.array([times[0], low / 2.0]), np.array([times[-1], high / 2.0]))
 
-    def initial_guess(self, times: Any, waveform: Any, peak_index: Any) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def initial_guess(self, times: Any, waveform: Any, peak_index: Any) -> Any:  # noqa: ARG002
         lower, upper = self.default_bounds(times)
         times = np.asarray(times, float)
         guess = np.array([times[int(peak_index)], 0.5 * (lower[1] + upper[1]) / 4.0])
@@ -75,7 +75,6 @@ class Lorentzian:
 def _preset() -> Any:
     from evoparam import presets
 
-    # built on the ccep preset; presets.derive keeps the parent name in the record
     return presets.derive(
         "ccep", name="dummy_lorentz", shapes=("lorentzian",), validation="simulation_only"
     )

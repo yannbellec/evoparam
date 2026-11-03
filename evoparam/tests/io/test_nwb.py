@@ -9,9 +9,8 @@ import pytest
 
 pynwb = pytest.importorskip("pynwb")
 
-from evoparam.io import read_nwb, read_nwb_results, write_nwb  # noqa: E402  (after pytest.importorskip)
+from evoparam.io import read_nwb, read_nwb_results, write_nwb  # noqa: E402
 
-# Window (s) inside the simulated response, and the range (V) of the model peak.
 RESPONSE_START = 0.022
 RESPONSE_END = 0.038
 MIN_PEAK_V = 1e-6
@@ -21,7 +20,6 @@ SFREQ = 1000.0
 N_CH = 4
 DURATION = 30.0
 ONSETS = np.arange(2.0, 28.0, 2.0)
-# Electrodes located in VISp (the others are in CA1).
 N_VISP = 2
 
 
@@ -171,7 +169,7 @@ def _write(tmp_path: Any, source: Any) -> Any:
     path = tmp_path / f"{source}.nwb"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nwbfile = _nwbfile(source)  # first: a source may load an extension namespace
+        nwbfile = _nwbfile(source)
         with pynwb.NWBHDF5IO(str(path), "w") as io:
             io.write(nwbfile)
     return path
@@ -188,7 +186,6 @@ def test_req317_event_sources(tmp_path: Any, source: Any) -> None:
     expected = ONSETS[:4] if source == "icephys" else ONSETS
     assert np.allclose(ts.event_times, expected, atol=1 / SFREQ)
     assert ts.data.shape == (len(expected), N_CH, int(0.3 * SFREQ))
-    # the response of channel 0 (-50 µV, 20 to 40 ms after each onset) in µV
     window = (ts.times >= RESPONSE_START) & (ts.times <= RESPONSE_END)
     assert np.allclose(ts.data[:, 0, window].mean(), -50, atol=2)
     assert list(ts.ch_info["location"][:2]) == ["VISp", "VISp"]
@@ -252,7 +249,6 @@ def _results(path: Any) -> Any:
 def _inspect(path: Any) -> Any:
     inspector = pytest.importorskip("nwbinspector")
     messages = list(inspector.inspect_nwbfile(nwbfile_path=str(path)))
-    # messages about what evoparam wrote (the test file itself has no subject)
     return [
         m.message
         for m in messages
@@ -304,7 +300,6 @@ def test_req318_write_and_inspect(tmp_path: Any, extension: Any) -> None:
         ):
             assert column in components.colnames, column
         assert set(frame["channel"]) == set(ts.ch_names)
-        # electrode: a region into the electrodes table, rows matching the channel names
         assert components["electrode"].table is nwb.electrodes
         rows = [int(r) for r in components["electrode"].data[:]]
         assert [f"e{r}" for r in rows] == list(frame["channel"])
@@ -352,7 +347,7 @@ def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path: Any, exten
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         errors = pynwb.validate(path=str(path))
-    errors = errors[0] if isinstance(errors, tuple) else errors  # pynwb < 3: (errors, status)
+    errors = errors[0] if isinstance(errors, tuple) else errors
     assert list(errors) == []
 
 

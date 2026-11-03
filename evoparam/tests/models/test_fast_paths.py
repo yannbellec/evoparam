@@ -15,7 +15,6 @@ from evoparam.shapes import compute_features, get_background, get_shape
 
 from .helpers import TIMES, gauss, noise
 
-# Fit window (s) of the fast-path tests.
 WINDOW_START = 0.02
 WINDOW_END = 0.6
 
@@ -69,7 +68,6 @@ def test_reduced_residual_and_jacobian_match_the_svd_route(
     assert len(z) == len(rw) - len(beta)
     assert np.isclose(z @ z, rw @ rw, rtol=1e-10)
     jr = struct.reduced_jacobian(theta, ctx)
-    # the same inner products: those are all the optimiser uses
     assert np.allclose(jr.T @ jr, jac.T @ jac, rtol=1e-9, atol=1e-9 * np.abs(jac.T @ jac).max())
     assert np.allclose(jr.T @ z, jac.T @ rw, rtol=1e-8, atol=1e-9 * np.abs(jac.T @ rw).max())
     beta2, rw2 = struct.reduced_solution(theta, ctx)
@@ -80,7 +78,6 @@ def test_reduced_residual_and_jacobian_match_the_svd_route(
 def test_a_rank_deficient_design_takes_the_svd_route() -> None:
 
     base, _ = _struct()
-    # two identical Gaussians: two equal columns
     struct = eng._Structure(
         [get_shape("gaussian"), get_shape("gaussian")],
         base.background,

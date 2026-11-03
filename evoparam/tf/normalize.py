@@ -112,8 +112,6 @@ def normalize(
         if mode == "zscore":
             reported = _nanmean(per_trial, 0)
         else:
-            # average the power ratios, then take the log: the mean of per-trial dB values
-            # is about -2.5 dB on noise (the mean of a log is below the log of the mean)
             ratio = _nanmean(apply_mode(power, ref, None, "ratio"), 0)
             reported = apply_mode(ratio, np.ones_like(ratio), None, mode)
     root = np.cbrt(power)

@@ -23,15 +23,12 @@ from .helpers import N1, independent_dependability, independent_split_half, subj
 
 pd = pytest.importorskip("pandas")
 
-# Dependability target of the decision study, and the units of the examples.
 TARGET = 0.70
 N_UNITS = 30
 N_TRAINS = 6
-# Trials of the extrapolated SD (REQ-234), its relative tolerance and the fraction within.
 N_TRIALS = 80
 SD_TOLERANCE = 0.15
 MIN_WITHIN = 0.5
-# Lowest power-law exponent, and the largest probability on a silent channel.
 MIN_EXPONENT = -0.5
 MAX_SILENT = 0.3
 
@@ -53,10 +50,8 @@ def test_req233_against_independent_formulas(unbalanced: Any) -> None:
     assert row["dependability"] == pytest.approx(phi, abs=0.01)
     assert row["var_unit"] == pytest.approx(var_u, rel=1e-4)
     assert row["var_trial"] == pytest.approx(var_e, rel=1e-4)
-    # the mean of random splits estimates the same reliability
     assert row["split_half_low"] < row["split_half_random"] < row["split_half_high"]
     assert row["split_half_random"] == pytest.approx(ref_sh, abs=0.1)
-    # decision study: the trials needed reach the target and one trial fewer does not
     needed = row["trials_needed"]
     assert dependability(var_u, var_e, needed) >= TARGET > dependability(var_u, var_e, needed - 1)
     assert out.attrs["d_study"]["n_trials"][0] == 1
@@ -98,7 +93,6 @@ def test_req233_peak_score_and_sme() -> None:
     assert out["split_half_odd_even"].iloc[0] == pytest.approx(ref, abs=0.01)
     assert out["sme_rms"].iloc[0] > 0
     assert out.attrs["units"]["sme_rms"] == "uV"
-    # the mean amplitude SME is SD / sqrt(n) per subject (Luck et al. 2021)
     mean = reliability(ts, window=window, method="dependability")
     inside = (ts.times >= window[0]) & (ts.times <= window[1])
     scores = ts.data[:, 0][:, inside].mean(axis=1).reshape(16, 24)
@@ -216,7 +210,6 @@ def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies()
     spec = _req234("peak_latency", n_channels=30, extrapolation="sqrt_n")
     auto = _req234("peak_latency", n_channels=30)
     assert abs(np.median(auto) - 1) < abs(np.median(spec) - 1)
-    # the laws agree on a linear score's resampled counts, and 'auto' keeps 1/sqrt(n) there
     ts, _ = simulate_erp(
         20, components=[N1], snr=1.0, noise="pink", sfreq=250.0, tmin=-0.2, tmax=0.3, seed=0
     )

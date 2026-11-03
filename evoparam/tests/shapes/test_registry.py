@@ -12,7 +12,6 @@ from evoparam.shapes import compute_features
 from evoparam.shapes.registry import BUILTIN_SHAPES, check_shape
 from evoparam.tests.shapes.helpers import TIMES, make_template
 
-# Smallest FWHM (s) of the shape.
 MIN_FWHM = 0.004
 
 
@@ -36,10 +35,10 @@ class Lorentzian:
         s = 1.0 / (1.0 + z**2)
         return np.stack([2 * z * s**2 / width, 2 * z**2 * s**2 / width], axis=-1)
 
-    def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002
         return np.array([times[0], 0.002]), np.array([times[-1], 0.05])
 
-    def initial_guess(self, times: Any, waveform: Any, peak_index: Any) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def initial_guess(self, times: Any, waveform: Any, peak_index: Any) -> Any:  # noqa: ARG002
         return np.array([times[peak_index], 0.01])
 
     def features(self, times: Any, params: Any, amplitude: Any = 1.0) -> Any:
@@ -51,7 +50,7 @@ class WrongJacobian(Lorentzian):
 
     def jacobian(self, times: Any, params: Any) -> Any:
         jac = super().jacobian(times, params)
-        jac[..., 1] *= 0.5  # forgotten factor 2
+        jac[..., 1] *= 0.5
         return jac
 
 
@@ -176,7 +175,7 @@ def test_wrong_bounds_and_output_shapes_are_rejected() -> None:
     class BadBounds(Lorentzian):
         name = "bad_bounds"
 
-        def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        def default_bounds(self, times, data_range=None):  # noqa: ARG002
             return np.array([0.1, 0.05]), np.array([0.0, 0.01])
 
     class BadShape(Lorentzian):

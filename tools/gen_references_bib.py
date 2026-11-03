@@ -33,7 +33,7 @@ def render(source=SOURCE):
     """Return the BibTeX file built from the reference list ``source``."""
     entries = []
     for key, record in ENTRY.findall(source.read_text(encoding="utf-8")):
-        note = _clean(record.split(" — accessed")[0])
+        note = _clean(re.split(r" [-\u2014] accessed", record)[0])
         fields = [("note", note)]
         doi = re.search(r"\bDOI:? (10\.\d{4,9}/[^\s,;]+?)\.?(?=[\s,;]|$)", record)
         if doi:

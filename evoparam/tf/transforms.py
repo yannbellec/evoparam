@@ -30,8 +30,6 @@ __all__ = [
 ]
 
 TRANSFORMS = ("morse", "morlet", "multitaper", "stft")
-# Fraction of a kernel's energy that defines its temporal support (cone of influence and
-# widening of the artifact mask).
 SUPPORT_ENERGY = 0.99
 
 
@@ -56,7 +54,6 @@ def morse_spectrum(omega: Any, gamma: Any, beta: Any) -> NDArray[Any]:
     out = np.zeros_like(omega)
     pos = omega > 0
     w = omega[pos]
-    # log form avoids overflow of omega**beta for large beta
     log_a = (beta / gamma) * (1.0 + np.log(gamma) - np.log(beta))
     out[pos] = 2.0 * np.exp(log_a + beta * np.log(w) - w**gamma)
     return cast("NDArray[Any]", out)
@@ -123,7 +120,7 @@ def _centred_spectrum(h: Any, n_fft: Any) -> tuple[Any]:
     return cast("tuple[Any]", fft(buf))
 
 
-def make_kernels(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
+def make_kernels(  # noqa: PLR0913
     transform: str,
     freqs: ArrayLike,
     sfreq: float,
@@ -207,7 +204,6 @@ def make_kernels(  # noqa: PLR0913  (public API outside the spec signatures; DEC
         def spectrum(j: Any, n_fft: Any) -> Any:
             return np.stack([_centred_spectrum(h, n_fft) for h in time_kernels(j)])
 
-    # support on a generous grid, then each frequency on the shortest safe grid
     probe = next_fast_len(4 * n_times)
     half = np.array([_half_support(ifft(spectrum(j, probe)[0])) for j in range(len(freqs))])
     lengths_fft = [next_fast_len(int(n_times + 2 * min(h, n_times)) + 1) for h in half]

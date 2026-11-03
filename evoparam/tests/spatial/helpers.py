@@ -22,7 +22,6 @@ def gauss(latency: Any, fwhm: Any, times: Any = TIMES) -> Any:
     return np.exp(-0.5 * ((times - latency) / (fwhm / 2.3548)) ** 2)
 
 
-# Three response shapes with little overlap (an N1-P2, a broad N2, a late positivity)
 SHAPES = (
     -gauss(0.025, 0.015) + 0.6 * gauss(0.06, 0.03),
     -gauss(0.15, 0.08),
@@ -131,7 +130,7 @@ def volume_scene(
             clean[names.index(name)] += weight * amp * local_wave
         local += [f"{shaft}{k:02d}", f"{shaft}{k + 1:02d}"]
     data = clean[None] + rng.normal(0, noise, (n_trials,) + clean.shape)
-    for s in site:  # stimulating contacts: saturated
+    for s in site:
         data[:, names.index(s)] = 3000.0
     info = pd.DataFrame(
         {

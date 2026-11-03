@@ -89,7 +89,7 @@ def test_lock_sha256(tmp_path: pathlib.Path) -> None:
 
     numpy_pin = f"numpy=={metadata.version('numpy')}"
     lock = tmp_path / "py.lock"
-    assert provenance.lock_sha256(str(lock)) is None  # no lock file
+    assert provenance.lock_sha256(str(lock)) is None
     text = (
         "# a comment\n--require-hashes\n"
         f"{numpy_pin} \\\n    --hash=sha256:00\n"
@@ -97,7 +97,7 @@ def test_lock_sha256(tmp_path: pathlib.Path) -> None:
     )
     lock.write_text(text, encoding="utf-8")
     assert provenance.lock_sha256(str(lock)) == hashlib.sha256(text.encode()).hexdigest()
-    lock.write_text("numpy==0.0.1\n", encoding="utf-8")  # another version installed
+    lock.write_text("numpy==0.0.1\n", encoding="utf-8")
     assert provenance.lock_sha256(str(lock)) is None
     lock.write_text("evoparam-no-such-package==1.0\n", encoding="utf-8")  # not installed
     assert provenance.lock_sha256(str(lock)) is None

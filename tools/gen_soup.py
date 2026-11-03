@@ -170,7 +170,6 @@ PACKAGES = {
     "interrogate": ("interrogate", "MIT", True, "https://github.com/econchick/interrogate/issues"),
     "mpmath": ("mpmath", "BSD-3-Clause", True, "https://github.com/mpmath/mpmath/issues"),
     "pyyaml": ("yaml", "MIT", True, "https://github.com/yaml/pyyaml/issues"),
-    # type stubs for mypy --strict (REQ-301), never imported at run time
     "scipy-stubs": (
         "scipy-stubs",
         "BSD-3-Clause",
@@ -189,7 +188,6 @@ PACKAGES = {
         True,
         "https://github.com/python/typeshed/issues",
     ),
-    # imported by evoparam's source but installed by another package (TRANSITIVE)
     "packaging": (
         "packaging",
         "Apache-2.0 OR BSD-2-Clause",
@@ -201,8 +199,6 @@ PACKAGES = {
     "pytensor": ("pytensor", "BSD-3-Clause", True, "https://github.com/pymc-devs/pytensor/issues"),
 }
 
-# packages the source imports that pyproject.toml does not declare: each comes with another
-# package, and the import is guarded or lives in that package's extra
 TRANSITIVE = {
     "packaging": "dependency of pip and most extras; evaluates the markers of the lock file "
     "(Provenance.environment['lock_sha256']); without it no lock is claimed",
@@ -288,9 +284,8 @@ class _Uses(ast.NodeVisitor):
     """Names used from each imported top-level package in one module."""
 
     def __init__(self, tree=None):
-        self.aliases = {}  # local name -> dotted package path
-        self.used = {}  # top-level package -> set of names
-        # functions of the module that return require("<package>", ...)
+        self.aliases = {}
+        self.used = {}
         self.loaders = {}
         for node in ast.walk(tree) if tree is not None else ():
             if isinstance(node, ast.FunctionDef):
@@ -324,9 +319,9 @@ class _Uses(ast.NodeVisitor):
 
     def visit_Import(self, node):
         for alias in node.names:
-            if alias.asname:  # import a.b as c: c is a.b
+            if alias.asname:
                 self.aliases[alias.asname] = alias.name
-            else:  # import a.b: a is a
+            else:
                 self.aliases[alias.name.split(".")[0]] = alias.name.split(".")[0]
             self._add(alias.name)
 

@@ -7,7 +7,6 @@ from evoparam.events import detect_pulses, match_onsets
 
 from .helpers import add_pulse, make_noise, make_recording, spatial_gains
 
-# Pulses simulated, recall and precision required, and the channels an electrode pop reaches.
 N_PULSES = 200
 MIN_RATE = 0.99
 POP_FRACTION = 0.9
@@ -40,7 +39,6 @@ def test_req041_synthetic_pulses_line_noise_and_transients() -> None:
     results = match_onsets(events["onset_sample"] / sfreq, onsets / sfreq, tolerance=0.002)
     assert results["recall"] >= MIN_RATE
     assert results["precision"] >= MIN_RATE
-    # No transient is detected as a pulse
     detected = events["onset_sample"].to_numpy()
     for start in transients:
         assert np.all(np.abs(detected - start) > 0.03 * sfreq)
@@ -48,9 +46,6 @@ def test_req041_synthetic_pulses_line_noise_and_transients() -> None:
 
 def test_sharp_transients_far_weaker_than_pulses_are_rejected() -> None:
 
-    # Electrode pops: one-sample steps of 40 SD on most channels. They cross the threshold
-    # but are an order of magnitude weaker than the pulses, as on ds004080 (pulses reach
-    # hundreds to thousands of robust SD, transients tens)
     sfreq = 2048.0
     data, onsets, _ = make_recording(
         n_channels=32, duration=40.0, interval=2.0, amplitude=(1500.0, 2500.0), seed=12
@@ -66,7 +61,7 @@ def test_sharp_transients_far_weaker_than_pulses_are_rejected() -> None:
         pops.append(start)
 
     threshold_only = detect_pulses(data, sfreq, method="threshold")
-    assert len(threshold_only) > len(onsets)  # the pops cross the threshold
+    assert len(threshold_only) > len(onsets)
 
     events = detect_pulses(data, sfreq)
     results = match_onsets(events["onset_sample"] / sfreq, onsets / sfreq, tolerance=0.002)
@@ -76,7 +71,6 @@ def test_sharp_transients_far_weaker_than_pulses_are_rejected() -> None:
 
 def test_weak_pulses_are_recovered_by_template() -> None:
 
-    # Same site, two currents: the weak pulses are under the strength gate but match
     sfreq = 2048.0
     rng = np.random.default_rng(13)
     data = make_noise(32, 30.0, sfreq, seed=14)
@@ -98,7 +92,6 @@ def test_weak_pulses_are_recovered_by_template() -> None:
 
 def test_grey_zone_pulses_confirmed_by_repetition() -> None:
 
-    # Pulses at an eighth of the strong ones' size: under the gate, but they repeat
     sfreq = 2048.0
     rng = np.random.default_rng(18)
     data = make_noise(32, 20.0, sfreq, seed=19)

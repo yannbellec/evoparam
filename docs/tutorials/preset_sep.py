@@ -9,7 +9,7 @@ with Gaussian and skewed Gaussian components, and labels the N20 from its latenc
 
 Data: a simulated average (``evoparam`` has no public SEP dataset yet; the preset is
 validated on simulations, REQ-277).
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate a median-nerve SEP
@@ -61,10 +61,10 @@ print(
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_fit(group.fits[0], evoked)
 

@@ -9,7 +9,7 @@ import pytest
 
 mne = pytest.importorskip("mne")
 
-from evoparam.data import Evoked, TrialSet  # noqa: E402  (after pytest.importorskip)
+from evoparam.data import Evoked, TrialSet  # noqa: E402
 
 pd = pytest.importorskip("pandas")
 
@@ -54,10 +54,8 @@ def test_req310_round_trip() -> None:
         back.metadata.reset_index(drop=True), e.metadata.reset_index(drop=True)
     )
     assert back.event_id == e.event_id
-    # event times survive (the samples of MNE already include first_samp)
     np.testing.assert_allclose(ts.event_times, e.events[:, 0] / 1000.0)
     np.testing.assert_array_equal(back.events, e.events)
-    # stim_columns="auto": standard columns added (REQ-313), not given back to MNE
     assert ts.metadata["stim_current_mA"].tolist() == list(np.arange(6.0))
     assert {"stim_site", "stim_pulse_width_us", "stim_polarity"} <= set(ts.metadata)
     assert (
@@ -95,7 +93,6 @@ def test_req311_fit_dispatch() -> None:
         converted = evoparam.fit(TrialSet.from_mne(e), "erp", fit_window=(0.05, 0.29))
         pd.testing.assert_frame_equal(direct.to_dataframe(), converted.to_dataframe())
         average = e.average()
-        # evoparam.fit runs the existence test, whose null draws a seed when none is given
         pd.testing.assert_frame_equal(
             evoparam.fit(average, "erp", fit_window=(0.05, 0.29), random_state=0).to_dataframe(),
             evoparam.fit(

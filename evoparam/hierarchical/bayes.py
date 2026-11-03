@@ -41,11 +41,9 @@ EXTRAS = {"numpyro": "bayes", "pymc": "bayes"}
 MIN_TAU_MS = 0.01
 DIVERGENCE_WARNING = 0.01
 
-# Fewest channels of a component for a hierarchical model, and fewest fits to compare.
 _MIN_CHANNELS = 2
 _MIN_FITS = 2
 
-# Dimensions of the draws of a scalar (chain x draw): more means a vector per draw.
 _MATRIX_NDIM = 2
 
 
@@ -246,7 +244,6 @@ def _init_values(data: Any, eb_variance: Any, label: Any) -> dict[str, Any]:
         match = rows[(rows["parameter"] == parameter) & (rows["level"] == level)]
         if len(match):
             value = float(match["sd"].iloc[0]) * (scale or 1.0 / data["amp_scale"])
-            # a zero SD is on the boundary of the half-normal: start slightly inside
             out[key] = max(value, 1e-3 * (data["prior"]["lat_scale"] if scale else 1.0))
     return out
 
@@ -268,7 +265,7 @@ def _sample_numpyro(
     require("numpyro", extra="bayes", caller="evoparam.hierarchical.bayes._sample_numpyro")
     from numpyro.infer import MCMC, NUTS, init_to_value
 
-    jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in jax
+    jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call, unused-ignore]
     kernel = NUTS(
         lambda: _numpyro_model(data, latency_dist),
         target_accept_prob=target_accept,
@@ -293,8 +290,6 @@ def _sample_numpyro(
         ll = log_likelihood(lambda: _numpyro_model(data, latency_dist), flat)
         loglik = {k: np.asarray(v).reshape(n_chains, n_draws, -1) for k, v in ll.items()}
     except (ImportError, RuntimeError, ValueError, TypeError, ArithmeticError) as err:
-        # the log-likelihood is only needed for LOO (compare_hierarchical): the fit is
-        # returned without it, with a warning that names the error (REQ-307)
         _warn(
             f"fit_hierarchical (numpyro): the pointwise log-likelihood could not be computed "
             f"({type(err).__name__}: {err}); LOO is not available for this fit.",
@@ -330,11 +325,11 @@ def _sample_pymc(
         s_ls = pm.HalfNormal("sd_latency_subject", p["lat_scale"])
         s_lc = pm.HalfNormal("sd_latency_channel", p["lat_scale"])
         n_x = data["X"].shape[1]
-        beta = pm.Normal("beta", 0, p["lat_scale"], shape=n_x) if n_x else pt.zeros(0)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
+        beta = pm.Normal("beta", 0, p["lat_scale"], shape=n_x) if n_x else pt.zeros(0)  # type: ignore[no-untyped-call, unused-ignore]
         z = pm.Normal("z_subject", 0, 1, shape=n_s)
         lat_s = pm.Deterministic(
             "latency_subject",
-            mu_l + pt.dot(np.asarray(data["X"]), beta) + s_ls * z,  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
+            mu_l + pt.dot(np.asarray(data["X"]), beta) + s_ls * z,  # type: ignore[no-untyped-call, unused-ignore]
         )
         lat_c = pm.Normal(
             "latency_channel", lat_s[data["ch_subject"]], s_lc, shape=len(data["lat_hat"])
@@ -372,8 +367,8 @@ def _sample_pymc(
             se = data["ex_se"]
             l1 = pt.log(pis) + pm.logp(pm.Normal.dist(m, pt.sqrt(t_e**2 + se**2)), data["ex_y"])
             l0 = pt.log1p(-pis) + pm.logp(pm.Normal.dist(0.0, se), data["ex_y"])
-            total = pt.logaddexp(l1, l0)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
-            pm.Potential("existence", pt.sum(total))  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
+            total = pt.logaddexp(l1, l0)  # type: ignore[no-untyped-call, unused-ignore]
+            pm.Potential("existence", pt.sum(total))  # type: ignore[no-untyped-call, unused-ignore]
             pm.Deterministic("responsibility", pt.exp(l1 - total))
         idata = pm.sample(
             draws=n_draws,
@@ -430,8 +425,8 @@ def _diagnostics(samples: Any, diverging: Any) -> dict[str, Any]:
 
     names = [k for k in samples if not k.startswith(("responsibility",))]
     data = _from_dict(az, {"posterior": {k: samples[k] for k in names}})
-    rhat = az.rhat(data)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in ArviZ
-    ess = az.ess(data)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in ArviZ
+    rhat = az.rhat(data)  # type: ignore[no-untyped-call, unused-ignore]
+    ess = az.ess(data)  # type: ignore[no-untyped-call, unused-ignore]
     worst_rhat = max(float(np.nanmax(np.asarray(rhat[k]))) for k in names)
     worst_ess = min(float(np.nanmin(np.asarray(ess[k]))) for k in names)
     per = {
@@ -520,7 +515,6 @@ def sample(
         diag["bayes"][label] = d
         amp_scale = data["amp_scale"]
         _channel_posteriors(channel, channel["component"] == label, data, samples, amp_scale)
-        # The draws themselves, for HierarchicalFit.to_arviz (chain x draw x site/subject)
         diag.setdefault("draws", {})[label] = {
             "sites": [f"{a}/{b}" for a, b in data["keys"]],
             "subjects": list(subjects),
@@ -530,7 +524,6 @@ def sample(
             "amplitude_subject": np.asarray(samples["amplitude_subject"]) * amp_scale,
         }
         sub_rows.extend(_subject_rows(samples, label, subjects, covariates, amp_scale))
-        # total trial-to-trial SD (the ex-Gaussian's: sqrt(sigma^2 + tau^2))
         samples["sd_jitter_total"] = np.sqrt(
             samples["sd_jitter"] ** 2 + samples.get("tau_jitter", 0.0) ** 2
         )

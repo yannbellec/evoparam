@@ -15,9 +15,7 @@ from evoparam.shapes import get_shape
 from .components import shape_params
 from .noise import make_noise
 
-# Numbers given for each component: latency (ms), amplitude (µV), width (ms).
 N_VALUES = 3
-# Dimensions of the table of components (one row per component).
 TABLE_NDIM = 2
 
 
@@ -39,7 +37,7 @@ def gen_response(
         One entry per bump (Gaussian): the time of its peak after the stimulus (ms), its
         height (µV, negative for a downward bump) and its full width at half maximum (ms).
     background : [height, time_constant] or None
-        A slow decay that starts at the stimulus, ``height × exp(−t / time_constant)``
+        A slow decay that starts at the stimulus, ``height × exp(-t / time_constant)``
         (µV, ms), like the recovery of an amplifier after a pulse; None for none.
     noise : float
         Standard deviation of the noise (µV); the noise is pink (power ``1/f``). 0 for none.

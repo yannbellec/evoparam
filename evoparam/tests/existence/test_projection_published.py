@@ -32,11 +32,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-# Tolerance (s) of a published duration, and the agreement with the published decisions.
 DURATION_TOLERANCE = 0.005
 MIN_AGREEMENT = 0.95
-# End (s) of the reviewed profile's response, and the rejection rates under the null of
-# the paper's pairs, of the disjoint pairs and of the default sign-flip test.
 REVIEWED_END = 0.04
 MIN_HALF_REJECTION = 0.3
 MAX_DISJOINT_REJECTION = 0.2
@@ -64,13 +61,11 @@ SHA256 = {
     "Fig9_eeg_data_zeropad": "caabb03d39eced643fad33c5353a87d071172b7124aca2a6eebf4d16301f967d",
 }
 WINDOW = (0.015, 1.0)
-# (file, trials removed (0-based), published tau_R in s)
 DURATIONS = [
     ("Fig3_sampledata", (), 0.080),
     ("Fig9_eeg_data_zeropad", (), 0.23),
     ("Fig9_eeg_data_zeropad", (5,), 0.28),
 ]
-# (file, published decision)
 DECISIONS = [
     ("Fig5_sampledata_1", True),
     ("Fig5_sampledata_2", True),
@@ -105,7 +100,7 @@ def _trials(name: Any, drop: Any = ()) -> Any:
         download(URL.format(COMMIT, name), str(path))
     assert sha256_file(path) == SHA256[name], name
     mat = loadmat(path)
-    data = np.asarray(mat["data"], float)  # times x trials
+    data = np.asarray(mat["data"], float)
     times = np.asarray(mat["t"], float).ravel()
     keep = [k for k in range(data.shape[1]) if k not in drop]
     return TrialSet(
@@ -240,7 +235,6 @@ def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     assert default.settings["projection_pairs"] == "signflip"
     assert np.mean(half.significant) > MIN_HALF_REJECTION
     assert np.mean(disjoint.significant) < MAX_DISJOINT_REJECTION
-    # the sign-flip null includes the choice of the response end: measured 0.05
     assert np.mean(default.significant) <= MAX_SIGNFLIP_REJECTION
 
 

@@ -7,7 +7,6 @@ import pytest
 from evoparam import sim
 from evoparam.errors import SettingsError
 
-# Trials simulated (one phase each), and the half-width (s) around the burst centre.
 N_TRIALS = 20
 HALF_WIDTH = 0.02
 
@@ -25,9 +24,9 @@ def test_bursts_truth_and_determinism() -> None:
     assert len(truth.settings["phases"][0]) == N_TRIALS
     assert ts.data.shape == (20, 2, 1400)
     assert ts.units == "uV"
-    null, _ = sim.simulate_bursts(20, n_channels=2, seed=3)  # same noise, no burst
+    null, _ = sim.simulate_bursts(20, n_channels=2, seed=3)
     np.testing.assert_allclose(ts.data - truth.signal, null.data, rtol=1e-9, atol=1e-9)
-    assert not np.any(truth.signal[:, 0])  # channel c0 has no burst
+    assert not np.any(truth.signal[:, 0])
 
 
 def test_bursts_are_induced_not_evoked() -> None:

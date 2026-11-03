@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-# Fewest subjects of the real CCEP dataset left in the subject table.
 MIN_SUBJECTS = 5
 
 pytestmark = [
@@ -63,5 +62,4 @@ def test_req178_n1_latency_decreases_with_age(age_fit: Any) -> None:
     effects = age_fit.effects
     row = effects[effects["term"] == "age"].iloc[0]
     assert age_fit.level_tables["subject"]["subject"].nunique() >= MIN_SUBJECTS
-    # the sign reported by the dataset's authors: shorter N1 latencies with age
     assert row["estimate"] < 0

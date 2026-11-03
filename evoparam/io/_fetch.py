@@ -31,7 +31,6 @@ __all__ = [
     "data_folder",
     "sha256_file",
     "TransferLog",
-    # URL text helpers of urllib.parse, for the remote readers: only this module imports
     # urllib (REQ-306)
     "quote",
     "unquote",
@@ -46,7 +45,6 @@ SPURIOUS_RETRIES = 10
 SPURIOUS_DELAY = 0.5
 _TRANSIENT_ERRORS = (URLError, TimeoutError, ConnectionError, http.client.HTTPException)
 
-# Module-level so that tests can replace it and run without waiting.
 _sleep = time.sleep
 
 
@@ -275,8 +273,8 @@ class RemoteFile:
         self._cache: OrderedDict[Any, Any]
         self._cache = OrderedDict()
         self._digests: dict[Any, Any]
-        self._digests = {}  # chunk index -> (start, stop, sha256 of the chunk)
-        self._local: Any = None  # path of the full download, once made
+        self._digests = {}
+        self._local: Any = None
         self._local_sha256: str | None = None
 
     # Context manager
@@ -366,7 +364,6 @@ class RemoteFile:
         if stop <= offset:
             return b""
         first, last = offset // self.chunk_size, (stop - 1) // self.chunk_size
-        # Take the cached chunks first: fetching the others may evict them.
         got, missing = {}, []
         for index in range(first, last + 1):
             if index in self._cache:
@@ -381,7 +378,7 @@ class RemoteFile:
             got.update(fetched)
         parts = []
         for index in range(first, last + 1):
-            if index not in got:  # past the end of the file
+            if index not in got:
                 break
             parts.append(got[index])
         joined = b"".join(parts)
@@ -413,8 +410,6 @@ class RemoteFile:
                     raise ReaderError(f"Unexpected HTTP {response.status} for {self.url}.")
                 self._check_content_range(response.headers.get("Content-Range"), start)
                 body = response.read()
-            # The size may have been learnt from this reply: a range that ends past the
-            # end of the file is answered up to the end
             expected = min(stop, self._size) - start if self._size is not None else None
             if expected is not None and len(body) != expected:
                 raise http.client.IncompleteRead(body, expected - len(body))
@@ -445,7 +440,6 @@ class RemoteFile:
 
     def _check_content_range(self, header: Any, start: Any) -> None:
         """Check the Content-Range of a reply: it starts at ``start``; learn the file size."""
-        # Format: "bytes <first>-<last>/<total>"
         if not header or not header.startswith("bytes "):
             raise ReaderError(f"Range reply without a valid Content-Range from {self.url}.")
         span, _, total = header[6:].partition("/")

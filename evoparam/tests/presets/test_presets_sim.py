@@ -10,13 +10,10 @@ from evoparam.data import Evoked, TrialSet
 from evoparam.models import fit
 from evoparam.shapes import get_shape
 
-# Last pulse of the ERNA train (10 pulses), frequency (Hz) and first-peak (ms) tolerances,
-# and the fraction of runs within them (REQ-276).
 LAST_PULSE = 9
 FREQ_TOLERANCE = 5
 PEAK_TOLERANCE_MS = 0.1
 MIN_WITHIN = 0.9
-# N20 latency tolerance (ms) of REQ-277, and the fraction within under AR(1) noise.
 N20_TOLERANCE_MS = 0.5
 MIN_WITHIN_AR = 0.75
 

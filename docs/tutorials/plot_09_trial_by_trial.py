@@ -4,7 +4,7 @@
 ==========================
 
 Measure the N1 and the N2 in every trial, and tell a real change from noise.
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 ###################################################################################################
 # Introduction
@@ -29,7 +29,6 @@ Measure the N1 and the N2 in every trial, and tell a real change from noise.
 
 ###################################################################################################
 
-# Import what we need
 import numpy as np
 
 from evoparam import plots, reports
@@ -65,7 +64,6 @@ def show_jitter(trial_fits, label):
 
 ###################################################################################################
 
-# 30 trials; the response does not move (jitter_sd=0)
 trials_still, truth_still = simulate_ccep(
     30, n_channels=3, p_response=1.0, p_n2=1.0, jitter_sd=0.0, artifact=False,
     layout="grid", sfreq=1024.0, seed=1,
@@ -87,7 +85,6 @@ print(trials_still)
 
 fits_still = fit_trials(trials_still, preset="ccep", max_shift=0.01, random_state=0)
 
-# One row per trial and per bump
 table = fits_still.to_dataframe()
 print(table[table["label"] == "N1"][["trial", "latency", "amplitude", "r2"]].head().round(4))
 
@@ -116,7 +113,7 @@ show_jitter(fits_still, "N1")
 #
 # The measured jitter of the N1 is no larger than what noise gives, so evoparam does not
 # claim a jitter. And it says how small a jitter it could have seen: about 0.1 ms. This N1
-# is large (−456 µV) and narrow, so its timing is very precise in every trial.
+# is large (-456 µV) and narrow, so its timing is very precise in every trial.
 
 ###################################################################################################
 # Trials with a known jitter
@@ -179,7 +176,7 @@ show_jitter(fits_moving, "N2")
 # about 5 ms can not be seen with these 30 trials.
 #
 # This is not a fault of the N2 fit. The N2 is **broad** (about 80 ms wide here, against
-# 6 ms for the N1) and **smaller** (−72 µV against −456 µV). The top of a broad, low bump
+# 6 ms for the N1) and **smaller** (-72 µV against -456 µV). The top of a broad, low bump
 # is flat, so a little noise is enough to move it. The same is true of any method: the
 # latency of a broad bump in a single trial is never precise.
 #
@@ -211,14 +208,12 @@ trials = read_bids(
 )
 result = reports.run_pipeline(trials, "ccep", random_state=0, trial_fits=False)
 
-# The cleaned trials of two electrodes, fitted one by one
 two = result.trials.select(picks=["PT07", "PT21"])
 real_fits = fit_trials(two, preset="ccep", random_state=0)
 
 show_jitter(real_fits, "N1")
 show_jitter(real_fits, "N2")
 
-# The 10 trials of PT21, sorted by the latency of their N1
 fig = plots.plot_trials(real_fits, two.select(tmin=0.0, tmax=0.3), channel="PT21")
 
 ###################################################################################################

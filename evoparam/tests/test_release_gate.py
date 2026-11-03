@@ -94,7 +94,7 @@ def test_req017_n1_tests_run_in_every_build() -> None:
     assert "push:" in triggers
     assert "pull_request:" in triggers
     build = workflow.split("\n  build:")[1].split("\n  docs:")[0]
-    assert "\n    if:" not in build.split("steps:")[0]  # the job runs on every trigger
+    assert "\n    if:" not in build.split("steps:")[0]
     step = build.split("REQ-113 and REQ-114 in every build (REQ-017)")[1].split("- name:")[0]
     assert 'EVOPARAM_NETWORK_TESTS: "1"' in step
     assert "evoparam/tests/models/test_engine_ccep.py" in step
@@ -127,7 +127,7 @@ def test_req018_the_check_finds_a_broken_mapping(tmp_path: Any) -> None:
     text = (ROOT / "docs" / "spec" / "SPEC.md").read_text("utf-8")
     row = next(line for line in text.splitlines() if line.startswith("| GAP-03 |"))
     cells = row.split("|")
-    cells[6] = " "  # no test file for GAP-03
+    cells[6] = " "
     (spec / "SPEC.md").write_text(text.replace(row, "|".join(cells)), encoding="utf-8")
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "check_traceability.py"), "--root", str(tmp_path)],
@@ -141,7 +141,6 @@ def test_req018_the_check_finds_a_broken_mapping(tmp_path: Any) -> None:
 
 
 ###################################################################################################
-## REQ-398: the release workflow refuses to publish without the recorded decision
 
 
 def _workflow(name: Any) -> Any:

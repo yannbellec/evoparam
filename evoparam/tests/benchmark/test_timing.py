@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""REQ-290 and REQ-299: the performance workloads P1–P6, their results file, and the
+"""REQ-290 and REQ-299: the performance workloads P1-P6, their results file, and the
 comparison with the CI baseline.
 
 The comparison is checked on documents built here (a pull request that slows P1 by 2x
@@ -26,7 +26,6 @@ from evoparam.benchmark import timing
 
 from .helpers import ROOT
 
-# Runs of the median, repeats of P6, and the repeated runs of the CI baseline.
 N_RUNS = 3
 N_REPEATS = 5
 
@@ -213,7 +212,6 @@ def test_req299_baseline_is_committed() -> None:
 
 
 ###################################################################################################
-## Absolute targets on the reference machine (committed results)
 
 
 def _committed(suite: Any) -> Any:
@@ -228,7 +226,6 @@ def _committed(suite: Any) -> Any:
     return {timing._key(r): r for r in rows}
 
 
-# measured on the reference machine (benchmarks/README.md), load average 7 to 10 on 4 cores
 MEASURED = {
     "P1": "median 80.4 ms over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
     "with 3 starts and max_components=6 on a 1 s window at 2 048 Hz",

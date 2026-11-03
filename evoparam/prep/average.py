@@ -22,10 +22,8 @@ __all__ = ["average", "AVERAGE_METHODS"]
 
 AVERAGE_METHODS = ("mean", "trimmed", "median", "weighted")
 
-# Proportion cut from each end by the trimmed mean (the only one available).
 _TRIM = 0.2
 
-# Fewest values for a standard error of the mean.
 _MIN_SEM_COUNT = 2
 
 

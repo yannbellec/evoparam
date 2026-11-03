@@ -38,10 +38,8 @@ def _rung_6(function: Callable[[Any], Any], item: Any) -> Any:
     return _rung_5(function, item)
 
 
-#: ``function(item)`` below six rungs
 climb = _rung_6
 
-#: line of each rung's call -> how many frames above the unit it is
 LEVELS = {
     max(line for _, _, line in rung.__code__.co_lines() if line is not None): level
     for level, rung in enumerate((_rung_1, _rung_2, _rung_3, _rung_4, _rung_5, _rung_6), 1)

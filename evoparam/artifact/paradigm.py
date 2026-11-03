@@ -87,7 +87,6 @@ def _sets_forward_masking(meta: Any, pairing: Any) -> tuple[list[Any], NDArray[A
     if pairing == "pair_id" or (pairing == "auto" and "pair_id" in meta.columns):
         keys = meta["pair_id"].to_numpy()
     else:
-        # k-th occurrence of each condition forms the k-th set
         keys = np.zeros(len(cond), dtype=int)
         for name in CONDITIONS:
             rows = np.flatnonzero(cond == name)

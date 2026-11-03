@@ -68,7 +68,6 @@ def run(ts):
     for method, kwargs in CASES:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # a warm-up only: the timed run below reports the errors
             with contextlib.suppress(Exception):
                 remove_artifact(small, method=method, **kwargs)
             start = time.perf_counter()

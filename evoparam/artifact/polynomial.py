@@ -26,14 +26,11 @@ from evoparam.errors import SettingsError
 
 __all__ = []
 
-# Fewest samples from which the level outside the window is estimated.
 _MIN_LEVEL_SAMPLES = 8
 
-# Residual RMS, in units of the series' noise level, below which a recovered sample is
 # trusted again.
 TRUST_SD = 3.0
 
-# Series processed together by the local extent (bounds the memory of the weights).
 CHUNK = 512
 
 
@@ -73,21 +70,18 @@ def _local_weights(fit: Any, window_inds: Any, baseline_inds: Any, railed: Any, 
         has = tail.any(axis=1)
         last = tail.shape[1] - 1 - np.argmax(tail[:, ::-1], axis=1)
         starts = np.where(has, np.maximum(starts, lo + last + 1), starts)
-    # First run of ``hold`` quiet samples at or after the start: its first sample ends the
-    # artifact (the end of the series when there is none)
     quiet = np.abs(fit - level[:, None]) <= TRUST_SD * spread[:, None]
     count = np.cumsum(np.c_[np.zeros(n_rows, dtype=int), quiet.astype(int)], axis=1)
-    runs = count[:, hold:] - count[:, :-hold]  # runs[:, t]: quiet in t..t+hold-1
+    runs = count[:, hold:] - count[:, :-hold]
     candidate = (runs == hold) & (np.arange(runs.shape[1])[None] >= starts[:, None])
     ends = np.where(candidate.any(axis=1), np.argmax(candidate, axis=1), n_times)
     positions = np.arange(n_times)[None]
     weights = ((positions >= lo) & (positions < ends[:, None])).astype(float)
-    # Half-cosine ramps of ``half`` samples before the window and after the end
     if half > 0:
-        rise = positions - (lo - half - 1)  # 1..half before the window
+        rise = positions - (lo - half - 1)
         ramp = 0.5 - 0.5 * np.cos(np.pi * np.clip(rise, 0, half + 1) / (half + 1))
         weights = np.where((positions >= lo - half) & (positions < lo), ramp, weights)
-        fall = (ends[:, None] + half) - positions  # half..1 after the end
+        fall = (ends[:, None] + half) - positions
         ramp = 0.5 - 0.5 * np.cos(np.pi * np.clip(fall, 0, half + 1) / (half + 1))
         after = (positions >= ends[:, None]) & (positions < ends[:, None] + half)
         weights = np.where(after, ramp, weights)
@@ -170,7 +164,7 @@ def _depeg(
     flat: Any, cleaned: Any, masked: Any, rails: Any, half: Any, n_window: Any, order: Any
 ) -> None:
     """Zeros while railed, one-sided fits next to the rail, masked until trusted (in place)."""
-    forward = _poly_rows(n_window, order, np.arange(half))  # fit on [t0, t0 + 2 tau]
+    forward = _poly_rows(n_window, order, np.arange(half))
     backward = _poly_rows(n_window, order, np.arange(half + 1, n_window))
     trust = max(1, half // 2)
     n_times = flat.shape[1]
@@ -183,7 +177,6 @@ def _depeg(
         ):
             cleaned[row, first:last] = 0.0
             masked[row, first:last] = True
-            # Depegging: one-sided fits next to the rail
             after = last
             if after + n_window <= n_times:
                 cleaned[row, after : after + half] = (
@@ -194,7 +187,6 @@ def _depeg(
                 cleaned[row, first - half : first] = (
                     x[first - half : first] - backward @ x[before:first]
                 )
-            # Masked until the residual over 0.5 tau looks like noise
             t = after
             while t + trust <= n_times:
                 if np.sqrt(np.mean(cleaned[row, t : t + trust] ** 2)) <= TRUST_SD * noise:

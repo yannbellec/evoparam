@@ -36,11 +36,9 @@ __all__ = ["detect_pulses", "match_onsets", "estimate_delay", "detect_events", "
 
 METHODS = ("threshold", "template", "threshold+template")
 
-# Detection procedures: the default one (below), and the specification's methods 1 and 2 as
 # written (evoparam.events._spec).
 PROCEDURES = ("evoparam", "spec")
 
-# Fixed columns of the event table (spec §4.3.4), in order.
 EVENT_COLUMNS = (
     "onset_sample",
     "onset_time",
@@ -56,25 +54,15 @@ EVENT_COLUMNS = (
     "threshold",
 )
 
-# Crossings closer than this belong to the same artifact (s).
 MERGE_WINDOW = 0.020
 
-# Window after a crossing in which the artifact peak is searched (s).
 PEAK_WINDOW = 0.003
 
-# Window before the peak in which the onset is searched (s), and the fraction of the
-# peak score that marks the onset: low enough for the first sample of the artifact,
-# high enough to skip the small switching transient some stimulators emit 1-2 ms
-# earlier. 0.25 gave the most stable trigger-to-onset delay across the 25 ds004080 runs
-# of the validation (0.1 and 0.5 were tried).
 ONSET_WINDOW = 0.002
 ONSET_FRACTION = 0.25
 
-# A recovered pulse must still reach this fraction of the strength gate: below it, on
-# low-resolution recordings, background fluctuations correlate with short templates.
 RECOVERY_FRACTION = 0.1
 
-# Lower edge of the grey zone, as a fraction of the strength gate.
 GREY_FRACTION = 0.4
 
 
@@ -166,7 +154,7 @@ def _cluster(
         if not np.any(stack[middle]):
             continue
         if templates:
-            rho = stack @ np.array(templates).T  # shifts x clusters
+            rho = stack @ np.array(templates).T
             shift, k = np.unravel_index(int(np.argmax(rho)), rho.shape)
             if rho[shift, k] >= rho_min:
                 labels[row], best[row] = k, rho[shift, k]
@@ -213,7 +201,7 @@ def artifact_size(
 
 
 @verbose
-def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 keywords; DECISIONS.md §7.2)
+def detect_pulses(  # noqa: PLR0913
     data: FloatArray,
     sfreq: float,
     *,
@@ -237,7 +225,7 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
     procedure: str = "evoparam",
     return_scores: bool = False,
     site_method: str = "evidence",
-    verbose: bool | str | None = None,  # noqa: ARG001  (read by the @verbose decorator)
+    verbose: bool | str | None = None,  # noqa: ARG001
 ) -> Any:
     """Find stimulation pulses from the artifact they leave in the signal.
 
@@ -382,7 +370,6 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
         z = robust_z(score)
         cands, (score, z), score_used = _evoparam_candidates(rec, (score, z), opts, template)
 
-    # Refractory period: the strongest pulse wins
     keep = _suppress(cands.onsets, cands.strength, opts.min_samples)
     cands = cands.select(keep)
     cands = cands.select(np.argsort(cands.onsets, kind="stable"))
@@ -405,8 +392,6 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
     if "stim_site_pulse" in events.columns:
         columns.append("stim_site_pulse")
     events = events[columns]
-    # The detection step, carried into the TrialSet by evoparam.io.epoch (onsets = this
-    # table) so that the methods text describes it (spec §5.13)
     from evoparam.data import Provenance
 
     settings = {
@@ -445,16 +430,10 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
     return events
 
 
-# A grey-zone candidate is a pulse when its cluster has at least this many members.
 _MIN_REPEATS = 2
-# The strength gate is relative to this percentile of the candidates' peaks.
 _REFERENCE_PERCENTILE = 90
-# Fallback to the 90th percentile score: only with more than this many picked channels, and
-# at this quantile of the non-flat channels.
 _MIN_FALLBACK_CHANNELS = 2
 _FALLBACK_QUANTILE = 0.9
-# Interval flags: shorter than this fraction of the expected period, or longer than this
-# multiple of it.
 _SHORT_INTERVAL = 0.5
 _LONG_INTERVAL = 2.0
 
@@ -516,7 +495,6 @@ class _Detection:
             recovery_sd=recovery_sd,
             refine=refine,
             min_samples=max(1, int(round(min_interval * sfreq))),
-            # Crossings of one artifact are merged, but never across two pulses of a fast
             # train
             merge_s=min(MERGE_WINDOW, min_interval / 2),
         )
@@ -608,10 +586,6 @@ def _evoparam_candidates(
     strength, onsets = _threshold_candidates(rec, scores, opts.threshold_sd, opts)
     score_used = "median"
     if not len(strength) and len(rec.index) > _MIN_FALLBACK_CHANNELS:
-        # No pulse on the median score: the artifact may reach only a minority of the
-        # channels (ds004977, stimulating contacts switched to the stimulator: z 9 to 15
-        # on the median, 47 to 322 on the 90th percentile of the non-flat channels, 10 at
-        # most between pulses). The 90th percentile is then tried before giving up.
         score_used = "p90"
         score = quantile_score(rec.data, rec.index, _FALLBACK_QUANTILE)
         scores = (score, robust_z(score))
@@ -629,7 +603,6 @@ def _evoparam_candidates(
         return cands, scores, score_used
     cands, templates, reference = _strength_gate(rec, cands, opts, user, snip)
     if len(templates):
-        # Recovery: weaker artifacts that match a template of the confirmed pulses
         cands = _recover(rec, scores, cands, (templates, reference), opts, snip)
     return cands, scores, score_used
 
@@ -647,12 +620,6 @@ def _strength_gate(
     n_pre, n_post, max_shift = snip
     onsets, strength = cands.onsets, cands.strength
     reference = np.percentile(strength, _REFERENCE_PERCENTILE)
-    # the gate holds on both scales: the robust z of the first difference and the
-    # size of the deflection (µV). A channel that saturates for an instant (an
-    # electrode pop) has a steep edge, so a z near the pulses', but a deflection tens
-    # of times smaller than the stimulation artifact (ds004696 sub-07: 0.1 to 2 mV
-    # against 35 mV). The size of reference is taken among the candidates that pass on
-    # z, since pops can outnumber the pulses (47 candidates for 5 pulses there).
     relative = strength / reference
     size = artifact_size(rec.data, rec.index, onsets, rec.sfreq)
     by_z = relative >= opts.min_relative
@@ -679,7 +646,6 @@ def _strength_gate(
         confirmed |= hit
         rho = np.where(hit, np.maximum(rho, user_rho), rho)
         templates = np.vstack([templates, user])
-    # Only the templates of confirmed pulses are used for recovery
     good = np.unique(labels[confirmed & (labels >= 0)])
     relabel = np.full(len(templates), -1)
     relabel[good] = np.arange(len(good))
@@ -728,11 +694,9 @@ def _event_table(rec: _Recording, cands: _Candidates, threshold_sd: float) -> An
     """Return the event table of the pulses, before saturation, sites and trains."""
     index, sfreq = rec.index, rec.sfreq
     onsets, labels = cands.onsets, cands.labels
-    # Artifact size and the channel that carries it
     peak_abs, best = artifact_size(rec.data, index, onsets, sfreq, argmax=True)
     argmax = [rec.names[index[b]] for b in best]
 
-    # Template classes renumbered from 0 in order of first appearance (-1: no template)
     classes = np.full(len(labels), -1)
     seen: dict[Any, Any]
     seen = {}
@@ -767,7 +731,6 @@ def _add_saturation(events: Any, rec: _Recording) -> None:
         rec.data, rec.sfreq, events=events, ch_names=rec.names, picks=rec.index, t0=rec.t0
     )
     if len(sat):
-        # the number of distinct channels saturated at each pulse
         pairs = set(
             zip(
                 np.asarray(sat["event_index"]).tolist(),
@@ -903,8 +866,6 @@ def _spec_template(rec: _Recording, onsets: Any, opts: _Detection, template: Any
     return _spec.spec_template(rec.data, rec.index, onsets, rec.sfreq, opts.n_template)
 
 
-# Spec method 2: the snippet starts 1 ms before the onset; a detection matches the template
-# scan within 0.5 ms; the strength of a template detection is the largest z within 2 ms.
 _SPEC_PRE = 0.001
 _SPEC_TOLERANCE = 0.0005
 _SPEC_HALF_WINDOW = 0.002
@@ -1053,8 +1014,6 @@ def detect_events(
             raise DataError("detect_events: sfreq is required for an array.")
         data, rate, names, first = source, sfreq, ch_names, 0.0
     events = detect_pulses(data, rate, ch_names=names, t0=first if t0 is None else t0, **kwargs)
-    # one step for this call, after the record of the source: the settings of the detection
-    # (the keyword arguments of detect_pulses, resolved)
     settings = dict(events.attrs["provenance"]["steps"][-1]["settings"])
     base = (
         source.provenance

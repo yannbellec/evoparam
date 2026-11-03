@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 __all__ = ["resample"]
 
-# Distance (in samples) under which time zero is taken to fall on a sample of the new grid.
 _ON_GRID = 1e-6
 
 
@@ -44,7 +43,6 @@ def resample(ts: Any, sfreq: float) -> "TrialSet":
     new_sfreq = ts.sfreq * up / down
     data = resample_poly(ts.data, up, down, axis=-1, padtype="line")
     n_new = data.shape[-1]
-    # Keep the sample nearest to t = 0 at exactly 0 when the grid allows it
     first = ts.times[0]
     offset = round(-first * new_sfreq)
     times = (

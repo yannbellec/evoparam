@@ -13,7 +13,6 @@ from evoparam.utils._sklearn_checks import EXPECTED, FORBIDDEN, expected_failed_
 
 sklearn_checks = pytest.importorskip("sklearn.utils.estimator_checks")
 
-# Most scikit-learn checks expected to fail.
 MAX_EXPECTED_FAILURES = 15
 
 ESTIMATORS = [

@@ -42,7 +42,6 @@ import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-# Import names of the optional packages the test suite uses, and the extra holding each.
 OPTIONAL = {
     "pandas": "data",
     "pyarrow": "data",

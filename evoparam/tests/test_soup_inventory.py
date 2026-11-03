@@ -21,8 +21,6 @@ import pytest
 
 import evoparam
 
-# Longest License field read as a licence name (longer ones hold the licence text), the
-# fewest packages checked, and the fewest requirements.
 MAX_LICENSE_NAME = 200
 MIN_CHECKED = 5
 MIN_REQUIREMENTS = 220
@@ -50,7 +48,7 @@ def _soup() -> Any:
 
 def test_req399_soup_and_third_party_are_up_to_date() -> None:
     if sys.version_info < (3, 11):
-        pytest.importorskip("tomli")  # the generator reads pyproject.toml
+        pytest.importorskip("tomli")
     assert _tool("gen_soup").main(["--check"]) == 0, "run python tools/gen_soup.py"
 
 
@@ -115,14 +113,13 @@ def test_req399_licences_agree_with_the_installed_metadata() -> None:
             )
         )
         if not _family(declared):
-            continue  # the metadata names no licence
+            continue
         assert _family(row["licence"]) & _family(declared), (row["package"], declared)
         checked += 1
     assert checked >= MIN_CHECKED
 
 
 def _third_party_imports() -> Any:
-    # tomllib is standard from Python 3.11 (the package falls back to tomli on 3.10)
     stdlib = set(sys.stdlib_module_names) | {"tomllib"}
     found = set()
     for path in (ROOT / "evoparam").rglob("*.py"):
@@ -145,7 +142,6 @@ def _third_party_imports() -> Any:
 
 def test_req399_every_third_party_import_is_in_the_inventory() -> None:
     inventoried = {row["import_name"].split(".")[0] for row in _soup()["packages"]}
-    # ``ndx_evoparam`` is evoparam's own NWB extension (evoparam/io/ndx_evoparam)
     missing = sorted(_third_party_imports() - inventoried - {"ndx_evoparam"})
     assert missing == []
 
@@ -171,9 +167,6 @@ def test_req399_traceability_generator() -> None:
     assert "evoparam/tests/test_soup_inventory.py" in row["tests_naming_it"]
 
 
-# requirements that no test names: none since 2026-10-11 (the last four, of earlier build
-# steps, are named by tests now; some of those tests are strict expected failures whose
-# reasons give what is missing, see CHANGELOG)
 UNTESTED = []
 
 

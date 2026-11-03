@@ -64,18 +64,11 @@ from evoparam._typing import Any, NDArray
 __all__ = ["Calibration", "scan_level"]
 
 FWHM_PER_SIGMA = 2.0 * np.sqrt(2.0 * np.log(2.0))
-# widths sampled (log scale) for the curvatures of the scan field
 N_WIDTHS = 48
-# parameters of the reference scan: location, width and amplitude
 P_SCAN = 3
-# parts of the baseline whose AR spectra measure how much the noise spectrum changes over
-# time (the window is about one part long on ds004080: 1.5 s of baseline, 0.48 s window)
 SPECTRAL_SEGMENTS = 3
-# fewest parts with which a spread can be measured
 MIN_SEGMENTS = 2
-# fewest samples per AR coefficient in a part
 SEGMENT_SAMPLES_PER_ORDER = 10
-# the bracket of the scan level stops growing here (u = 50: a tail far below any alpha)
 MAX_LEVEL = 50.0
 
 
@@ -173,7 +166,7 @@ def _spectral_cov(a: Any, innovation: float, acov: Any, n_base: int) -> Any:
 class Calibration:
     """Calibrated acceptance threshold of one fit (see the module docstring)."""
 
-    def __init__(  # noqa: PLR0913, PLR0917  (the noise model of one fit, from the engine)
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         alpha: float,
         white: Any,
@@ -219,11 +212,9 @@ class Calibration:
             lags = np.arange(1, len(self.a))
             phase = np.exp(-1j * np.outer(omega, lags))
             a_w = self.a[0] + phase @ self.a[1:]
-            # d log S / d phi_k = 2 Re(exp(-i w k) / A(w)), A(w) = sum_j a_j exp(-i w j)
             grad = 2.0 * np.real(phase / a_w[:, None])
             spread = None
             if self.segments:
-                # log spectra of the parts (up to a constant), centred on their mean
                 logs = np.array(
                     [-2.0 * np.log(np.abs(f[0] + phase @ f[1:]) + 1e-300) for f in self.segments]
                 )
@@ -244,16 +235,11 @@ class Calibration:
         power = np.abs(np.fft.rfft(x, n_fft)) ** 2 * weight
         total = float(power.sum())
         if not (np.isfinite(total) and total > 0):
-            return 0.0  # a direction too small to carry power: no spectral weighting
-        # the component's share of each frequency minus the flat share of the residual
-        # (the criterion's own variance estimate absorbs an error common to all frequencies)
+            return 0.0
         share = power / total - weight / weight.sum()
         c = share @ grad
         v = float(c @ self.cov @ c)
         if spread is not None and np.isfinite(v):
-            # the change of the spectrum over time: the spread of the parts' spectra along
-            # this direction beyond their own sampling error (each part holds 1/m of the
-            # baseline: m times the variance of the whole-baseline estimate)
             m = len(spread)
             eps = spread @ share
             between = float(eps @ eps) / (m - 1)
@@ -279,5 +265,4 @@ class Calibration:
         if others.shape[1]:
             qq, _ = np.linalg.qr(others)
             q = q - qq @ (qq.T @ q)
-        # deviance needed: c + (p - 3) ln n; BIC already charges p ln n
         return self.inflate(self.c0, self._variance(q)) - P_SCAN * self.ln_n

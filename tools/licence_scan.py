@@ -35,12 +35,10 @@ from importlib import metadata
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# a longer ``License`` field is the whole licence text, read through the classifiers instead
 SHORT_LICENCE = 200
 
 COPYLEFT = re.compile(r"\b(A|L)?GPL|GNU (Lesser |Affero )?General Public", re.IGNORECASE)
 
-# distribution -> the files that its licence file puts under the GPL (and nothing else)
 FILE_SCOPED = {
     "docutils": ("tools/editors/emacs/rst.el",),
 }

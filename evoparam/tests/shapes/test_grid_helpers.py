@@ -18,7 +18,6 @@ def test_window_info_cache_is_bounded_and_exact() -> None:
         assert math.isclose(length, float(times[-1]))
         assert math.isclose(sfreq, 1000.0 + k)
         assert len(_base._WINDOW_CACHE) <= _base._WINDOW_CACHE_SIZE
-    # a cached axis gives the same answer
     times = np.arange(10) / 1000.0
     assert _base.window_info(times) == _base.window_info(times.copy())
 
@@ -40,7 +39,6 @@ def test_grid_search_matches_numpy_searchsorted() -> None:
     grid = origin + step * np.arange(n_points, dtype=np.float64)
     rng = np.random.default_rng(0)
     on_grid = grid[rng.integers(0, n_points, 400)]
-    # values on the grid points, a hair off them, outside the grid and non-finite
     values = np.r_[
         on_grid,
         np.nextafter(on_grid, np.inf),

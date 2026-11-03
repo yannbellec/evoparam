@@ -10,7 +10,7 @@ removal; the trials of each behavioural state are averaged separately.
 
 Data: simulated macaque recording, 16 contacts 40 µm apart, awake and NREM states
 (no public macaque dataset is in the registry yet; the preset is validated on simulations).
-"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+"""  # noqa: D205, D400
 
 # %%
 # Simulate a laminar recording
@@ -51,10 +51,10 @@ print("".join("+" if s > 0 else "-" if s < 0 else "." for s in signs))
 # Figure
 # ------
 
-import matplotlib  # noqa: E402  (sphinx-gallery section)
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-from evoparam import plots  # noqa: E402  (sphinx-gallery section)
+from evoparam import plots  # noqa: E402
 
 fig = plots.plot_group(group, kind="grid", max_channels=8)
 

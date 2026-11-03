@@ -25,8 +25,6 @@ __all__ = [
 _E = TypeVar("_E", bound="BaseEstimatorMixin")
 _T = TypeVar("_T")
 
-# Dimensions of a scikit-learn matrix (samples x features), and the fewest features (time
-# points) of an evoked-response input.
 _MATRIX_NDIM = 2
 _MIN_TIME_POINTS = 2
 
@@ -116,8 +114,8 @@ class BaseEstimatorMixin:
                 caller="evoparam.utils._estimator.BaseEstimatorMixin.__sklearn_tags__",
             )
             from sklearn.base import BaseEstimator
-            from sklearn.utils import Tags, TargetTags  # noqa: F401  (version check: scikit-learn >= 1.6)
-        except ImportError:  # pragma: no cover - only with scikit-learn
+            from sklearn.utils import Tags, TargetTags  # noqa: F401
+        except ImportError:  # pragma: no cover
             return None
         from sklearn.utils import TransformerTags
 
@@ -141,13 +139,13 @@ class BaseEstimatorMixin:
 
 
 class TransformerMixin:
-    if TYPE_CHECKING:  # provided by the estimator that mixes this class in
+    if TYPE_CHECKING:
         fit: Callable[..., Any]
 
-    def fit_transform(self, X: Any, y: Any = None, **fit_params: Any) -> Any:  # noqa: N803  (scikit-learn API: X)
+    def fit_transform(self, X: Any, y: Any = None, **fit_params: Any) -> Any:  # noqa: N803
         return self.fit(X, y, **fit_params).transform(X)
 
-    def set_output(self: _T, *, transform: str | None = None) -> _T:  # noqa: ARG002  (scikit-learn API)
+    def set_output(self: _T, *, transform: str | None = None) -> _T:  # noqa: ARG002
         return self
 
 

@@ -19,7 +19,6 @@ from ._text import methods_text
 
 __all__ = ["qc", "markdown", "html", "pdf", "site_pages"]
 
-# Artifact-quality score under which a trial is counted as poorly cleaned in the QC table.
 _LOW_QUALITY = 0.5
 
 RESEARCH_USE = (
@@ -218,7 +217,7 @@ def markdown(result: Any, *, data: Any = None) -> Any:
 def _have_tabulate() -> bool:
     """Return whether ``tabulate`` (needed by ``DataFrame.to_markdown``) is installed."""
     try:
-        import tabulate  # noqa: F401  (availability check only)
+        import tabulate  # noqa: F401
     except ImportError:
         return False
     return True
@@ -313,7 +312,6 @@ def site_pages(
         index=False
     ):
         cond = str(raw_cond)
-        # the part of the label that is a site of the data, else the whole label (by=site)
         site = next((p for p in cond.split("/") if p in known), cond) if cond else None
         if site is None:
             site = (
@@ -378,7 +376,6 @@ def pdf(
         if isinstance(result, GroupFit):
             for site, members in site_pages(result, data, site_column=site_column):
                 conds = {c for _, c, _ in members}
-                # several conditions of one site: one panel per channel and condition
                 names = [f"{n} {c}" if len(conds) > 1 else n for n, c, _ in members]
                 sub = GroupFit.from_fits([result.fits[pos] for _, _, pos in members], names)
                 site_data = (

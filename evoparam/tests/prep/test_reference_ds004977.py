@@ -23,8 +23,6 @@ from typing import Any
 import numpy as np
 import pytest
 
-# Sampling rate (Hz) and trials of the first run, fewest samples, the fraction of channels
-# that vary, and the level of the Wilcoxon test.
 SFREQ = 4800.0
 N_TRIALS = 12
 MIN_SAMPLES = 200
@@ -39,7 +37,6 @@ pytestmark = [
     ),
 ]
 
-# (subject, run, uncensored stimulation site)
 RUNS = [
     ("1", "01", "ROC11-ROC12"),
     ("2", "12", "RZ4-RZ5"),
@@ -136,7 +133,6 @@ def test_reads_the_uncensored_epochs() -> None:
     assert trials.data.shape[0] == N_TRIALS
     assert trials.data.shape[1] > MIN_SAMPLES
     assert np.isfinite(trials.data).all()
-    # Uncensored: the channels are not constant
     assert (trials.data.std(axis=-1) > 0).all(axis=0).mean() > MIN_VARYING
 
 
@@ -144,8 +140,6 @@ def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons: Any) -> None:
 
     from scipy.stats import wilcoxon
 
-    # Over the channels of the four runs (710 channels: median R² 0.26 with car, 0.18 with
-    # car_adaptive, p ~ 1e-27 at the time of writing), and in each run (p < 1e-4)
     car = np.concatenate([c[0] for c in comparisons])
     adaptive = np.concatenate([c[1] for c in comparisons])
     assert np.median(adaptive) < np.median(car)

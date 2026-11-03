@@ -33,19 +33,16 @@ __all__ = [
     "auto_chunk",
 ]
 
-# Allowed amplitude units and their factor to volts (None: not a voltage).
 UNITS: dict[str, float | None] = {"uV": 1e-6, "mV": 1e-3, "V": 1.0, "fT": None, "au": None}
 
 MODALITIES = ("spes", "erp", "tep", "erna", "sep", "ecap", "vep", "baep", "mep", "lfp_ep")
 
-_MIN_SAMPLES = 2  # a time axis or a window has a sampling step
-_SFREQ_RTOL = 1e-6  # largest relative mismatch between sfreq and the time axis
-_MIN_SEM_COUNT = 2  # values needed for a standard error
-_TRIALSET_NDIM = 3  # trials x channels x times
-_EVOKED_NDIM = 2  # channels x times
+_MIN_SAMPLES = 2
+_SFREQ_RTOL = 1e-6
+_MIN_SEM_COUNT = 2
+_TRIALSET_NDIM = 3
+_EVOKED_NDIM = 2
 
-# Standard metadata columns (spec Table 4.1) and the dtype kind they must have.
-# Kinds: "i" integer, "f" float, "b" bool, "s" string.
 METADATA_COLUMNS = {
     "trial": "i",
     "subject": "s",
@@ -67,7 +64,6 @@ METADATA_COLUMNS = {
     "reject_reason": "s",
 }
 
-# Standard channel-table columns (spec Table 4.2).
 CH_INFO_COLUMNS = {
     "name": "s",
     "type": "s",
@@ -128,7 +124,7 @@ def _check_table(table: Any, name: str, n_rows: int, columns: dict[str, str]) ->
         )
     if len(table) != n_rows:
         raise DataError(f"{name}: expected {n_rows} rows, got {len(table)}.")
-    index = getattr(table, "index", None)  # a Table has no index: its rows are 0..n-1
+    index = getattr(table, "index", None)
     if index is not None and not (
         type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1
     ):
@@ -274,10 +270,6 @@ def _chunks(n_channels: int, chunk: int | str | None, n_trials: int, n_times: in
     return [slice(start, min(start + size, n_channels)) for start in range(0, n_channels, size)]
 
 
-# Bytes of trials averaged at once: _average_block holds a copy of its block and a few
-# temporaries of the same size, so the channels of a chunk are averaged by blocks of at most
-# this size (every value is computed per channel and time point, so the result does not
-# depend on the blocks).
 _AVERAGE_BLOCK_BYTES = 16 * 2**20
 
 
@@ -305,8 +297,6 @@ def _average_block(
     if mask_block is not None:
         block[mask_block] = np.nan
     count = np.sum(~np.isnan(block), axis=0)
-    # NaN where there is no sample (mean) or fewer than two (standard error): the
-    # quotients are computed on the other points only, so that no 0 / 0 is computed
     mean = np.full(count.shape, np.nan)
     sem = np.full(count.shape, np.nan)
     two = count >= _MIN_SEM_COUNT
@@ -314,7 +304,7 @@ def _average_block(
         np.divide(np.nansum(block, axis=0), count, out=mean, where=count > 0)
         np.divide(_spread(block), np.sqrt(count), out=sem, where=two)
     else:
-        ordered = np.sort(block, axis=0)  # NaN sorted last
+        ordered = np.sort(block, axis=0)
         trim = np.floor(TRIMMED_PROPORTION * count).astype(int)
         low, high = trim, count - trim  # kept: ordered[low:high]
         cumulative = np.concatenate(
@@ -350,7 +340,7 @@ def _spread(block: FloatArray) -> FloatArray:
 class _ContainerMixin(DeepEqualMixin):
     """copy, to_dict / from_dict, save / load and the new-object helper."""
 
-    if TYPE_CHECKING:  # fields of the dataclasses that use this mixin
+    if TYPE_CHECKING:
         __dataclass_fields__: ClassVar[dict[str, Any]]
         data: FloatArray
         times: FloatArray
@@ -582,7 +572,7 @@ class TrialSet(_ContainerMixin):
         modality = f", {self.modality}" if self.modality else ""
         return (
             f"<TrialSet | {self.n_trials} trials × {self.n_channels} channels × "
-            f"{self.n_times} times, {self.tmin:.3f} – {self.tmax:.3f} s, "
+            f"{self.n_times} times, {self.tmin:.3f} - {self.tmax:.3f} s, "
             f"{self.sfreq:g} Hz, {self.units}, {self.species}{modality}>"
         )
 
@@ -784,7 +774,7 @@ class TrialSet(_ContainerMixin):
             ``metadata`` holding its group values.
         robust : bool
             Use the 20 % trimmed mean instead of the mean; its standard error is
-            the winsorised standard deviation divided by (1 − 2 × 0.2) √n.
+            the winsorised standard deviation divided by (1 - 2 × 0.2) √n.
         chunk : int, "auto" or None
             Channels processed at once (results do not depend on it).
 
@@ -834,7 +824,6 @@ class TrialSet(_ContainerMixin):
         count = np.empty((self.n_channels, n_times), dtype=int)
         parts = _blocks(_chunks(self.n_channels, chunk, index.size, n_times), index.size, n_times)
         for part in parts:
-            # the trials of the block only (data[index][:, part] would copy every channel)
             block = self.data[index, part] if index.size != self.n_trials else self.data[:, part]
             mask_block = None
             if self.masks is not None:
@@ -1060,11 +1049,11 @@ class Evoked(_ContainerMixin):
         n_trials = (
             self.n_trials
             if isinstance(self.n_trials, int)
-            else f"{int(self.n_trials.min())}–{int(self.n_trials.max())}"
+            else f"{int(self.n_trials.min())}-{int(self.n_trials.max())}"
         )
         return (
             f"<Evoked | {self.n_channels} channels × {self.n_times} times, "
-            f"{self.tmin:.3f} – {self.tmax:.3f} s, {self.sfreq:g} Hz, {self.units}, "
+            f"{self.tmin:.3f} - {self.tmax:.3f} s, {self.sfreq:g} Hz, {self.units}, "
             f"n_trials={n_trials}, {self.species}{modality}>"
         )
 

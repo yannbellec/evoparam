@@ -27,10 +27,10 @@ from evoparam.stream import StreamFitter
 
 SFREQ = 2048.0
 N_CHANNELS = 64
-PERIOD = 1.0  # s between pulses
+PERIOD = 1.0
 ARTIFACT = (-0.002, 0.008)
-WINDOW = (0.0, 0.5)  # a 0.5 s response window (REQ-324), artifact interpolated
-N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
+WINDOW = (0.0, 0.5)
+N1 = (-40.0, 0.03, 0.02)
 N2 = (30.0, 0.12, 0.05)
 
 

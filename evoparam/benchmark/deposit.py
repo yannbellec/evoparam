@@ -207,7 +207,7 @@ def prepare_deposit(
     log = log or (lambda _message: None)
     if not hasattr(suite, "cells"):
         suite = load_suite(suite)
-    suite = cast("Suite", suite)  # a Suite from here on
+    suite = cast("Suite", suite)
     unknown = [f for f in formats if f not in ("bids", "nwb")]
     if unknown:
         raise DataError(f"unknown formats {unknown}; use 'bids' and/or 'nwb'.")

@@ -29,7 +29,7 @@ def test_arrays() -> None:
     assert deep_equal(np.array([1 + 1j, np.nan]), np.array([1 + 1j, np.nan]))
     assert not deep_equal(np.array([1.0, 2.0]), np.array([1.0, 3.0]))
     assert not deep_equal(np.zeros(2), np.zeros(3))
-    assert not deep_equal(np.zeros(2), np.zeros(2, dtype=int))  # another dtype kind
+    assert not deep_equal(np.zeros(2), np.zeros(2, dtype=int))
     assert deep_equal(np.array(["a", "b"]), np.array(["a", "b"]))
     assert deep_equal(np.array([1, 2]), [1, 2])
 
@@ -40,11 +40,11 @@ def test_scalars_and_containers() -> None:
     assert deep_equal(1, 1.0)
     assert not deep_equal(1.0, 1.5)
     assert deep_equal(True, np.bool_(True))
-    assert not deep_equal(True, 1)  # a flag is not a number
+    assert not deep_equal(True, 1)
     assert not deep_equal(1, True)
     assert deep_equal({"a": [1.0, nan]}, {"a": [1.0, nan]})
     assert not deep_equal({"a": 1}, {"b": 1})
-    assert not deep_equal([1, 2], (1, 2))  # list and tuple differ
+    assert not deep_equal([1, 2], (1, 2))
     assert not deep_equal([1, 2], [1, 2, 3])
     assert deep_equal("x", "x")
     assert not deep_equal("x", "y")
@@ -69,7 +69,7 @@ def test_tables() -> None:
     assert deep_equal(table, Table({"x": [1.0, np.nan], "s": ["a", None]}))
     assert not deep_equal(table, Table({"x": [1.0, np.nan]}))
     assert not deep_equal(table, Table({"x": [1.0, 2.0], "s": ["a", None]}))
-    assert not deep_equal(table, Table({"x": [1, 2], "s": ["a", None]}))  # int and float
+    assert not deep_equal(table, Table({"x": [1, 2], "s": ["a", None]}))
     assert not deep_equal(table, Table({"x": [1.0, np.nan], "s": ["a", "b"]}))
     assert not deep_equal(table, Table({"x": [1.0], "s": ["a"]}))
     assert not deep_equal(table, {"x": [1.0, np.nan], "s": ["a", None]})

@@ -10,7 +10,6 @@ import sys
 
 import pytest
 
-# Pulses of the benchmark recording.
 N_PULSES = 120
 
 pytestmark = pytest.mark.skipif(

@@ -15,7 +15,6 @@ import os
 
 import numpy as np
 
-# Output columns (required, optional) of the tasks the adapters answer, in the order of
 # the schemas.
 COLUMNS = {
     "T1": (["site", "channel", "responsive", "p_value"], ["score"]),

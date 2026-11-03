@@ -18,7 +18,6 @@ import pytest
 
 import evoparam
 
-# Fewest words of the vocabulary.
 MIN_WORDS = 15
 
 pytestmark = pytest.mark.core
@@ -137,7 +136,6 @@ def test_req012_public_names() -> None:
         try:
             module = importlib.import_module(name)
         except ImportError:
-            # a module of an optional extra: its source is scanned by the test above
             continue
         public = getattr(module, "__all__", [n for n in dir(module) if not n.startswith("_")])
         for attr in public:

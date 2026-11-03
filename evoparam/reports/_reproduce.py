@@ -46,7 +46,6 @@ _NOT_FIT_KWARGS = (
     "_overrides",
     "_changed_from_preset",
 )
-# Fields that change between two runs of the same computation.
 _VOLATILE = {"provenance", "duration_s"}
 
 
@@ -83,7 +82,6 @@ class ReproduceReport:
 
 
 ###################################################################################################
-## Reading the container
 
 
 def _read_settings_json(path: Any) -> Any:
@@ -104,7 +102,6 @@ def _resolve_path(path: Any) -> Any:
 
 
 ###################################################################################################
-## Replaying the steps
 
 
 def _callable(function: Any) -> Any:
@@ -179,12 +176,8 @@ def _fit_group(trials: Any, settings: Any) -> "GroupFit":
     accepted = _accepted(ResponseModel, kwargs)
     preset = settings.get("preset")
     model = ResponseModel(preset.get("name") if isinstance(preset, dict) else preset, **accepted)
-    # every setting is passed again; the regenerated result records the keys the user
-    # had set (REQ-331 ``_overrides``), not all of them
     if settings.get("_overrides") is not None:
         model._overrides_record = list(settings["_overrides"])
-    # Settings that the constructor does not take (e.g. freq_min) are read by
-    # ResponseModel.settings() from the model's attributes.
     for key in set(kwargs) - set(accepted):
         setattr(model, key, kwargs[key])
     return model.fit_group(trials)
@@ -349,7 +342,6 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
                 if run.state is None:
                     return None, records
                 if data is not None and not function.startswith(("evoparam.io.", "evoparam.sim.")):
-                    # the caller's data stand for the source; this step is replayed below
                     records[-1]["status"] = "skipped"
                 else:
                     continue
@@ -358,7 +350,7 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
                 return None, records
         except EvoparamVersionError:
             raise
-        except Exception as exc:  # noqa: BLE001  (reported with status failed, never hidden)
+        except Exception as exc:  # noqa: BLE001
             records.append(
                 {
                     "function": function,
@@ -412,8 +404,6 @@ def _replay_step(run: _Replay, i: int, settings: Any, final_settings: Any) -> di
                 "message": "unknown function",
             }
         out = func(run.state, **_accepted(func, settings))
-        # the result itself when it is the saved object (an ArtifactResult), else
-        # the cleaned data that the next step works on
         run.state = (
             out
             if i == len(steps) - 1 and type(out) is type(run.obj)
@@ -541,7 +531,7 @@ def _compare_numbers(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: A
     try:
         a = np.asarray(new)
         b = np.asarray(old)
-    except Exception:  # noqa: BLE001  (reported as a difference)
+    except Exception:  # noqa: BLE001
         return _mismatch(out, path)
     if a.shape != b.shape:
         return _mismatch(out, path)
@@ -559,7 +549,6 @@ def _compare_numbers(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: A
     return 0.0
 
 
-# (applies to the saved value, comparison), tried in order by :func:`_compare`.
 _COMPARERS: tuple[tuple[Any, Any], ...] = (
     (lambda old: dataclasses.is_dataclass(old) and not isinstance(old, type), _compare_dataclass),
     (lambda old: type(old).__name__ == "DataFrame", _compare_frame),
@@ -596,7 +585,7 @@ def _missing_plugins(recorded: Any) -> dict[Any, Any]:
     for registry in (SHAPES, BACKGROUNDS, presets.PRESETS, READERS):
         try:
             available |= set(registry)
-        except EvoparamError as err:  # a broken plugin set: report it, go on
+        except EvoparamError as err:
             out["<plugins>"] = {"recorded": None, "installed": None, "message": str(err)}
     for name, origin in sorted((recorded or {}).items()):
         dist, _, version = str(origin).partition("==")
@@ -626,7 +615,7 @@ def _environment_differences(recorded: Any) -> dict[Any, Any]:
     current = capture_environment()
     out = {}
     for key in sorted(set(recorded) | set(current)):
-        if key in ("optional", "plugins"):  # plugins: reported by _missing_plugins
+        if key in ("optional", "plugins"):
             continue
         if recorded.get(key) != current.get(key):
             out[key] = [recorded.get(key), current.get(key)]
@@ -754,7 +743,6 @@ def reproduce(
     except EvoparamVersionError as err:
         if not missing_plugins:
             raise
-        # the preset came from a plugin that is not installed: say which one
         raise EvoparamVersionError(
             f"{err} " + "; ".join(item["message"] for item in missing_plugins.values())
         ) from err
@@ -803,8 +791,6 @@ def migrate(path: Any) -> dict[str, Any]:
         return {"path": path, "from_schema": from_schema, "to_schema": SCHEMA, "migrated": False}
     parent = os.path.dirname(os.path.abspath(path))
     with tempfile.TemporaryDirectory(prefix=".evoparam-migrate-", dir=parent) as tmp:
-        # Write and re-read the new container next to the old one, then swap them, so that
-        # an interrupted migration leaves the original in place.
         target = os.path.join(tmp, "new" + os.path.splitext(path)[1])
         written = save_object(obj, target)
         load_object(written)

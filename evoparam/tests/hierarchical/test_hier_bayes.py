@@ -13,19 +13,12 @@ import pytest
 from evoparam.hierarchical import compare_hierarchical, fit_hierarchical
 from evoparam.tests.hierarchical.helpers import simulate_group
 
-# Fewest channels with a posterior latency interval in the short run (3 subjects x 8
-# channels, 80 % responding).
 MIN_CHANNELS_WITH_CI = 5
-# Latency models compared by LOO: ex-Gaussian and normal.
 N_MODELS = 2
-# NUTS diagnostics of REQ-173: largest R-hat, smallest effective sample size, largest
-# fraction of divergent transitions.
 MAX_R_HAT = 1.01
 MIN_ESS = 400
 MAX_DIVERGENT_FRACTION = 0.01
-# Fewest variance components whose posterior interval holds the truth (REQ-172).
 MIN_COVERAGE = 0.9
-# Longest NUTS time per subject (s, REQ-176).
 MAX_SECONDS_PER_SUBJECT = 300
 
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"

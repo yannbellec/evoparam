@@ -7,7 +7,6 @@ import numpy as np
 
 from evoparam.io.brainvision import read_brainvision_header, read_brainvision_segment
 
-# Channels of the recording written.
 N_CHANNELS = 3
 
 ###################################################################################################

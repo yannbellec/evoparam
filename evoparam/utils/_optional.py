@@ -13,7 +13,6 @@ from types import ModuleType
 
 __all__ = ["require"]
 
-# Import name -> distribution name, when they differ.
 _DISTRIBUTIONS = {"sklearn": "scikit-learn", "yaml": "PyYAML"}
 
 

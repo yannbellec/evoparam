@@ -177,9 +177,9 @@ def _one_level_profile(y: Any, code: Any) -> tuple[Any, Any]:
 
     def parts(gamma: Any) -> Any:
         """Return the mean, quadratic form, log-determinant and weight sum at ``gamma``."""
-        w = n_i / (1 + gamma * n_i)  # 1' H_i^-1 1 for each unit
+        w = n_i / (1 + gamma * n_i)
         mu = np.sum(w * ybar) / np.sum(w)
-        quad = within + np.sum(w * (ybar - mu) ** 2)  # r' H^-1 r
+        quad = within + np.sum(w * (ybar - mu) ** 2)
         logdet = np.sum(np.log1p(gamma * n_i))
         return mu, quad, logdet, np.sum(w)
 
@@ -190,8 +190,6 @@ def _one_level_profile(y: Any, code: Any) -> tuple[Any, Any]:
 
     if within <= 0:
         raise DataError("variance_components: no variation within units.")
-    # gamma = sigma_u^2 / sigma_e^2: a grid on the log scale, refined around its minimum,
-    # and the boundary gamma = 0 (no variance between units)
     grid = np.exp(np.linspace(-14, 10, 97))
     values = [neg(g) for g in grid]
     best = int(np.argmin(values))
@@ -214,7 +212,7 @@ def reml(
     groups: Any,
     *,
     se: ArrayLike | None = None,
-    X: ArrayLike | None = None,  # noqa: N803  (public keyword: the fixed-effect design X)
+    X: ArrayLike | None = None,  # noqa: N803
     residual: bool = True,
     tol: float = 1e-9,
     max_iter: int = 500,
@@ -298,12 +296,9 @@ def reml(
         xb, zb = blk["X"], blk["Z"]
         r = blk["y"] - xb @ beta
         est = lam * cho_solve(chol, zl.T @ (r / d))
-        # prediction errors (Henderson): Var(u - u_hat) = L A^-1 L + H C H' and
-        # Cov(beta_hat - beta, u_hat - u) = -C H', with H = G Z' V^-1 X = L A^-1 L Z' D^-1 X
         cond = lam[:, None] * cho_solve(chol, np.eye(len(lam))) * lam[None, :]
         hmat = lam[:, None] * cho_solve(chol, zl.T @ (xb / d[:, None]))
         mmat = cond + hmat @ beta_cov @ hmat.T
-        # unit means: x_bar' beta + the effects on the path from the top level to the unit
         counts = zb.sum(axis=0)
         xbar = (zb.T @ xb) / counts[:, None]
         path = ((zb.T @ zb) > 0) & (blk["level"][None, :] <= blk["level"][:, None])
@@ -385,7 +380,6 @@ def _maximise(
         sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.0)
         return blocks.objective(sds_, res_)[0]
 
-    # without sampling variances, a zero residual would make V singular
     floor = 1e-6 if (residual and not sampled) else 0.0
     bounds = [(0.0, None)] * n_levels + [(floor, None)] * int(residual)
     starts = [

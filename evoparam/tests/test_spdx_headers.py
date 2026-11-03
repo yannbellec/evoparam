@@ -17,15 +17,13 @@ import pytest
 
 import evoparam
 
-# Fewest files with a header, fewest modules written from a paper, and the columns of
-# the REIMPLEMENTED.md table.
 MIN_FILES = 400
 MIN_MODULES = 7
 N_COLUMNS = 4
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 TOOL = ROOT / "tools" / "add_spdx_headers.py"
-FIRST_COMMIT = "e6def07"  # the copy of the inherited project, renamed (NOTICE)
+FIRST_COMMIT = "e6def07"
 
 pytestmark = [
     pytest.mark.core,
@@ -133,7 +131,7 @@ def test_req396_every_file_with_inherited_code_is_marked(tmp_path: Any) -> None:
 def _implemented_from_a_paper() -> Any:
     out = []
     for path in sorted((ROOT / "evoparam").rglob("*.py")):
-        if "tests" in path.parts or path.name == "__init__.py":  # packages only summarise
+        if "tests" in path.parts or path.name == "__init__.py":
             continue
         doc = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) or ""
         if re.search(r"\b(Re-)?[Ii]mplemented from\b|\bSpecified only from\b", doc):
@@ -152,7 +150,7 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper() -> No
         for line in text.splitlines()
         if line.startswith("| ") and not line.startswith("| method")
     ]
-    for row in table_rows:  # paper and patent column filled
+    for row in table_rows:
         cells = [c.strip() for c in row.strip("|").split("|")]
         assert len(cells) == N_COLUMNS, row
         assert all(cells), row

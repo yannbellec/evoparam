@@ -12,7 +12,6 @@ from evoparam.io import read, read_mne
 mne = pytest.importorskip("mne")
 pd = pytest.importorskip("pandas")
 
-# Sampling rate (Hz) and trials of the MNE epochs.
 SFREQ = 1000.0
 N_TRIALS = 4
 

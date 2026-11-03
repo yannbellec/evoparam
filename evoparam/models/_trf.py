@@ -37,13 +37,9 @@ __all__ = ["TrfOptions", "least_squares_trf"]
 
 EPS = np.finfo(float).eps
 
-# Radius updates of SciPy's trf: a step whose actual reduction is below a quarter of the
-# predicted one shrinks the radius to a quarter of the step; one above three quarters that
-# reaches the boundary of the trust region (95 % of its radius) doubles it.
 _SHRINK = 0.25
 _EXPAND = 0.75
 _BOUND_HIT = 0.95
-# Lower bound of the fraction of the step to the bounds that keeps an iterate interior.
 _THETA_MIN = 0.995
 
 
@@ -316,8 +312,6 @@ def _cl_scaling(
     """Coleman-Li scaling vector ``v`` and its derivative ``dv``."""
     upper = (g < 0) & finite_ub
     lower = (g > 0) & finite_lb
-    # the distances are computed only where they are used (finite bound): an infinite bound
-    # elsewhere gives no inf - inf
     v = np.ones_like(x)
     np.subtract(x, lb, out=v, where=lower)
     np.subtract(ub, x, out=v, where=upper & ~lower)
@@ -329,7 +323,7 @@ def _strictly_feasible(x: FloatArray, lb: FloatArray, ub: FloatArray, rstep: flo
     """``x`` moved inside the bounds by ``rstep`` (relative; ``0``: one ulp)."""
     x_new: FloatArray = x.copy()
     if rstep == 0 and ((x > lb) & (x < ub)).all():
-        return x_new  # no bound active: nothing moves
+        return x_new
     active = _active(x, lb, ub, rstep)
     lower, upper = active == -1, active == 1
     if rstep == 0:
@@ -507,7 +501,7 @@ def _step_to_bound(
     steps[non_zero] = np.maximum(
         _quotient((lb - x)[non_zero], s_non_zero), _quotient((ub - x)[non_zero], s_non_zero)
     )
-    min_step = cast(float, np.min(steps))  # a float64 (x is float64)
+    min_step = cast(float, np.min(steps))
     return min_step, np.equal(steps, min_step) * np.sign(s).astype(int)
 
 
