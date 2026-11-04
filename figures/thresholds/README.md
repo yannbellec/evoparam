@@ -31,6 +31,7 @@ stated), in µV. Trial average: per-trial median of the baseline removed, then m
 | T7 | number of trials (≥ 5 for the test) | trials averaged | N1 / N2 found and invented; median \|latency error\| | N1 found 44 % (3 trials), 50 % (5), 61 % (10); N2 latency error 8.7 ms (3), 3.7 ms (5), 2.4 ms (10) |
 | T8 | onset at 10 % of the peak | % of the peak | median \|fitted onset - true onset\| (ms) | N1 1.0 ms at 10 %, 0.64 ms at 50 %; N2 5.3 ms at 10 %, 3.9 ms at 50 % |
 | T8 simple | same data | % of the peak where the onset is read (linear) | N1 and N2 panels, median \|onset error\| (ms), own y axis each | `t8_onset_fraction_simple.py`, checked by a naive reader (clarity 4/5, main message found) |
+| T8 example | same | (a) one contact: true N1, fitted N1, onsets at 10 % and 50 % of each peak; (b) bars 10 % vs 50 % | (a) µV vs ms; (b) mean \|onset error\| (ms), 95 % CI | `t8_onset_example.py`, naive reader 4/5 after 3 rounds |
 
 Rebuild (the ds004080 cache is filled by `benchmarks/plots/fetch_ds004080.py`):
 
