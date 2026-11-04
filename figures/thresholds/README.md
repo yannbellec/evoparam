@@ -30,6 +30,7 @@ stated), in µV. Trial average: per-trial median of the baseline removed, then m
 | T6 | response test (α = 0.05, FDR) | α | % responding contacts found; % noise-only contacts flagged | at 0.05: FDR 48 % found / 5.7 % flagged; Holm 3.7 % / 0.1 %; none 66 % / 14.6 %. With 10 trials a sign-flip test cannot give p < 1/1024, so Holm almost never passes |
 | T7 | number of trials (≥ 5 for the test) | trials averaged | N1 / N2 found and invented; median \|latency error\| | N1 found 44 % (3 trials), 50 % (5), 61 % (10); N2 latency error 8.7 ms (3), 3.7 ms (5), 2.4 ms (10) |
 | T8 | onset at 10 % of the peak | % of the peak | median \|fitted onset - true onset\| (ms) | N1 1.0 ms at 10 %, 0.64 ms at 50 %; N2 5.3 ms at 10 %, 3.9 ms at 50 % |
+| T8 simple | same data | % of the peak where the onset is read (linear) | N1 and N2 panels, median \|onset error\| (ms), own y axis each | `t8_onset_fraction_simple.py`, checked by a naive reader (clarity 4/5, main message found) |
 
 Rebuild (the ds004080 cache is filled by `benchmarks/plots/fetch_ds004080.py`):
 
