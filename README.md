@@ -16,6 +16,7 @@ evoparam turns each wiggle into a few clear numbers: **when**, **how big**, **ho
 <br>
 
 [![Neural Signal Processing and Modeling Lab](https://img.shields.io/badge/Neural_Signal_Processing_and_Modeling_Lab-PI_Rachel_June_Smith-1E6B52?style=for-the-badge&labelColor=0D1117)](https://www.uab.edu/engineering/ece/people/faculty/rachel-smith)
+[![OSCR](https://img.shields.io/badge/OSCR-listed_scientific_tool-6E40C9?style=for-the-badge&labelColor=0D1117)](https://openscicode.org/scientific-tools/evoparam/)
 
 [![Python](https://img.shields.io/badge/python-3.10_|_3.11_|_3.12_|_3.13-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache_2.0-0072B2)](LICENSE)
@@ -24,9 +25,6 @@ evoparam turns each wiggle into a few clear numbers: **when**, **how big**, **ho
 [![Platforms](https://img.shields.io/badge/runs_on-Linux_|_macOS_|_Windows-555555)](#install-it)
 [![Status](https://img.shields.io/badge/status-research_preview-E69F00)](#research-use-only)
 [![Last commit](https://img.shields.io/github/last-commit/yannbellec/evoparam?color=009E73)](https://github.com/yannbellec/evoparam/commits/main)
-<!-- oscr-badge:start -->
-[![OSCR](https://img.shields.io/badge/OSCR-scientific_tool-1E6B52)](https://openscicode.org/scientific-tools/evoparam/)
-<!-- oscr-badge:end -->
 
 <br>
 
