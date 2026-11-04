@@ -24,7 +24,9 @@ evoparam turns each wiggle into a few clear numbers: **when**, **how big**, **ho
 [![Platforms](https://img.shields.io/badge/runs_on-Linux_|_macOS_|_Windows-555555)](#install-it)
 [![Status](https://img.shields.io/badge/status-research_preview-E69F00)](#research-use-only)
 [![Last commit](https://img.shields.io/github/last-commit/yannbellec/evoparam?color=009E73)](https://github.com/yannbellec/evoparam/commits/main)
-[![OSCR](https://img.shields.io/badge/listed_on-OSCR-6E40C9)](https://openscicode.org/scientific-tools/evoparam/)
+
+<a href="https://openscicode.org/scientific-tools/evoparam/"><img src="figures/readme/oscr-badge.svg" alt="Listed on OSCR, the Open Scientific Code Registry" width="460"></a>
+
 
 <br>
 
